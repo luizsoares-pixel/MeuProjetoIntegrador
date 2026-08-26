@@ -1,0 +1,79 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Expo & React Native
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+app-example/
+/ios
+/android
+
+# Native Builds & Mobile Config
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# Metro & Bundler
+.metro-health-check*
+
+# Typescript & Builds
+*.tsbuildinfo
+build/
+target/
+out/
+bin/
+obj/
+
+# Logs & Debug
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+tmp/
+temp/
+
+# Environment & Secrets (Security)
+.env
+.env.*
+!.env.example
+*.local
+*.key
+*.pem
+*.crt
+*.cer
+*.pfx
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+.fuse_hidden*
+.directory
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# Local AI / Agent Configs
+AGENTS.md
+CLAUDE.md
+.cursorrules
+.cursor/
