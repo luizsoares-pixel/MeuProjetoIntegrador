@@ -1,11 +1,21 @@
-import { loginSchema } from "@menu-digital/contracts";
+import { loginSchema, registerSchema } from "@menu-digital/contracts";
 import { Router } from "express";
 import { authController } from "../controllers/auth.controller";
-import { authenticate } from "../middleware/authenticate";
+import { authMiddleware } from "../middlewares/auth";
 import { validateRequest } from "../middleware/validateRequest";
 
 export const authRouter = Router();
 
+// POST /auth/register - Cadastro de usuário com validação de esquema e transação compensatória
+authRouter.post(
+  "/register",
+  validateRequest(registerSchema),
+  (req, res, next) => {
+    authController.register(req, res, next);
+  }
+);
+
+// POST /auth/login - Autenticação com e-mail e senha
 authRouter.post(
   "/login",
   validateRequest(loginSchema),
@@ -14,9 +24,10 @@ authRouter.post(
   }
 );
 
+// GET /auth/me - Rota protegida para obtenção dos dados do usuário autenticado
 authRouter.get(
   "/me",
-  authenticate,
+  authMiddleware,
   (req, res, next) => {
     authController.me(req, res, next);
   }

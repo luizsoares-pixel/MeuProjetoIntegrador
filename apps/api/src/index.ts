@@ -28,8 +28,10 @@ app.use(
   }
 );
 
-app.listen(port, () => {
-  console.log(`API disponível em http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, () => {
+    console.log(`API disponível em http://localhost:${port}`);
+  });
+}
 
 export default app;
