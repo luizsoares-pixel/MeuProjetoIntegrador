@@ -1,43 +1,78 @@
-# Sistemas operacionais
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# Editores
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Ambiente local
-.env
-.env.*
-!.env.example
-*.local
-
-# Dependências e builds comuns
+# Dependencies
 node_modules/
 vendor/
+
+# Expo & React Native
+.expo/
 dist/
+web-build/
+expo-env.d.ts
+app-example/
+/ios
+/android
+
+# Native Builds & Mobile Config
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# Metro & Bundler
+.metro-health-check*
+
+# Typescript & Builds
+*.tsbuildinfo
 build/
 target/
 out/
 bin/
 obj/
 
-# Python
-__pycache__/
-.pytest_cache/
-.venv/
-venv/
-
-# Logs e temporários
+# Logs & Debug
 *.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 tmp/
 temp/
 
-# Arquivos sensíveis
+# Environment & Secrets (Security)
+.env
+.env.*
+!.env.example
+*.local
 *.key
 *.pem
-*.p12
+*.crt
+*.cer
 *.pfx
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+.fuse_hidden*
+.directory
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# Python
+__pycache__/
+.venv/
+venv/
