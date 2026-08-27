@@ -51,6 +51,25 @@ export class AuthController {
     }
   }
 
+  async requestPasswordRecovery(
+    request: Request,
+    response: Response,
+    next: NextFunction
+  ) {
+    try {
+      const result = await authService.requestPasswordRecovery(request.body);
+      return response.status(200).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        return response
+          .status(400)
+          .json({ error: mapAuthErrorMessage(error.message) });
+      }
+
+      return next(error);
+    }
+  }
+
   async me(
     request: AuthenticatedRequest,
     response: Response,

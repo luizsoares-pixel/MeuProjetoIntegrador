@@ -119,6 +119,12 @@ export default function Login() {
           loading={isSubmitting}
           onPress={handleSubmit(handleLogin)}
         />
+        <TouchableOpacity
+          onPress={() => router.push("/recuperar-senha")}
+          style={styles.recoveryLink}
+        >
+          <Text style={styles.footerLinkText}>Esqueci minha senha</Text>
+        </TouchableOpacity>
       </AuthCard>
 
       {/* FOOTER */}
@@ -185,5 +191,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 8,
     fontSize: 15,
+  },
+  recoveryLink: {
+    alignItems: "center",
+    marginTop: 16,
   },
 });

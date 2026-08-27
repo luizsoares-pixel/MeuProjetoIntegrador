@@ -1,4 +1,8 @@
-import { LoginInput, RegisterInput } from "@menu-digital/contracts";
+import {
+  LoginInput,
+  PasswordRecoveryInput,
+  RegisterInput,
+} from "@menu-digital/contracts";
 import { prisma } from "../lib/prisma";
 import { supabase } from "../lib/supabase";
 
@@ -67,6 +71,17 @@ export class AuthService {
         expiresAt: data.session.expires_at,
       },
     };
+  }
+
+  async requestPasswordRecovery(credentials: PasswordRecoveryInput) {
+    const email = credentials.email.trim().toLowerCase();
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+    if (error) {
+      throw error;
+    }
+
+    return { message: "Se o e-mail estiver cadastrado, enviaremos as instruções de recuperação." };
   }
 
   async getProfile(userId: string) {
