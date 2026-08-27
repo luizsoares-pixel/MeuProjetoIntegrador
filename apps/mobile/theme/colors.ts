@@ -13,6 +13,7 @@ export const colors = {
     goldMuted: '#d8c184',
     goldTint: 'rgba(212,175,55,0.25)',
     goldTintStrong: 'rgba(212,175,55,0.3)',
+    goldWatermark: 'rgba(212,175,55,0.08)',
     darkRed: '#4a0505',
     red: '#7d1f1f',
     redSoft: '#ff6b6b',

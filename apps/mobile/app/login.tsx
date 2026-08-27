@@ -1,4 +1,4 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginInput, loginSchema } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     fontSize: typography.size.logo,
     fontWeight: typography.weight.bold,
-    color: colors.accent.goldTint,
+    color: colors.accent.goldWatermark,
     top: 0,
   },
   iconTopLeft: {
