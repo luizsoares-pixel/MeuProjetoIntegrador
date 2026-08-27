@@ -24,6 +24,19 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+export const registerFormSchema = registerSchema
+  .extend({
+    confirmPassword: z
+      .string({ required_error: "A confirmação da senha é obrigatória." })
+      .min(1, "Confirme a senha."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
+
+export type RegisterFormInput = z.infer<typeof registerFormSchema>;
+
 export const passwordRecoverySchema = z.object({
   email: z
     .string({ required_error: "O e-mail é obrigatório." })

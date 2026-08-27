@@ -1,12 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  RegisterInput,
-  registerSchema,
+  RegisterFormInput,
+  registerFormSchema,
 } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -18,24 +19,43 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { CustomModal } from "../components/CustomModal";
 
 export default function Cadastro() {
   const { signUp } = useAuth();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState("Atenção");
+  const [modalMessage, setModalMessage] = useState(
+    "Verifique os dados informados."
+  );
 
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
+  } = useForm<RegisterFormInput>({
+    resolver: zodResolver(registerFormSchema),
     defaultValues: {
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
-  async function handleCadastro(formData: RegisterInput) {
+  async function handleCadastro(formData: RegisterFormInput) {
     await signUp(formData.email, formData.password);
+  }
+
+  function handleCadastroError(formErrors: typeof errors) {
+    const firstError =
+      formErrors.email?.message ??
+      formErrors.password?.message ??
+      formErrors.confirmPassword?.message ??
+      "Verifique os dados informados.";
+
+    setModalTitle("Atenção");
+    setModalMessage(String(firstError));
+    setModalVisible(true);
   }
 
   return (
@@ -118,12 +138,35 @@ export default function Cadastro() {
             />
           )}
         />
+        <Controller
+          control={control}
+          name="confirmPassword"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              placeholder="Confirmar senha"
+              secureTextEntry
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
+              error={errors.confirmPassword?.message}
+            />
+          )}
+        />
         <Button
           title="CADASTRAR"
           loading={isSubmitting}
-          onPress={handleSubmit(handleCadastro)}
+          onPress={handleSubmit(handleCadastro, handleCadastroError)}
         />
       </AuthCard>
+
+      <CustomModal
+        visible={modalVisible}
+        title={modalTitle}
+        message={modalMessage}
+        confirmText="OK"
+        onClose={() => setModalVisible(false)}
+      />
 
       {/* FOOTER */}
       <View style={styles.footerContainer}>
