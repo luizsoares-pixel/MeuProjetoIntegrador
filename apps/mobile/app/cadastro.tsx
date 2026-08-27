@@ -52,7 +52,7 @@ export default function Cadastro() {
         [
           {
             text: "Ir para o Login",
-            onPress: () => router.replace("/"),
+            onPress: () => router.replace("/login"),
           },
         ]
       );
@@ -154,7 +154,7 @@ export default function Cadastro() {
       {/* FOOTER */}
       <View style={styles.footerContainer}>
         <Text style={styles.footerPromptText}>Já possui uma conta?</Text>
-        <TouchableOpacity onPress={() => router.push("/")}>
+        <TouchableOpacity onPress={() => router.push("/login")}>
           <Text style={styles.footerLinkText}>Fazer login</Text>
         </TouchableOpacity>
       </View>

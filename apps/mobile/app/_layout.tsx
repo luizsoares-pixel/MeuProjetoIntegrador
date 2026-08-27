@@ -1,13 +1,16 @@
 import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View } from "react-native";
 
 export default function Layout() {
   return (
     <>
+      <StatusBar style="light" backgroundColor="#441010" />
       <View style={styles.topBar} />
       <Stack
         screenOptions={{
           headerShown: false,
+          animation: "fade",
         }}
       />
     </>
