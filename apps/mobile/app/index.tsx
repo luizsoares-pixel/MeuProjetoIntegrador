@@ -20,6 +20,7 @@ import { supabase } from "../services/supabase";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
+import { ScreenHeader } from "../components/ScreenHeader";
 
 export default function Index() {
   const {
@@ -94,10 +95,11 @@ export default function Index() {
           style={styles.iconBottomRight}
         />
 
-        <Text style={styles.brandTitle}>Menu</Text>
-        <View style={styles.brandDivider} />
-        <Text style={styles.brandSubtitle}>DIGITAL</Text>
-        <Text style={styles.brandTagline}>Seu cardápio na palma da mão</Text>
+        <ScreenHeader
+          title="Menu"
+          subtitle="DIGITAL"
+          tagline="Seu cardápio na palma da mão"
+        />
       </View>
 
       {/* FORM CARD */}
@@ -185,33 +187,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 100,
     right: 70,
-  },
-  brandTitle: {
-    color: "#d4af37",
-    fontSize: 46,
-    fontWeight: "bold",
-    fontStyle: "italic",
-    marginTop: 55,
-    zIndex: 1,
-  },
-  brandDivider: {
-    width: 80,
-    height: 2,
-    backgroundColor: "#d4af37",
-    marginVertical: 8,
-    zIndex: 1,
-  },
-  brandSubtitle: {
-    color: "#FFF",
-    fontSize: 16,
-    letterSpacing: 8,
-    zIndex: 1,
-  },
-  brandTagline: {
-    color: "#d8c184",
-    marginTop: 10,
-    fontSize: 14,
-    zIndex: 1,
   },
   footerContainer: {
     marginTop: 25,

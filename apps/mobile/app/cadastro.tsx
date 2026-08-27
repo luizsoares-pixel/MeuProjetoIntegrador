@@ -19,6 +19,7 @@ import { supabase } from "../services/supabase";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
+import { ScreenHeader } from "../components/ScreenHeader";
 
 export default function Cadastro() {
   const {
@@ -102,12 +103,12 @@ export default function Cadastro() {
           style={styles.iconBottomRight}
         />
 
-        <Text style={styles.brandTitle}>Cadastro</Text>
-        <View style={styles.brandDivider} />
-        <Text style={styles.brandSubtitle}>RESTAURANTES</Text>
-        <Text style={styles.brandTagline}>
-          Descubra restaurantes próximos a você
-        </Text>
+        <ScreenHeader
+          title="Cadastro"
+          subtitle="RESTAURANTES"
+          tagline="Descubra restaurantes próximos a você"
+        />
+
       </View>
 
       {/* FORM CARD */}
@@ -195,32 +196,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 100,
     right: 70,
-  },
-  brandTitle: {
-    color: "#d4af37",
-    fontSize: 42,
-    fontWeight: "bold",
-    marginTop: 55,
-    zIndex: 1,
-  },
-  brandDivider: {
-    width: 100,
-    height: 2,
-    backgroundColor: "#d4af37",
-    marginVertical: 8,
-    zIndex: 1,
-  },
-  brandSubtitle: {
-    color: "#FFF",
-    fontSize: 16,
-    letterSpacing: 5,
-    zIndex: 1,
-  },
-  brandTagline: {
-    color: "#d8c184",
-    marginTop: 10,
-    fontSize: 14,
-    zIndex: 1,
   },
   footerContainer: {
     marginTop: 25,

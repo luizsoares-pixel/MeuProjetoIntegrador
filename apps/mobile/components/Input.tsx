@@ -1,32 +1,37 @@
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+} from "react-native";
 
-type Props = {
-  placeholder: string;
-  value: string;
-  onChangeText: (text: string) => void;
+type Props = TextInputProps & {
   error?: string;
-  secureTextEntry?: boolean;
 };
 
 export function Input({
-  placeholder,
-  value,
-  onChangeText,
   error,
-  secureTextEntry,
+  style,
+  ...rest
 }: Props) {
   return (
     <View>
       <TextInput
-        placeholder={placeholder}
         placeholderTextColor="#d8c184"
-        style={[styles.input, error && styles.inputError]}
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
+        style={[
+          styles.input,
+          error && styles.inputError,
+          style,
+        ]}
+        {...rest}
       />
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && (
+        <Text style={styles.errorText}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 }

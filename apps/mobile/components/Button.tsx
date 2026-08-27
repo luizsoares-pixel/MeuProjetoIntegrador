@@ -30,7 +30,7 @@ export function Button({
       activeOpacity={0.8}
     >
       {loading ? (
-        <Loading 
+        <Loading />
       ) : (
         <Text style={styles.submitButtonText}>
           {title}
