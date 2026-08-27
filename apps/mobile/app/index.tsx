@@ -112,9 +112,12 @@ export default function Index() {
               placeholder="Email"
               value={value}
               onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
               error={errors.email?.message}
             />
-
           )}
         />
         <Controller
@@ -126,6 +129,8 @@ export default function Index() {
               secureTextEntry
               value={value}
               onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
               error={errors.password?.message}
             />
           )}

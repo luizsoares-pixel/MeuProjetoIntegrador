@@ -116,11 +116,15 @@ export default function Cadastro() {
         <Controller
           control={control}
           name="email"
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { onChange, onBlur, value } }) => (
             <Input
               placeholder="Email"
               value={value}
               onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
               error={errors.email?.message}
             />
           )}
@@ -128,12 +132,14 @@ export default function Cadastro() {
         <Controller
           control={control}
           name="password"
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { onChange, onBlur, value } }) => (
             <Input
               placeholder="Senha"
               secureTextEntry
               value={value}
               onChangeText={onChange}
+              onBlur={onBlur}
+              autoCapitalize="none"
               error={errors.password?.message}
             />
           )}
