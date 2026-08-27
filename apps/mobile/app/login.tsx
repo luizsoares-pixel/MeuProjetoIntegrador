@@ -4,6 +4,7 @@ import { LoginInput, loginSchema } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,8 +16,12 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { CustomModal } from "../components/CustomModal";
 
 export default function Login() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState("Credenciais inválidas.");
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn } = useAuth();
 
   const {
@@ -32,7 +37,12 @@ export default function Login() {
   });
 
   async function handleLogin(formData: LoginInput) {
-    await signIn(formData.email, formData.password);
+    const success = await signIn(formData.email, formData.password);
+
+    if (!success) {
+      setModalMessage("Credenciais inválidas. Verifique e-mail e senha.");
+      setModalVisible(true);
+    }
   }
 
   return (
@@ -105,19 +115,45 @@ export default function Login() {
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
               placeholder="Senha"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               autoCapitalize="none"
               error={errors.password?.message}
+              rightElement={
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  activeOpacity={0.8}
+                  accessibilityLabel={
+                    showPassword ? "Ocultar senha" : "Mostrar senha"
+                  }
+                >
+                  <MaterialCommunityIcons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#4a0505"
+                  />
+                </TouchableOpacity>
+              }
             />
           )}
         />
+
+        <TouchableOpacity
+          style={styles.forgotPasswordButton}
+          onPress={() => {}}
+          activeOpacity={0.7}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.forgotPasswordText}>Esqueci minha senha</Text>
+        </TouchableOpacity>
+
         <Button
           title="ENTRAR"
           loading={isSubmitting}
           onPress={handleSubmit(handleLogin)}
+          disabled={isSubmitting}
         />
         <TouchableOpacity
           onPress={() => router.push("/recuperar-senha")}
@@ -126,6 +162,14 @@ export default function Login() {
           <Text style={styles.footerLinkText}>Esqueci minha senha</Text>
         </TouchableOpacity>
       </AuthCard>
+
+      <CustomModal
+        visible={modalVisible}
+        title="Atenção"
+        message={modalMessage}
+        confirmText="OK"
+        onClose={() => setModalVisible(false)}
+      />
 
       {/* FOOTER */}
       <View style={styles.footerContainer}>
@@ -177,6 +221,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 100,
     right: 70,
+  },
+  forgotPasswordButton: {
+    alignSelf: "center",
+    marginBottom: 18,
+  },
+  forgotPasswordText: {
+    color: "#d4af37",
+    fontSize: 13,
+    fontWeight: "600",
   },
   footerContainer: {
     marginTop: 25,

@@ -25,6 +25,7 @@ type AuthContextData = {
   isLoading: boolean;
   isPasswordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string) => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<boolean>;
   updatePassword: (input: ResetPasswordInput) => Promise<boolean>;
@@ -151,18 +152,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Ações
   // -------------------------------------------------------------------------
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string): Promise<boolean> {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      Alert.alert("Erro ao entrar", mapAuthErrorMessage(error.message));
-      return;
+      return false;
     }
 
     router.replace("/home");
+    return true;
   }
 
   async function signUp(email: string, password: string) {
