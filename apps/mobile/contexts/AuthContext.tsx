@@ -24,7 +24,6 @@ type AuthContextData = {
   session: Session | null;
   isLoading: boolean;
   isPasswordRecovery: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string) => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<boolean>;
@@ -186,14 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
-      Alert.alert("Erro na recuperação", mapAuthErrorMessage(error.message));
       return false;
     }
 
-    Alert.alert(
-      "E-mail enviado",
-      "Se o e-mail estiver cadastrado, enviaremos as instruções de recuperação."
-    );
     return true;
   }
 
