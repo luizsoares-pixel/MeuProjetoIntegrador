@@ -3,6 +3,7 @@ import {
   Text,
   TouchableOpacity,
 } from "react-native";
+import { colors, spacing, typography } from "../theme";
 import { Loading } from "./Loading";
 
 type Props = {
@@ -41,11 +42,11 @@ export function Button({
 
 const styles = StyleSheet.create({
   submitButton: {
-    backgroundColor: "#c4943e",
+    backgroundColor: colors.accent.goldSoft,
     borderRadius: 18,
-    paddingVertical: 18,
+    paddingVertical: spacing.lg,
 
-    boxShadow: "0px 3px 10px rgba(212, 175, 55, 0.6)",
+    boxShadow: `0px 3px 10px ${colors.accent.goldTintStrong}`,
 
     elevation: 8,
 
@@ -58,10 +59,10 @@ const styles = StyleSheet.create({
   },
 
   submitButtonText: {
-    color: "#4a0505",
-    fontWeight: "bold",
+    color: colors.accent.darkRed,
+    fontWeight: typography.weight.bold,
     textAlign: "center",
-    fontSize: 18,
+    fontSize: typography.size.lg,
     letterSpacing: 1,
   },
 });

@@ -1,6 +1,7 @@
 // components/ScreenHeader.tsx
 
 import { StyleSheet, Text, View } from "react-native";
+import { colors, spacing, typography } from "../theme";
 
 type Props = {
   title: string;
@@ -33,31 +34,31 @@ export function ScreenHeader({
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    marginBottom: 50,
+    marginBottom: spacing.xhuge,
   },
 
   title: {
-    color: "#d4af37",
-    fontSize: 42,
-    fontWeight: "bold",
+    color: colors.accent.gold,
+    fontSize: typography.size.hero,
+    fontWeight: typography.weight.bold,
   },
 
   divider: {
-    width: 80,
+    width: spacing.giant,
     height: 2,
-    backgroundColor: "#d4af37",
-    marginVertical: 8,
+    backgroundColor: colors.accent.gold,
+    marginVertical: spacing.xs,
   },
 
   subtitle: {
-    color: "#FFF",
-    fontSize: 16,
-    letterSpacing: 5,
+    color: colors.accent.white,
+    fontSize: typography.size.base,
+    letterSpacing: typography.letterSpacing.xWide,
   },
 
   tagline: {
-    color: "#d8c184",
-    marginTop: 10,
-    fontSize: 14,
+    color: colors.accent.goldMuted,
+    marginTop: spacing.xs,
+    fontSize: typography.size.sm,
   },
 });
