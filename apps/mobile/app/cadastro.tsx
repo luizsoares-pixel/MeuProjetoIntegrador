@@ -22,13 +22,15 @@ import { ScreenHeader } from "../components/ScreenHeader";
 import { CustomModal } from "../components/CustomModal";
 
 export default function Cadastro() {
-  const { signUp, clearRegistrationSuccess, isRegistrationSuccess } = useAuth();
+  const { signUp } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("Atenção");
   const [modalMessage, setModalMessage] = useState(
     "Verifique os dados informados."
   );
   const [isSuccessModal, setIsSuccessModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     control,
@@ -44,12 +46,13 @@ export default function Cadastro() {
   });
 
   async function handleCadastro(formData: RegisterFormInput) {
-    const success = await signUp(formData.email, formData.password);
+    const result = await signUp(formData.email, formData.password);
 
-    if (!success) {
+    if (!result.success) {
       setModalTitle("Atenção");
       setModalMessage(
-        "Não foi possível concluir o cadastro. Verifique os dados e tente novamente."
+        result.error ??
+          "Não foi possível concluir o cadastro. Verifique os dados e tente novamente."
       );
       setIsSuccessModal(false);
       setModalVisible(true);
@@ -59,19 +62,6 @@ export default function Cadastro() {
     setModalTitle("Cadastro realizado");
     setModalMessage("Seu cadastro foi realizado com sucesso!");
     setIsSuccessModal(true);
-    setModalVisible(true);
-  }
-
-  function handleCadastroError(formErrors: typeof errors) {
-    const firstError =
-      formErrors.email?.message ??
-      formErrors.password?.message ??
-      formErrors.confirmPassword?.message ??
-      "Verifique os dados informados.";
-
-    setModalTitle("Atenção");
-    setModalMessage(String(firstError));
-    setIsSuccessModal(false);
     setModalVisible(true);
   }
 
@@ -146,12 +136,27 @@ export default function Cadastro() {
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
               placeholder="Senha"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               autoCapitalize="none"
               error={errors.password?.message}
+              rightElement={
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  activeOpacity={0.8}
+                  accessibilityLabel={
+                    showPassword ? "Ocultar senha" : "Mostrar senha"
+                  }
+                >
+                  <MaterialCommunityIcons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#4a0505"
+                  />
+                </TouchableOpacity>
+              }
             />
           )}
         />
@@ -161,19 +166,40 @@ export default function Cadastro() {
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
               placeholder="Confirmar senha"
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               autoCapitalize="none"
               error={errors.confirmPassword?.message}
+              rightElement={
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword((prev) => !prev)}
+                  activeOpacity={0.8}
+                  accessibilityLabel={
+                    showConfirmPassword
+                      ? "Ocultar confirmação de senha"
+                      : "Mostrar confirmação de senha"
+                  }
+                >
+                  <MaterialCommunityIcons
+                    name={
+                      showConfirmPassword
+                        ? "eye-off-outline"
+                        : "eye-outline"
+                    }
+                    size={20}
+                    color="#4a0505"
+                  />
+                </TouchableOpacity>
+              }
             />
           )}
         />
         <Button
           title="CADASTRAR"
           loading={isSubmitting}
-          onPress={handleSubmit(handleCadastro, handleCadastroError)}
+          onPress={handleSubmit(handleCadastro)}
         />
       </AuthCard>
 
@@ -181,12 +207,15 @@ export default function Cadastro() {
         visible={modalVisible}
         title={modalTitle}
         message={modalMessage}
-        confirmText={isSuccessModal ? "OK" : "OK"}
+        confirmText={isSuccessModal ? "Ir para o login" : "OK"}
+        iconName={
+          isSuccessModal ? "check-circle-outline" : "information-outline"
+        }
+        iconColor={isSuccessModal ? "#4BB543" : "#d4af37"}
         onConfirm={() => {
           setModalVisible(false);
 
           if (isSuccessModal) {
-            clearRegistrationSuccess();
             router.replace("/login");
           }
         }}
@@ -194,7 +223,6 @@ export default function Cadastro() {
           setModalVisible(false);
 
           if (isSuccessModal) {
-            clearRegistrationSuccess();
             router.replace("/login");
           }
         }}
@@ -203,7 +231,7 @@ export default function Cadastro() {
       {/* FOOTER */}
       <View style={styles.footerContainer}>
         <Text style={styles.footerPromptText}>Já possui uma conta?</Text>
-        <TouchableOpacity onPress={() => router.push("/login")}>
+        <TouchableOpacity onPress={() => router.replace("/login")}>
           <Text style={styles.footerLinkText}>Fazer login</Text>
         </TouchableOpacity>
       </View>
