@@ -1,8 +1,9 @@
 import { Tabs } from "expo-router";
 import { TabBarIcon } from "../../components/TabBarIcon";
+import { colors } from "../../theme";
 
-const activeColor = "#d4af37";
-const inactiveColor = "rgba(255,255,255,0.58)";
+const activeColor = colors.accent.gold;
+const inactiveColor = colors.accent.whiteLight;
 
 export default function TabsLayout() {
   return (
@@ -13,8 +14,8 @@ export default function TabsLayout() {
         tabBarActiveTintColor: activeColor,
         tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
-          backgroundColor: "#441010",
-          borderTopColor: "rgba(212,175,55,0.3)",
+          backgroundColor: colors.background.dark,
+          borderTopColor: colors.accent.goldTintStrong,
           borderTopWidth: 1,
           height: 68,
           paddingBottom: 8,

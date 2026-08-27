@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { colors, spacing, typography } from "../theme";
 
 type CustomModalProps = {
   visible: boolean;
@@ -21,7 +22,7 @@ export function CustomModal({
   confirmText = "OK",
   cancelText,
   iconName = "information-outline",
-  iconColor = "#d4af37",
+  iconColor = colors.accent.gold,
   onConfirm,
   onCancel,
   onClose,
@@ -89,42 +90,42 @@ export function CustomModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(40, 0, 0, 0.7)",
+    backgroundColor: colors.background.overlay,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xxxl,
   },
   content: {
     width: "100%",
     maxWidth: 340,
-    backgroundColor: "#f3f3f3",
+    backgroundColor: colors.background.soft,
     borderRadius: 18,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
     alignItems: "center",
     elevation: 10,
-    shadowColor: "#000",
+    shadowColor: colors.accent.black,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
   },
   icon: {
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1d1d1d",
+    fontSize: typography.size.xxl,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.textDark,
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: spacing.xs,
   },
   message: {
-    fontSize: 18,
-    color: "#1d1d1d",
+    fontSize: typography.size.lg,
+    color: colors.accent.textDark,
     textAlign: "center",
     lineHeight: 28,
-    marginBottom: 20,
-    fontWeight: "500",
+    marginBottom: spacing.xl,
+    fontWeight: typography.weight.medium,
   },
   buttonContainer: {
     width: "100%",
@@ -139,25 +140,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   confirmButton: {
-    backgroundColor: "#7d1f1f",
+    backgroundColor: colors.accent.red,
     minHeight: 52,
   },
   confirmButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 18,
-    letterSpacing: 0.4,
+    color: colors.accent.white,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.lg,
+    letterSpacing: typography.letterSpacing.wide,
   },
   cancelButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "rgba(125,31,31,0.4)",
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   cancelButtonText: {
-    color: "#7d1f1f",
-    fontWeight: "600",
-    fontSize: 16,
+    color: colors.accent.red,
+    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.base,
   },
 });
 

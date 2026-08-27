@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { ReactNode } from "react";
+import { colors, spacing, typography } from "../theme";
 
 type Props = TextInputProps & {
   error?: string;
@@ -41,35 +42,35 @@ export function Input({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 15,
+    marginBottom: spacing.md,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: colors.accent.white,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "#d4af37",
+    borderColor: colors.accent.gold,
     overflow: "hidden",
   },
   input: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    fontSize: 15,
-    color: "#1a1a1a",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.accent.text,
   },
   rightElement: {
-    paddingRight: 12,
+    paddingRight: spacing.sm,
     justifyContent: "center",
     alignItems: "center",
   },
   inputError: {
-    borderColor: "#ff6b6b",
+    borderColor: colors.accent.redSoft,
   },
   errorText: {
-    color: "#ff8080",
-    fontSize: 13,
+    color: colors.accent.redLight,
+    fontSize: typography.size.xs,
     marginTop: 6,
     marginLeft: 4,
   },

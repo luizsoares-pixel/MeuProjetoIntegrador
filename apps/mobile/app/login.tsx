@@ -17,6 +17,7 @@ import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { CustomModal } from "../components/CustomModal";
+import { colors, spacing, typography } from "../theme";
 
 export default function Login() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -69,7 +70,7 @@ export default function Login() {
 
   return (
     <LinearGradient
-      colors={["#2f0000", "#4a0505", "#700000"]}
+      colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -81,28 +82,28 @@ export default function Login() {
         <MaterialCommunityIcons
           name="silverware-fork-knife"
           size={28}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconTopLeft}
         />
 
         <MaterialCommunityIcons
           name="book-open-page-variant"
           size={28}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconTopRight}
         />
 
         <MaterialCommunityIcons
           name="chef-hat"
           size={28}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconBottomLeft}
         />
 
         <MaterialCommunityIcons
           name="storefront"
           size={28}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconBottomRight}
         />
 
@@ -154,7 +155,7 @@ export default function Login() {
                   <MaterialCommunityIcons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={20}
-                    color="#4a0505"
+                    color={colors.accent.darkRed}
                   />
                 </TouchableOpacity>
               }
@@ -203,19 +204,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     paddingTop: 120,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xxxl,
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 50,
+    marginBottom: spacing.xhuge,
     position: "relative",
     height: 180,
   },
   watermarkText: {
     position: "absolute",
-    fontSize: 140,
-    fontWeight: "bold",
-    color: "rgba(212,175,55,0.08)",
+    fontSize: typography.size.logo,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.goldTint,
     top: 0,
   },
   iconTopLeft: {
@@ -243,23 +244,23 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   forgotPasswordText: {
-    color: "#d4af37",
-    fontSize: 13,
-    fontWeight: "600",
+    color: colors.accent.gold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
   },
   footerContainer: {
     marginTop: 25,
     alignItems: "center",
   },
   footerPromptText: {
-    color: "#FFF",
-    fontSize: 14,
+    color: colors.accent.white,
+    fontSize: typography.size.sm,
   },
   footerLinkText: {
-    color: "#d4af37",
-    fontWeight: "bold",
+    color: colors.accent.gold,
+    fontWeight: typography.weight.bold,
     marginTop: 8,
-    fontSize: 15,
+    fontSize: typography.size.md,
   },
   recoveryLink: {
     alignItems: "center",

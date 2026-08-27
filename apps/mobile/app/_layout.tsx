@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { AuthProvider } from "../contexts/AuthContext";
 import { useAuth } from "../hooks/useAuth";
+import { colors } from "../theme";
 
 // Mantém a splash screen nativa visível até a sessão ser resolvida
 SplashScreen.preventAutoHideAsync();
@@ -56,7 +57,7 @@ function RootNavigator() {
 export default function Layout() {
   return (
     <AuthProvider>
-      <StatusBar style="light" backgroundColor="#441010" />
+      <StatusBar style="light" backgroundColor={colors.background.dark} />
       <View style={styles.topBar} />
       <RootNavigator />
     </AuthProvider>
@@ -66,7 +67,7 @@ export default function Layout() {
 const styles = StyleSheet.create({
   topBar: {
     height: 20,
-    backgroundColor: "#441010",
+    backgroundColor: colors.background.dark,
     justifyContent: "center",
     paddingHorizontal: 20,
   },
