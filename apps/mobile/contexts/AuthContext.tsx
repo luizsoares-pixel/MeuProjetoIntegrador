@@ -14,7 +14,7 @@ import { AuthContextData } from "../types/auth";
 // Contexto
 // ---------------------------------------------------------------------------
 
-export const AuthContext = createContext<AuthContextData>({} as AuthContextData);
+export const AuthContext = createContext<AuthContextData | undefined>(undefined);
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -25,7 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
-  const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
 
   async function handleRecoveryUrl(url: string | null) {
     if (!url) return;
@@ -160,7 +159,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setSession(null);
     setUser(null);
-    setIsRegistrationSuccess(true);
     return { success: true };
   }
 
@@ -193,10 +191,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/home");
   }
 
-  function clearRegistrationSuccess() {
-    setIsRegistrationSuccess(false);
-  }
-
   async function signOut() {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -209,13 +203,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isLoading,
         isPasswordRecovery,
-        isRegistrationSuccess,
         signIn,
         signUp,
         requestPasswordRecovery,
         updatePassword,
         finishPasswordRecovery,
-        clearRegistrationSuccess,
         signOut,
       }}
     >

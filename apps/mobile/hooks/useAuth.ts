@@ -5,7 +5,7 @@ import { AuthContextData } from "../types/auth";
 export function useAuth(): AuthContextData {
   const context = useContext(AuthContext);
 
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useAuth deve ser usado dentro de um AuthProvider");
   }
 

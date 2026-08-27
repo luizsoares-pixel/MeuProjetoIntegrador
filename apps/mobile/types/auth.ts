@@ -6,12 +6,10 @@ export type AuthContextData = {
   session: Session | null;
   isLoading: boolean;
   isPasswordRecovery: boolean;
-  isRegistrationSuccess: boolean;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   requestPasswordRecovery: (email: string) => Promise<boolean>;
   updatePassword: (input: ResetPasswordInput) => Promise<boolean>;
   finishPasswordRecovery: () => void;
-  clearRegistrationSuccess: () => void;
   signOut: () => Promise<void>;
 };
