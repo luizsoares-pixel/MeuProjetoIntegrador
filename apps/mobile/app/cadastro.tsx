@@ -2,26 +2,26 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   RegisterInput,
-  mapAuthErrorMessage,
   registerSchema,
 } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import {
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
 
 export default function Cadastro() {
+  const { signUp } = useAuth();
+
   const {
     control,
     handleSubmit,
@@ -35,33 +35,7 @@ export default function Cadastro() {
   });
 
   async function handleCadastro(formData: RegisterInput) {
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (error) {
-        Alert.alert("Erro no cadastro", mapAuthErrorMessage(error.message));
-        return;
-      }
-
-      Alert.alert(
-        "Sucesso",
-        "Usuário cadastrado com sucesso!",
-        [
-          {
-            text: "Ir para o Login",
-            onPress: () => router.replace("/login"),
-          },
-        ]
-      );
-    } catch {
-      Alert.alert(
-        "Erro no cadastro",
-        "Não foi possível conectar ao servidor. Tente novamente mais tarde."
-      );
-    }
+    await signUp(formData.email, formData.password);
   }
 
   return (
