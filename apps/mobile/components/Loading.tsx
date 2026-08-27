@@ -1,4 +1,5 @@
 import { ActivityIndicator, View } from "react-native";
+import { colors } from "../theme";
 
 type LoadingProps = {
   color?: string;
@@ -6,15 +7,12 @@ type LoadingProps = {
 };
 
 export function Loading({
-  color = "#4a0505",
+  color = colors.accent.darkRed,
   size = "small",
 }: LoadingProps) {
   return (
     <View>
-      <ActivityIndicator
-        color={color}
-        size={size}
-      />
+      <ActivityIndicator color={color} size={size} />
     </View>
   );
 }

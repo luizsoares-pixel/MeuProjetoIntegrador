@@ -1,9 +1,16 @@
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
 } from "react-native";
-import { colors, spacing, typography } from "../theme";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { colors, spacing, typography, animations } from "../theme";
 import { Loading } from "./Loading";
 
 type Props = {
@@ -11,58 +18,118 @@ type Props = {
   loading?: boolean;
   disabled?: boolean;
   onPress: () => void;
+  /** Variante visual do botão. Padrão: 'primary' */
+  variant?: "primary" | "outline";
 };
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function Button({
   title,
   loading,
   disabled,
   onPress,
+  variant = "primary",
 }: Props) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  function handlePressIn() {
+    scale.value = withTiming(0.96, {
+      duration: animations.duration.fast,
+      easing: Easing.out(Easing.quad),
+    });
+  }
+
+  function handlePressOut() {
+    scale.value = withTiming(1, {
+      duration: animations.duration.fast,
+      easing: Easing.out(Easing.quad),
+    });
+  }
+
+  async function handlePress() {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  }
+
+  const isDisabled = disabled || loading;
+  const isPrimary = variant === "primary";
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
+    <AnimatedPressable
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={isDisabled}
       style={[
-        styles.submitButton,
-        (disabled || loading) && styles.buttonDisabled,
+        animatedStyle,
+        styles.button,
+        isPrimary ? styles.primaryButton : styles.outlineButton,
+        isDisabled && styles.buttonDisabled,
       ]}
-      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
       {loading ? (
-        <Loading />
+        <Loading color={isPrimary ? colors.accent.darkRed : colors.accent.gold} />
       ) : (
-        <Text style={styles.submitButtonText}>
+        <Text
+          style={[
+            styles.buttonText,
+            isPrimary ? styles.primaryText : styles.outlineText,
+          ]}
+        >
           {title}
         </Text>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
-  submitButton: {
-    backgroundColor: colors.accent.goldSoft,
+  button: {
     borderRadius: 18,
     paddingVertical: spacing.lg,
-
-    boxShadow: `0px 3px 10px ${colors.accent.goldTintStrong}`,
-
-    elevation: 8,
-
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 52,
+  },
+
+  primaryButton: {
+    backgroundColor: colors.accent.goldSoft,
+    elevation: 8,
+    shadowColor: colors.accent.gold,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+
+  outlineButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.accent.gold,
   },
 
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.55,
   },
 
-  submitButtonText: {
-    color: colors.accent.darkRed,
+  buttonText: {
     fontWeight: typography.weight.bold,
     textAlign: "center",
     fontSize: typography.size.lg,
     letterSpacing: 1,
+  },
+
+  primaryText: {
+    color: colors.accent.darkRed,
+  },
+
+  outlineText: {
+    color: colors.accent.gold,
   },
 });
