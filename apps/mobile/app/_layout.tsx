@@ -1,4 +1,4 @@
-﻿import { Stack, router, usePathname } from "expo-router";
+import { Stack, router, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -15,20 +15,13 @@ SplashScreen.preventAutoHideAsync();
 const publicRoutes = ["/login", "/cadastro", "/recuperar-senha"];
 
 function RootNavigator() {
-  const { session, isLoading, isPasswordRecovery, isRegistrationSuccess } = useAuth();
+  const { session, isLoading, isPasswordRecovery } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
     if (isLoading) return;
 
     SplashScreen.hideAsync();
-
-    if (isRegistrationSuccess) {
-      if (pathname !== "/cadastro") {
-        router.replace("/cadastro");
-      }
-      return;
-    }
 
     if (isPasswordRecovery && session) {
       if (pathname !== "/redefinir-senha") {
@@ -43,7 +36,7 @@ function RootNavigator() {
         router.replace("/login");
       }
     }
-  }, [session, isLoading, isPasswordRecovery, isRegistrationSuccess, pathname]);
+  }, [session, isLoading, isPasswordRecovery, pathname]);
 
   return (
     <Stack
