@@ -1,39 +1,9 @@
-﻿import { useEffect } from "react";
-import { Image, StyleSheet, Text, View, ActivityIndicator } from "react-native";
-import { router } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
+﻿import { Image, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { supabase } from "../services/supabase";
 
-// Mantém a splash screen nativa visível até que este componente oculte manualmente
-SplashScreen.preventAutoHideAsync();
-
+// Tela exibida enquanto o AuthProvider resolve a sessão inicial.
+// O redirecionamento é responsabilidade do RootNavigator em _layout.tsx.
 export default function AppSplash() {
-  useEffect(() => {
-    async function bootstrap() {
-      try {
-        // Verifica se existe sessão ativa do Supabase
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        // Oculta a splash screen nativa antes de navegar
-        await SplashScreen.hideAsync();
-
-        if (session) {
-          router.replace("/home");
-        } else {
-          router.replace("/login");
-        }
-      } catch {
-        await SplashScreen.hideAsync();
-        router.replace("/login");
-      }
-    }
-
-    bootstrap();
-  }, []);
-
   return (
     <LinearGradient
       colors={["#2f0000", "#4a0505", "#700000"]}

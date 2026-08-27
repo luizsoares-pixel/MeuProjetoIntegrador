@@ -1,28 +1,24 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  LoginInput,
-  loginSchema,
-  mapAuthErrorMessage,
-} from "@menu-digital/contracts";
+import { LoginInput, loginSchema } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import {
-  Alert,
   StyleSheet,
   Text,
-  TextInput,
   View,
   TouchableOpacity,
 } from "react-native";
-import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
 
 export default function Login() {
+  const { signIn } = useAuth();
+
   const {
     control,
     handleSubmit,
@@ -36,24 +32,7 @@ export default function Login() {
   });
 
   async function handleLogin(formData: LoginInput) {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (error) {
-        Alert.alert("Erro ao entrar", mapAuthErrorMessage(error.message));
-        return;
-      }
-
-      router.replace("/home");
-    } catch {
-      Alert.alert(
-        "Erro ao entrar",
-        "Não foi possível conectar ao servidor. Tente novamente mais tarde."
-      );
-    }
+    await signIn(formData.email, formData.password);
   }
 
   return (
