@@ -1,15 +1,12 @@
 {
-  "name": "menu-digital-monorepo",
-  "version": "1.0.0",
+  "name": "ads20262grupo2menudigital",
   "private": true,
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -c \"blue,green\" -n \"api,mobile\" --kill-others \"npm run dev -w apps/api\" \"npm run start -w apps/mobile\""
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.2"
+    "mobile": "npm run start --workspace=mobile",
+    "web": "npm run web --workspace=mobile"
   }
 }
