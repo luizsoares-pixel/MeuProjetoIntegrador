@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  RegisterInput,
-  registerSchema,
+  RegisterFormInput,
+  registerFormSchema,
 } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -33,8 +33,8 @@ export default function Cadastro() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
+  } = useForm<RegisterFormInput>({
+    resolver: zodResolver(registerFormSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -42,12 +42,16 @@ export default function Cadastro() {
     },
   });
 
-  async function handleCadastro(formData: RegisterInput) {
+  async function handleCadastro(formData: RegisterFormInput) {
     await signUp(formData.email, formData.password);
   }
 
-  function handleCadastroError() {
-    const firstError = Object.values(errors)[0]?.message ?? "Verifique os dados informados.";
+  function handleCadastroError(formErrors: typeof errors) {
+    const firstError =
+      formErrors.email?.message ??
+      formErrors.password?.message ??
+      formErrors.confirmPassword?.message ??
+      "Verifique os dados informados.";
 
     setModalTitle("Atenção");
     setModalMessage(String(firstError));
