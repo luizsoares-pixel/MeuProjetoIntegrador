@@ -1,52 +1,76 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import Animated from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../hooks/useAuth";
+import { useFadeSlide } from "../../hooks/useFadeSlide";
+import { colors, spacing, typography } from "../../theme";
 
 export default function HomeTab() {
   const { user } = useAuth();
 
+  const eyebrowAnim = useFadeSlide({ delay: 0, translateY: 12 });
+  const titleAnim = useFadeSlide({ delay: 100, translateY: 16 });
+  const descAnim = useFadeSlide({ delay: 200, translateY: 12 });
+  const emailAnim = useFadeSlide({ delay: 300, translateY: 8 });
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.eyebrow}>MENU DIGITAL</Text>
-      <Text style={styles.title}>Encontre seu próximo sabor</Text>
-      <Text style={styles.description}>
+    <LinearGradient
+      colors={[colors.background.primary, colors.background.secondary]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.container}
+    >
+      <Animated.Text style={[styles.eyebrow, eyebrowAnim.animatedStyle]}>
+        MENU DIGITAL
+      </Animated.Text>
+
+      <Animated.Text style={[styles.title, titleAnim.animatedStyle]}>
+        Encontre seu próximo sabor
+      </Animated.Text>
+
+      <Animated.Text style={[styles.description, descAnim.animatedStyle]}>
         Restaurantes e cardápios para explorar durante a sua viagem.
-      </Text>
-      {user?.email ? <Text style={styles.userEmail}>{user.email}</Text> : null}
-    </View>
+      </Animated.Text>
+
+      {user?.email ? (
+        <Animated.Text style={[styles.userEmail, emailAnim.animatedStyle]}>
+          {user.email}
+        </Animated.Text>
+      ) : null}
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#2f0000",
     flex: 1,
     justifyContent: "center",
-    padding: 24,
+    padding: spacing.xxxl,
   },
   eyebrow: {
-    color: "#d4af37",
-    fontSize: 13,
-    fontWeight: "700",
+    color: colors.accent.gold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     letterSpacing: 2,
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   title: {
-    color: "#fff",
+    color: colors.accent.white,
     fontSize: 30,
-    fontWeight: "700",
+    fontWeight: typography.weight.bold,
     lineHeight: 38,
     maxWidth: 320,
   },
   description: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 16,
+    color: colors.accent.whiteSoft,
+    fontSize: typography.size.base,
     lineHeight: 24,
-    marginTop: 14,
+    marginTop: spacing.md,
     maxWidth: 340,
   },
   userEmail: {
     color: "rgba(255,255,255,0.48)",
-    fontSize: 12,
+    fontSize: typography.size.xs,
     marginTop: 32,
   },
 });
