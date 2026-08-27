@@ -1,9 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  RegisterInput,
+  LoginInput,
+  loginSchema,
   mapAuthErrorMessage,
-  registerSchema,
 } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -12,8 +12,9 @@ import {
   Alert,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  TextInput,
   View,
+  TouchableOpacity,
 } from "react-native";
 import { supabase } from "../services/supabase";
 import { Button } from "../components/Button";
@@ -21,44 +22,35 @@ import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
 
-export default function Cadastro() {
+export default function Login() {
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
+  } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
     },
   });
 
-  async function handleCadastro(formData: RegisterInput) {
+  async function handleLogin(formData: LoginInput) {
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
       if (error) {
-        Alert.alert("Erro no cadastro", mapAuthErrorMessage(error.message));
+        Alert.alert("Erro ao entrar", mapAuthErrorMessage(error.message));
         return;
       }
 
-      Alert.alert(
-        "Sucesso",
-        "Usuário cadastrado com sucesso!",
-        [
-          {
-            text: "Ir para o Login",
-            onPress: () => router.replace("/login"),
-          },
-        ]
-      );
+      router.replace("/home");
     } catch {
       Alert.alert(
-        "Erro no cadastro",
+        "Erro ao entrar",
         "Não foi possível conectar ao servidor. Tente novamente mais tarde."
       );
     }
@@ -71,44 +63,43 @@ export default function Cadastro() {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      {/* HEADER / LOGO */}
+      {/* LOGO */}
       <View style={styles.logoContainer}>
         <Text style={styles.watermarkText}>MD</Text>
 
         <MaterialCommunityIcons
-          name="map-marker-radius"
-          size={30}
+          name="silverware-fork-knife"
+          size={28}
           color="rgba(212,175,55,0.25)"
           style={styles.iconTopLeft}
         />
 
         <MaterialCommunityIcons
-          name="compass-outline"
-          size={30}
+          name="book-open-page-variant"
+          size={28}
           color="rgba(212,175,55,0.25)"
           style={styles.iconTopRight}
         />
 
         <MaterialCommunityIcons
-          name="store-search"
-          size={30}
+          name="chef-hat"
+          size={28}
           color="rgba(212,175,55,0.25)"
           style={styles.iconBottomLeft}
         />
 
         <MaterialCommunityIcons
-          name="silverware-fork-knife"
-          size={30}
+          name="storefront"
+          size={28}
           color="rgba(212,175,55,0.25)"
           style={styles.iconBottomRight}
         />
 
         <ScreenHeader
-          title="Cadastro"
-          subtitle="RESTAURANTES"
-          tagline="Descubra restaurantes próximos a você"
+          title="Menu"
+          subtitle="DIGITAL"
+          tagline="Seu cardápio na palma da mão"
         />
-
       </View>
 
       {/* FORM CARD */}
@@ -145,17 +136,17 @@ export default function Cadastro() {
           )}
         />
         <Button
-          title="CADASTRAR"
+          title="ENTRAR"
           loading={isSubmitting}
-          onPress={handleSubmit(handleCadastro)}
+          onPress={handleSubmit(handleLogin)}
         />
       </AuthCard>
 
       {/* FOOTER */}
       <View style={styles.footerContainer}>
-        <Text style={styles.footerPromptText}>Já possui uma conta?</Text>
-        <TouchableOpacity onPress={() => router.push("/login")}>
-          <Text style={styles.footerLinkText}>Fazer login</Text>
+        <Text style={styles.footerPromptText}>Não possui conta?</Text>
+        <TouchableOpacity onPress={() => router.push("/cadastro")}>
+          <Text style={styles.footerLinkText}>Cadastre-se</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -177,11 +168,10 @@ const styles = StyleSheet.create({
   },
   watermarkText: {
     position: "absolute",
-    fontSize: 130,
+    fontSize: 140,
     fontWeight: "bold",
-    color: "rgba(212,175,55,0.06)",
+    color: "rgba(212,175,55,0.08)",
     top: 0,
-    letterSpacing: 5,
   },
   iconTopLeft: {
     position: "absolute",
