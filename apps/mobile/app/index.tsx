@@ -9,15 +9,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import {
-  ActivityIndicator,
   Alert,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
+  TouchableOpacity,
 } from "react-native";
 import { supabase } from "../services/supabase";
+import { Button } from "../components/Button";
+import { Input } from "../components/Input";
+import { AuthCard } from "../components/AuthCard";
+import { ScreenHeader } from "../components/ScreenHeader";
 
 export default function Index() {
   const {
@@ -92,74 +95,52 @@ export default function Index() {
           style={styles.iconBottomRight}
         />
 
-        <Text style={styles.brandTitle}>Menu</Text>
-        <View style={styles.brandDivider} />
-        <Text style={styles.brandSubtitle}>DIGITAL</Text>
-        <Text style={styles.brandTagline}>Seu cardápio na palma da mão</Text>
+        <ScreenHeader
+          title="Menu"
+          subtitle="DIGITAL"
+          tagline="Seu cardápio na palma da mão"
+        />
       </View>
 
       {/* FORM CARD */}
-      <View style={styles.formCard}>
+      <AuthCard>
         <Controller
           control={control}
           name="email"
           render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
+            <Input
               placeholder="Email"
-              placeholderTextColor="#d8c184"
               value={value}
-              onBlur={onBlur}
               onChangeText={onChange}
+              onBlur={onBlur}
               autoCapitalize="none"
               keyboardType="email-address"
               autoCorrect={false}
-              style={[
-                styles.input,
-                errors.email ? styles.inputError : undefined,
-              ]}
+              error={errors.email?.message}
             />
           )}
         />
-        {errors.email && (
-          <Text style={styles.errorText}>{errors.email.message}</Text>
-        )}
-
         <Controller
           control={control}
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
+            <Input
               placeholder="Senha"
-              placeholderTextColor="#d8c184"
               secureTextEntry
               value={value}
-              onBlur={onBlur}
               onChangeText={onChange}
+              onBlur={onBlur}
               autoCapitalize="none"
-              style={[
-                styles.input,
-                errors.password ? styles.inputError : undefined,
-              ]}
+              error={errors.password?.message}
             />
           )}
         />
-        {errors.password && (
-          <Text style={styles.errorText}>{errors.password.message}</Text>
-        )}
-
-        <TouchableOpacity
+        <Button
+          title="ENTRAR"
+          loading={isSubmitting}
           onPress={handleSubmit(handleLogin)}
-          disabled={isSubmitting}
-          style={[styles.submitButton, isSubmitting && styles.buttonDisabled]}
-          activeOpacity={0.8}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="#4a0505" />
-          ) : (
-            <Text style={styles.submitButtonText}>ENTRAR</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        />
+      </AuthCard>
 
       {/* FOOTER */}
       <View style={styles.footerContainer}>
@@ -211,86 +192,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 100,
     right: 70,
-  },
-  brandTitle: {
-    color: "#d4af37",
-    fontSize: 46,
-    fontWeight: "bold",
-    fontStyle: "italic",
-    marginTop: 55,
-    zIndex: 1,
-  },
-  brandDivider: {
-    width: 80,
-    height: 2,
-    backgroundColor: "#d4af37",
-    marginVertical: 8,
-    zIndex: 1,
-  },
-  brandSubtitle: {
-    color: "#FFF",
-    fontSize: 16,
-    letterSpacing: 8,
-    zIndex: 1,
-  },
-  brandTagline: {
-    color: "#d8c184",
-    marginTop: 10,
-    fontSize: 14,
-    zIndex: 1,
-  },
-  formCard: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.2)",
-    borderRadius: 25,
-    padding: 20,
-  },
-  input: {
-    backgroundColor: "#FFF",
-    borderRadius: 15,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#d4af37",
-    fontSize: 15,
-    color: "#1a1a1a",
-  },
-  inputError: {
-    borderColor: "#ff6b6b",
-    marginBottom: 6,
-  },
-  errorText: {
-    color: "#ff8080",
-    fontSize: 13,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  submitButton: {
-    backgroundColor: "#c4943e",
-    borderRadius: 18,
-    paddingVertical: 18,
-    shadowColor: "#d4af37",
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    color: "#4a0505",
-    fontWeight: "bold",
-    textAlign: "center",
-    fontSize: 18,
-    letterSpacing: 1,
   },
   footerContainer: {
     marginTop: 25,
