@@ -15,10 +15,15 @@ export function AuthCard({ children }: AuthCardProps) {
 
 const styles = StyleSheet.create({
   formCard: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.2)",
-    borderRadius: 25,
-    padding: 20,
+    borderColor: "rgba(255,255,255,0.16)",
+    borderRadius: 18,
+    boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.24)",
+    elevation: 8,
+    maxWidth: 440,
+    padding: 22,
+    width: "100%",
   },
 });
