@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useContext,
   useEffect,
@@ -25,7 +25,10 @@ type AuthContextData = {
   isLoading: boolean;
   isPasswordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
   requestPasswordRecovery: (email: string) => Promise<boolean>;
   updatePassword: (input: ResetPasswordInput) => Promise<boolean>;
   finishPasswordRecovery: () => void;
@@ -165,17 +168,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password });
+  async function signUp(
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
-      Alert.alert("Erro no cadastro", mapAuthErrorMessage(error.message));
-      return;
+      return { success: false, error: mapAuthErrorMessage(error.message) };
     }
 
-    Alert.alert("Sucesso", "Usuário cadastrado com sucesso!", [
-      { text: "Ir para o Login", onPress: () => router.replace("/login") },
-    ]);
+    if (data.session) {
+      await supabase.auth.signOut();
+    }
+
+    setSession(null);
+    setUser(null);
+    return { success: true };
   }
 
   async function requestPasswordRecovery(email: string) {
