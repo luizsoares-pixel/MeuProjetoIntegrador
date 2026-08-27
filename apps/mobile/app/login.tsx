@@ -4,6 +4,7 @@ import { LoginInput, loginSchema } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,8 +16,11 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { CustomModal } from "../components/CustomModal";
 
 export default function Login() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState("Credenciais inválidas.");
   const { signIn } = useAuth();
 
   const {
@@ -32,7 +36,12 @@ export default function Login() {
   });
 
   async function handleLogin(formData: LoginInput) {
-    await signIn(formData.email, formData.password);
+    const success = await signIn(formData.email, formData.password);
+
+    if (!success) {
+      setModalMessage("Credenciais inválidas. Verifique e-mail e senha.");
+      setModalVisible(true);
+    }
   }
 
   return (
@@ -120,6 +129,14 @@ export default function Login() {
           onPress={handleSubmit(handleLogin)}
         />
       </AuthCard>
+
+      <CustomModal
+        visible={modalVisible}
+        title="Atenção"
+        message={modalMessage}
+        confirmText="OK"
+        onClose={() => setModalVisible(false)}
+      />
 
       {/* FOOTER */}
       <View style={styles.footerContainer}>

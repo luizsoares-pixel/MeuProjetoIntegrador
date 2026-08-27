@@ -6,9 +6,7 @@ export const loginSchema = z.object({
     .trim()
     .min(1, "O e-mail é obrigatório.")
     .email("Informe um e-mail válido."),
-  password: z
-    .string({ required_error: "A senha é obrigatória." })
-    .min(8, "A senha deve ter pelo menos 8 caracteres."),
+  password: z.string({ required_error: "A senha é obrigatória." }).min(1, "A senha é obrigatória."),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
