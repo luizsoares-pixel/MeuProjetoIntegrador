@@ -22,12 +22,13 @@ import { ScreenHeader } from "../components/ScreenHeader";
 import { CustomModal } from "../components/CustomModal";
 
 export default function Cadastro() {
-  const { signUp } = useAuth();
+  const { signUp, clearRegistrationSuccess, isRegistrationSuccess } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("Atenção");
   const [modalMessage, setModalMessage] = useState(
     "Verifique os dados informados."
   );
+  const [isSuccessModal, setIsSuccessModal] = useState(false);
 
   const {
     control,
@@ -43,7 +44,22 @@ export default function Cadastro() {
   });
 
   async function handleCadastro(formData: RegisterFormInput) {
-    await signUp(formData.email, formData.password);
+    const success = await signUp(formData.email, formData.password);
+
+    if (!success) {
+      setModalTitle("Atenção");
+      setModalMessage(
+        "Não foi possível concluir o cadastro. Verifique os dados e tente novamente."
+      );
+      setIsSuccessModal(false);
+      setModalVisible(true);
+      return;
+    }
+
+    setModalTitle("Cadastro realizado");
+    setModalMessage("Seu cadastro foi realizado com sucesso!");
+    setIsSuccessModal(true);
+    setModalVisible(true);
   }
 
   function handleCadastroError(formErrors: typeof errors) {
@@ -55,6 +71,7 @@ export default function Cadastro() {
 
     setModalTitle("Atenção");
     setModalMessage(String(firstError));
+    setIsSuccessModal(false);
     setModalVisible(true);
   }
 
@@ -164,8 +181,23 @@ export default function Cadastro() {
         visible={modalVisible}
         title={modalTitle}
         message={modalMessage}
-        confirmText="OK"
-        onClose={() => setModalVisible(false)}
+        confirmText={isSuccessModal ? "OK" : "OK"}
+        onConfirm={() => {
+          setModalVisible(false);
+
+          if (isSuccessModal) {
+            clearRegistrationSuccess();
+            router.replace("/login");
+          }
+        }}
+        onClose={() => {
+          setModalVisible(false);
+
+          if (isSuccessModal) {
+            clearRegistrationSuccess();
+            router.replace("/login");
+          }
+        }}
       />
 
       {/* FOOTER */}

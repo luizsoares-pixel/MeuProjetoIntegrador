@@ -24,11 +24,13 @@ type AuthContextData = {
   session: Session | null;
   isLoading: boolean;
   isPasswordRecovery: boolean;
+  isRegistrationSuccess: boolean;
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<boolean>;
   requestPasswordRecovery: (email: string) => Promise<boolean>;
   updatePassword: (input: ResetPasswordInput) => Promise<boolean>;
   finishPasswordRecovery: () => void;
+  clearRegistrationSuccess: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
 
   async function handleRecoveryUrl(url: string | null) {
     if (!url) return;
@@ -165,17 +168,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password });
+  async function signUp(email: string, password: string): Promise<boolean> {
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
-      Alert.alert("Erro no cadastro", mapAuthErrorMessage(error.message));
-      return;
+      return false;
     }
 
-    Alert.alert("Sucesso", "Usuário cadastrado com sucesso!", [
-      { text: "Ir para o Login", onPress: () => router.replace("/login") },
-    ]);
+    if (data.session) {
+      await supabase.auth.signOut();
+    }
+
+    setSession(null);
+    setUser(null);
+    setIsRegistrationSuccess(true);
+    return true;
   }
 
   async function requestPasswordRecovery(email: string) {
@@ -207,6 +214,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/home");
   }
 
+  function clearRegistrationSuccess() {
+    setIsRegistrationSuccess(false);
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -219,11 +230,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isLoading,
         isPasswordRecovery,
+        isRegistrationSuccess,
         signIn,
         signUp,
         requestPasswordRecovery,
         updatePassword,
         finishPasswordRecovery,
+        clearRegistrationSuccess,
         signOut,
       }}
     >

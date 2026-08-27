@@ -15,13 +15,20 @@ SplashScreen.preventAutoHideAsync();
 const publicRoutes = ["/login", "/cadastro", "/recuperar-senha"];
 
 function RootNavigator() {
-  const { session, isLoading, isPasswordRecovery } = useAuth();
+  const { session, isLoading, isPasswordRecovery, isRegistrationSuccess } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
     if (isLoading) return;
 
     SplashScreen.hideAsync();
+
+    if (isRegistrationSuccess) {
+      if (pathname !== "/cadastro") {
+        router.replace("/cadastro");
+      }
+      return;
+    }
 
     if (isPasswordRecovery && session) {
       if (pathname !== "/redefinir-senha") {
@@ -36,7 +43,7 @@ function RootNavigator() {
         router.replace("/login");
       }
     }
-  }, [session, isLoading, isPasswordRecovery, pathname]);
+  }, [session, isLoading, isPasswordRecovery, isRegistrationSuccess, pathname]);
 
   return (
     <Stack
