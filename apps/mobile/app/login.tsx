@@ -21,6 +21,7 @@ import { CustomModal } from "../components/CustomModal";
 export default function Login() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState("Credenciais inválidas.");
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn } = useAuth();
 
   const {
@@ -114,19 +115,45 @@ export default function Login() {
           render={({ field: { onChange, onBlur, value } }) => (
             <Input
               placeholder="Senha"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
               autoCapitalize="none"
               error={errors.password?.message}
+              rightElement={
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  activeOpacity={0.8}
+                  accessibilityLabel={
+                    showPassword ? "Ocultar senha" : "Mostrar senha"
+                  }
+                >
+                  <MaterialCommunityIcons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#4a0505"
+                  />
+                </TouchableOpacity>
+              }
             />
           )}
         />
+
+        <TouchableOpacity
+          style={styles.forgotPasswordButton}
+          onPress={() => {}}
+          activeOpacity={0.7}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.forgotPasswordText}>Esqueci minha senha</Text>
+        </TouchableOpacity>
+
         <Button
           title="ENTRAR"
           loading={isSubmitting}
           onPress={handleSubmit(handleLogin)}
+          disabled={isSubmitting}
         />
       </AuthCard>
 
@@ -188,6 +215,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 100,
     right: 70,
+  },
+  forgotPasswordButton: {
+    alignSelf: "center",
+    marginBottom: 18,
+  },
+  forgotPasswordText: {
+    color: "#d4af37",
+    fontSize: 13,
+    fontWeight: "600",
   },
   footerContainer: {
     marginTop: 25,
