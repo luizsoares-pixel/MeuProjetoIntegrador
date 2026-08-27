@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
+import { createContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { router } from "expo-router";
 import * as Linking from "expo-linking";
@@ -14,32 +8,13 @@ import {
   ResetPasswordInput,
 } from "@menu-digital/contracts";
 import { supabase } from "../services/supabase";
-
-// ---------------------------------------------------------------------------
-// Tipos
-// ---------------------------------------------------------------------------
-
-type AuthContextData = {
-  user: User | null;
-  session: Session | null;
-  isLoading: boolean;
-  isPasswordRecovery: boolean;
-  signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (
-    email: string,
-    password: string
-  ) => Promise<{ success: boolean; error?: string }>;
-  requestPasswordRecovery: (email: string) => Promise<boolean>;
-  updatePassword: (input: ResetPasswordInput) => Promise<boolean>;
-  finishPasswordRecovery: () => void;
-  signOut: () => Promise<void>;
-};
+import { AuthContextData } from "../types/auth";
 
 // ---------------------------------------------------------------------------
 // Contexto
 // ---------------------------------------------------------------------------
 
-const AuthContext = createContext<AuthContextData>({} as AuthContextData);
+export const AuthContext = createContext<AuthContextData | undefined>(undefined);
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -241,16 +216,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-export function useAuth(): AuthContextData {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
-  }
-
-  return context;
-}
