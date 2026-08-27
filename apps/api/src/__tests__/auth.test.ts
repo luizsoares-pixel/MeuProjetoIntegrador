@@ -1,5 +1,6 @@
 import {
   loginSchema,
+  passwordRecoverySchema,
   registerSchema,
 } from "@menu-digital/contracts";
 import jwt from "jsonwebtoken";
@@ -230,6 +231,68 @@ describe("Auth Layer - Refactored Verification Suite", () => {
           name: "Error",
           message: "CREDENTIALS_INVALID",
         }
+      );
+
+      mock.reset();
+    });
+  });
+
+  describe("Etapa 3: POST /auth/password-recovery", () => {
+    it("deve rejeitar solicitação com e-mail inválido", async () => {
+      const validator = validateRequest(passwordRecoverySchema);
+      const req = { body: { email: "invalid-email" } } as any;
+      let statusCode = 0;
+      let responseBody: any = null;
+      const res = {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(data: any) {
+          responseBody = data;
+          return this;
+        },
+      } as any;
+
+      let nextCalled = false;
+      await validator(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, false);
+      assert.strictEqual(statusCode, 400);
+      assert.ok(responseBody.details.some((d: any) => d.field === "email"));
+    });
+
+    it("deve enviar a solicitação com o e-mail normalizado", async () => {
+      let receivedEmail = "";
+      mock.method(supabase.auth, "resetPasswordForEmail", async (email: string) => {
+        receivedEmail = email;
+        return { data: {}, error: null } as any;
+      });
+
+      const result = await authService.requestPasswordRecovery({
+        email: "  User@Example.COM  ",
+      });
+
+      assert.strictEqual(receivedEmail, "user@example.com");
+      assert.match(result.message, /Se o e-mail estiver cadastrado/);
+
+      mock.reset();
+    });
+
+    it("deve propagar falha da operação de recuperação", async () => {
+      mock.method(supabase.auth, "resetPasswordForEmail", async () => ({
+        data: {},
+        error: { message: "Failed to fetch" },
+      }) as any);
+
+      await assert.rejects(
+        () =>
+          authService.requestPasswordRecovery({
+            email: "user@example.com",
+          }),
+        { message: "Failed to fetch" }
       );
 
       mock.reset();

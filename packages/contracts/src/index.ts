@@ -24,6 +24,32 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+export const passwordRecoverySchema = z.object({
+  email: z
+    .string({ required_error: "O e-mail é obrigatório." })
+    .trim()
+    .min(1, "O e-mail é obrigatório.")
+    .email("Informe um e-mail válido."),
+});
+
+export type PasswordRecoveryInput = z.infer<typeof passwordRecoverySchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string({ required_error: "A nova senha é obrigatória." })
+      .min(8, "A senha deve ter pelo menos 8 caracteres."),
+    confirmPassword: z
+      .string({ required_error: "A confirmação da senha é obrigatória." })
+      .min(1, "Confirme a nova senha."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 export interface UserResponse {
   id: string;
   email: string;

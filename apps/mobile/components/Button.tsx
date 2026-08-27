@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -46,13 +45,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 18,
 
-    shadowColor: "#d4af37",
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
+    boxShadow: "0px 3px 10px rgba(212, 175, 55, 0.6)",
 
     elevation: 8,
 

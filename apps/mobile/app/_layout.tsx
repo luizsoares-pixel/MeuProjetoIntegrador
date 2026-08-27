@@ -1,4 +1,4 @@
-﻿import { Stack, router } from "expo-router";
+﻿import { Stack, router, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -12,20 +12,31 @@ SplashScreen.preventAutoHideAsync();
 // Guard de rotas: redireciona conforme estado de autenticação
 // ---------------------------------------------------------------------------
 
+const publicRoutes = ["/login", "/cadastro", "/recuperar-senha"];
+
 function RootNavigator() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, isPasswordRecovery } = useAuth();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isLoading) return;
 
     SplashScreen.hideAsync();
 
-    if (session) {
-      router.replace("/home");
+    if (isPasswordRecovery && session) {
+      if (pathname !== "/redefinir-senha") {
+        router.replace("/redefinir-senha");
+      }
+    } else if (session) {
+      if (pathname !== "/home") {
+        router.replace("/home");
+      }
     } else {
-      router.replace("/login");
+      if (!publicRoutes.includes(pathname)) {
+        router.replace("/login");
+      }
     }
-  }, [session, isLoading]);
+  }, [session, isLoading, isPasswordRecovery, pathname]);
 
   return (
     <Stack

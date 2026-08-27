@@ -1,4 +1,8 @@
-import { loginSchema, registerSchema } from "@menu-digital/contracts";
+import {
+  loginSchema,
+  passwordRecoverySchema,
+  registerSchema,
+} from "@menu-digital/contracts";
 import { Router } from "express";
 import { authController } from "../controllers/auth.controller";
 import { authMiddleware } from "../middlewares/auth";
@@ -21,6 +25,15 @@ authRouter.post(
   validateRequest(loginSchema),
   (req, res, next) => {
     authController.login(req, res, next);
+  }
+);
+
+// POST /auth/password-recovery - Solicitação de recuperação por e-mail
+authRouter.post(
+  "/password-recovery",
+  validateRequest(passwordRecoverySchema),
+  (req, res, next) => {
+    authController.requestPasswordRecovery(req, res, next);
   }
 );
 

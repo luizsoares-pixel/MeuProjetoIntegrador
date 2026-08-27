@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginInput, loginSchema } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useState } from "react";
 import {
   StyleSheet,
@@ -22,12 +22,13 @@ export default function Login() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState("Credenciais inválidas.");
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, requestPasswordRecovery } = useAuth();
 
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
+    watch,
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -36,6 +37,8 @@ export default function Login() {
     },
   });
 
+  const emailValue = useWatch({ control, name: "email" });
+
   async function handleLogin(formData: LoginInput) {
     const success = await signIn(formData.email, formData.password);
 
@@ -43,6 +46,25 @@ export default function Login() {
       setModalMessage("Credenciais inválidas. Verifique e-mail e senha.");
       setModalVisible(true);
     }
+  }
+
+  async function handleForgotPassword() {
+    const currentEmail = (emailValue ?? "").trim();
+
+    if (!currentEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentEmail)) {
+      setModalMessage("Informe um e-mail válido para recuperar a senha.");
+      setModalVisible(true);
+      return;
+    }
+
+    const success = await requestPasswordRecovery(currentEmail);
+
+    setModalMessage(
+      success
+        ? "Se o e-mail estiver cadastrado, enviaremos as instruções de recuperação."
+        : "Não foi possível enviar a recuperação de senha. Tente novamente."
+    );
+    setModalVisible(true);
   }
 
   return (
@@ -142,7 +164,7 @@ export default function Login() {
 
         <TouchableOpacity
           style={styles.forgotPasswordButton}
-          onPress={() => {}}
+          onPress={handleForgotPassword}
           activeOpacity={0.7}
           disabled={isSubmitting}
         >
@@ -238,5 +260,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 8,
     fontSize: 15,
+  },
+  recoveryLink: {
+    alignItems: "center",
+    marginTop: 16,
   },
 });
