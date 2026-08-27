@@ -9,15 +9,19 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { AuthCard } from "../components/AuthCard";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { useAuth } from "../hooks/useAuth";
+import { useFadeSlide } from "../hooks/useFadeSlide";
+import { colors, spacing, typography } from "../theme";
 
 export default function RecuperarSenha() {
   const { requestPasswordRecovery } = useAuth();
   const [feedback, setFeedback] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
@@ -26,6 +30,9 @@ export default function RecuperarSenha() {
     resolver: zodResolver(passwordRecoverySchema),
     defaultValues: { email: "" },
   });
+
+  const headerAnim = useFadeSlide({ delay: 0 });
+  const footerAnim = useFadeSlide({ delay: 400 });
 
   async function handleRecovery({ email }: PasswordRecoveryInput) {
     const sent = await requestPasswordRecovery(email);
@@ -36,22 +43,24 @@ export default function RecuperarSenha() {
     );
   }
 
+  const isSent = feedback?.startsWith("Link") ?? false;
+
   return (
     <LinearGradient
-      colors={["#2f0000", "#4a0505", "#700000"]}
+      colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      <View style={styles.header}>
+      <Animated.View style={[styles.header, headerAnim.animatedStyle]}>
         <ScreenHeader
           title="Recuperar acesso"
           subtitle="NOVA SENHA"
           tagline="Enviaremos as instruções por e-mail"
         />
-      </View>
+      </Animated.View>
 
-      <AuthCard>
+      <AuthCard animationDelay={200}>
         <Text style={styles.description}>
           Informe o e-mail usado no cadastro para receber o link de recuperação.
         </Text>
@@ -78,24 +87,20 @@ export default function RecuperarSenha() {
         />
         {feedback && (
           <View
-            style={
-              feedback.startsWith("Link")
-                ? styles.feedbackSuccess
-                : styles.feedbackError
-            }
+            style={isSent ? styles.feedbackSuccess : styles.feedbackError}
           >
             <MaterialCommunityIcons
-              name={feedback.startsWith("Link") ? "email-check-outline" : "alert-circle-outline"}
+              name={isSent ? "email-check-outline" : "alert-circle-outline"}
               size={30}
-              color={feedback.startsWith("Link") ? "#b8e6b8" : "#ffb0b0"}
+              color={isSent ? colors.accent.successSoft : colors.accent.redLight}
             />
             <Text style={styles.feedbackTitle}>
-              {feedback.startsWith("Link") ? "Link enviado" : "Não foi possível enviar"}
+              {isSent ? "Link enviado" : "Não foi possível enviar"}
             </Text>
             <Text
               style={[
                 styles.feedbackText,
-                !feedback.startsWith("Link") && styles.feedbackErrorText,
+                !isSent && styles.feedbackErrorText,
               ]}
             >
               {feedback}
@@ -104,9 +109,11 @@ export default function RecuperarSenha() {
         )}
       </AuthCard>
 
-      <TouchableOpacity onPress={() => router.replace("/login")}>
-        <Text style={styles.backLink}>Voltar para o login</Text>
-      </TouchableOpacity>
+      <Animated.View style={footerAnim.animatedStyle}>
+        <TouchableOpacity onPress={() => router.replace("/login")}>
+          <Text style={styles.backLink}>Voltar para o login</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </LinearGradient>
   );
 }
@@ -116,24 +123,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     paddingTop: 120,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xxxl,
   },
   header: {
     alignItems: "center",
-    marginBottom: 50,
+    marginBottom: spacing.xhuge,
   },
   description: {
-    color: "#FFF",
-    fontSize: 14,
+    color: colors.accent.white,
+    fontSize: typography.size.sm,
     lineHeight: 21,
-    marginBottom: 18,
+    marginBottom: spacing.lg,
     textAlign: "center",
   },
   backLink: {
-    color: "#d4af37",
-    fontSize: 15,
-    fontWeight: "bold",
-    marginTop: 25,
+    color: colors.accent.gold,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    marginTop: spacing.xxl,
     textAlign: "center",
   },
   feedbackSuccess: {
@@ -142,8 +149,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(184, 230, 184, 0.35)",
     borderRadius: 16,
     borderWidth: 1,
-    marginTop: 18,
-    padding: 16,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
   },
   feedbackError: {
     alignItems: "center",
@@ -151,28 +158,28 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 176, 176, 0.35)",
     borderRadius: 16,
     borderWidth: 1,
-    marginTop: 18,
-    padding: 16,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
   },
   feedbackTitle: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginTop: 8,
+    color: colors.accent.white,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
+    marginTop: spacing.xs,
     textAlign: "center",
   },
   feedbackText: {
-    color: "#b8e6b8",
-    fontSize: 14,
+    color: colors.accent.successSoft,
+    fontSize: typography.size.sm,
     lineHeight: 21,
     marginTop: 6,
     textAlign: "center",
   },
   feedbackErrorText: {
-    color: "#ffb0b0",
-    fontSize: 14,
+    color: colors.accent.redLight,
+    fontSize: typography.size.sm,
     lineHeight: 21,
-    marginTop: 16,
+    marginTop: 6,
     textAlign: "center",
   },
 });

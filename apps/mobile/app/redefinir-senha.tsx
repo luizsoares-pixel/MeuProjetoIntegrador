@@ -9,16 +9,20 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { AuthCard } from "../components/AuthCard";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { useAuth } from "../hooks/useAuth";
+import { useFadeSlide } from "../hooks/useFadeSlide";
+import { colors, spacing, typography } from "../theme";
 
 export default function RedefinirSenha() {
   const { session, updatePassword, finishPasswordRecovery } = useAuth();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
   const {
     control,
     handleSubmit,
@@ -27,6 +31,9 @@ export default function RedefinirSenha() {
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: "", confirmPassword: "" },
   });
+
+  const headerAnim = useFadeSlide({ delay: 0 });
+  const successAnim = useFadeSlide({ delay: 0 });
 
   async function handleReset(input: ResetPasswordInput) {
     const updated = await updatePassword(input);
@@ -40,7 +47,10 @@ export default function RedefinirSenha() {
 
   if (!session) {
     return (
-      <LinearGradient colors={["#2f0000", "#700000"]} style={styles.container}>
+      <LinearGradient
+        colors={[colors.background.primary, colors.background.tertiary]}
+        style={styles.container}
+      >
         <Text style={styles.message}>
           Este link de recuperação expirou ou já foi utilizado.
         </Text>
@@ -51,71 +61,71 @@ export default function RedefinirSenha() {
 
   return (
     <LinearGradient
-      colors={["#2f0000", "#4a0505", "#700000"]}
+      colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      <View style={styles.header}>
+      <Animated.View style={[styles.header, headerAnim.animatedStyle]}>
         <ScreenHeader
           title="Redefinir senha"
           subtitle="NOVA SENHA"
           tagline="Escolha uma nova senha para sua conta"
         />
-      </View>
+      </Animated.View>
 
       {feedback && isSuccess ? (
-        <View style={styles.feedbackContainer}>
+        <Animated.View style={[styles.feedbackContainer, successAnim.animatedStyle]}>
           <MaterialCommunityIcons
             name="lock-check-outline"
             size={54}
-            color="#b8e6b8"
+            color={colors.accent.successSoft}
           />
           <Text style={styles.feedbackTitle}>Senha redefinida</Text>
           <Text style={styles.success}>{feedback}</Text>
           <Button title="CONTINUAR" onPress={finishPasswordRecovery} />
-        </View>
+        </Animated.View>
       ) : (
-      <>
-      <AuthCard>
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              placeholder="Nova senha"
-              secureTextEntry
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              autoCapitalize="none"
-              error={errors.password?.message}
+        <>
+          <AuthCard animationDelay={200}>
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  placeholder="Nova senha"
+                  secureTextEntry
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="none"
+                  error={errors.password?.message}
+                />
+              )}
             />
-          )}
-        />
-        <Controller
-          control={control}
-          name="confirmPassword"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              placeholder="Confirme a nova senha"
-              secureTextEntry
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              autoCapitalize="none"
-              error={errors.confirmPassword?.message}
+            <Controller
+              control={control}
+              name="confirmPassword"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  placeholder="Confirme a nova senha"
+                  secureTextEntry
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="none"
+                  error={errors.confirmPassword?.message}
+                />
+              )}
             />
-          )}
-        />
-        <Button
-          title="SALVAR NOVA SENHA"
-          loading={isSubmitting}
-          onPress={handleSubmit(handleReset)}
-        />
-      </AuthCard>
-      {feedback && <Text style={styles.error}>{feedback}</Text>}
-      </>
+            <Button
+              title="SALVAR NOVA SENHA"
+              loading={isSubmitting}
+              onPress={handleSubmit(handleReset)}
+            />
+          </AuthCard>
+          {feedback && <Text style={styles.error}>{feedback}</Text>}
+        </>
       )}
     </LinearGradient>
   );
@@ -126,17 +136,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     paddingTop: 120,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xxxl,
   },
   header: {
     alignItems: "center",
-    marginBottom: 50,
+    marginBottom: spacing.xhuge,
   },
   message: {
-    color: "#FFF",
-    fontSize: 16,
+    color: colors.accent.white,
+    fontSize: typography.size.base,
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: spacing.xxxl,
     textAlign: "center",
   },
   feedbackContainer: {
@@ -145,26 +155,26 @@ const styles = StyleSheet.create({
     borderColor: "rgba(184, 230, 184, 0.35)",
     borderRadius: 18,
     borderWidth: 1,
-    gap: 24,
-    padding: 22,
+    gap: spacing.xxxl,
+    padding: spacing.xxl,
   },
   feedbackTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "bold",
+    color: colors.accent.white,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
     marginTop: -10,
   },
   success: {
-    color: "#b8e6b8",
-    fontSize: 16,
+    color: colors.accent.successSoft,
+    fontSize: typography.size.base,
     lineHeight: 24,
     textAlign: "center",
   },
   error: {
-    color: "#ffb0b0",
-    fontSize: 14,
+    color: colors.accent.redLight,
+    fontSize: typography.size.sm,
     lineHeight: 21,
-    marginTop: 16,
+    marginTop: spacing.lg,
     textAlign: "center",
   },
 });
