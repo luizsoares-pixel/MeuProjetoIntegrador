@@ -11,16 +11,24 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export const registerSchema = z.object({
-  email: z
-    .string({ required_error: "O e-mail é obrigatório." })
-    .trim()
-    .min(1, "O e-mail é obrigatório.")
-    .email("Informe um e-mail válido."),
-  password: z
-    .string({ required_error: "A senha é obrigatória." })
-    .min(8, "A senha deve ter pelo menos 8 caracteres."),
-});
+export const registerSchema = z
+  .object({
+    email: z
+      .string({ required_error: "O e-mail é obrigatório." })
+      .trim()
+      .min(1, "O e-mail é obrigatório.")
+      .email("Informe um e-mail válido."),
+    password: z
+      .string({ required_error: "A senha é obrigatória." })
+      .min(8, "A senha deve ter pelo menos 8 caracteres."),
+    confirmPassword: z
+      .string({ required_error: "A confirmação da senha é obrigatória." })
+      .min(1, "Confirme a senha."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
