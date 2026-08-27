@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { supabase } from "../lib/supabase";
+import jwt, { JwtPayload } from "jsonwebtoken";
 
 export interface AuthenticatedUser {
   id: string;
@@ -18,14 +18,6 @@ declare global {
   }
 }
 
-/**
- * Middleware de Autenticação:
- * - Extrai o Bearer Token do cabeçalho Authorization.
- * - Valida o token remotamente via `supabase.auth.getUser(token)` para garantir
- *   que a sessão não foi revogada remotamente (não confia apenas em JWT local).
- * - Se válido, anexa `id` e `email` em `request.user`.
- * - Se inválido ou ausente, retorna HTTP 401.
- */
 export async function authMiddleware(
   request: Request,
   response: Response,
@@ -42,33 +34,36 @@ export async function authMiddleware(
   const token = authorization.slice("Bearer ".length).trim();
 
   if (!token) {
+    return response.status(401).json({ error: "Token de acesso ausente." });
+  }
+
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+  if (!jwtSecret) {
     return response
-      .status(401)
-      .json({ error: "Token de acesso ausente." });
+      .status(500)
+      .json({ error: "Chave secreta JWT não configurada no servidor." });
   }
 
   try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
 
-    if (error || !user) {
+    const sub = decoded.sub;
+    if (!sub || typeof sub !== "string") {
       return response
         .status(401)
-        .json({ error: "Token de acesso inválido ou expirado." });
+        .json({ error: "Token de acesso inválido: identificador ausente." });
     }
 
     request.user = {
-      id: user.id,
-      email: user.email,
+      id: sub,
+      email: typeof decoded.email === "string" ? decoded.email : undefined,
     };
 
     return next();
   } catch (_error) {
     return response
       .status(401)
-      .json({ error: "Falha na validação do token de autenticação." });
+      .json({ error: "Token de acesso inválido ou expirado." });
   }
 }
 

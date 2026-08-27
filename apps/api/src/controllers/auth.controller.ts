@@ -4,22 +4,12 @@ import { AuthenticatedRequest } from "../middlewares/auth";
 import { authService } from "../services/auth.service";
 
 export class AuthController {
-  /**
-   * Endpoint de Registro: POST /auth/register
-   */
   async register(request: Request, response: Response, next: NextFunction) {
     try {
       const result = await authService.register(request.body);
       return response.status(201).json(result);
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message === "DUAL_WRITE_FAILED") {
-          return response.status(500).json({
-            error:
-              "Falha ao criar o perfil no banco de dados. A criação no Auth foi revertida.",
-          });
-        }
-
         const msg = error.message.toLowerCase();
         if (
           msg.includes("already registered") ||
@@ -40,9 +30,6 @@ export class AuthController {
     }
   }
 
-  /**
-   * Endpoint de Login: POST /auth/login
-   */
   async login(request: Request, response: Response, next: NextFunction) {
     try {
       const result = await authService.login(request.body);
@@ -64,9 +51,6 @@ export class AuthController {
     }
   }
 
-  /**
-   * Endpoint de Perfil: GET /auth/me (Protegido por authMiddleware)
-   */
   async me(
     request: AuthenticatedRequest,
     response: Response,

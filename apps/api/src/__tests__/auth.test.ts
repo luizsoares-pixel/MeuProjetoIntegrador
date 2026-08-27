@@ -1,8 +1,8 @@
 import {
   loginSchema,
-  mapAuthErrorMessage,
   registerSchema,
 } from "@menu-digital/contracts";
+import jwt from "jsonwebtoken";
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { authController } from "../controllers/auth.controller";
@@ -12,38 +12,20 @@ import { validateRequest } from "../middleware/validateRequest";
 import { authMiddleware } from "../middlewares/auth";
 import { authService } from "../services/auth.service";
 
-describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
+describe("Auth Layer - Refactored Verification Suite", () => {
   describe("Etapa 1: Prisma Schema e Model Definition", () => {
     it("deve exportar instância configurada do Prisma Client", () => {
-      assert.ok(prisma, "Prisma client deve estar instanciado");
+      assert.ok(prisma);
     });
   });
 
-  describe("Etapa 2: Supabase Privilege Isolation", () => {
-    it("deve instanciar cliente público e admin separadamente com privilégios isolados", () => {
-      assert.ok(supabase, "Cliente público deve existir");
-      assert.ok(supabaseAdmin, "Cliente admin deve existir");
-      assert.notStrictEqual(
-        supabase,
-        supabaseAdmin,
-        "Cliente público e admin devem ser instâncias isoladas"
-      );
-      assert.ok(
-        supabase.auth.signUp,
-        "Cliente público deve ter método signUp"
-      );
-      assert.ok(
-        supabase.auth.signInWithPassword,
-        "Cliente público deve ter método signInWithPassword"
-      );
-      assert.ok(
-        supabase.auth.getUser,
-        "Cliente público deve ter método getUser"
-      );
-      assert.ok(
-        supabaseAdmin.auth.admin.deleteUser,
-        "Cliente admin deve ter método admin.deleteUser"
-      );
+  describe("Etapa 2: Supabase Client Configuration", () => {
+    it("deve instanciar cliente público e admin", () => {
+      assert.ok(supabase);
+      assert.ok(supabaseAdmin);
+      assert.notStrictEqual(supabase, supabaseAdmin);
+      assert.ok(supabase.auth.signUp);
+      assert.ok(supabase.auth.signInWithPassword);
     });
   });
 
@@ -129,8 +111,8 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
     });
   });
 
-  describe("Etapa 3: POST /auth/register & Dual Write Problem (Compensating Transaction)", () => {
-    it("deve registrar usuário com sucesso e persistir no Prisma", async () => {
+  describe("Etapa 3: POST /auth/register", () => {
+    it("deve retornar sucesso diretamente após o signUp do Supabase", async () => {
       const mockUserId = "11111111-1111-1111-1111-111111111111";
       const mockEmail = "test@example.com";
 
@@ -146,16 +128,6 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
         error: null,
       }));
 
-      (prisma as any).user = {
-        ...(prisma.user || {}),
-        create: async () => ({
-          id: mockUserId,
-          email: mockEmail,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      };
-
       const result = await authService.register({
         email: mockEmail,
         password: "password123",
@@ -163,101 +135,8 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
 
       assert.strictEqual(result.user.id, mockUserId);
       assert.strictEqual(result.user.email, mockEmail);
-      assert.strictEqual(
-        result.session?.accessToken,
-        "mock-access-token"
-      );
-
-      mock.reset();
-    });
-
-    it("DEVE EXECUTAR TRANSAÇÃO COMPENSATÓRIA (deleteUser) quando a criação no Prisma falhar", async () => {
-      const orphanUserId = "22222222-2222-2222-2222-222222222222";
-      const orphanEmail = "orphan@example.com";
-      let deleteUserCalledWith: string | null = null;
-
-      // 1. Supabase Auth cria o usuário com sucesso
-      mock.method(supabase.auth, "signUp", async () => ({
-        data: {
-          user: { id: orphanUserId, email: orphanEmail },
-          session: null,
-        },
-        error: null,
-      }));
-
-      // 2. Prisma falha (ex: constraint violation, timeout, conexão indisponível)
-      (prisma as any).user = {
-        ...(prisma.user || {}),
-        create: async () => {
-          throw new Error("Prisma connection error / constraint violation");
-        },
-      };
-
-      // 3. Monitora se o SupabaseAdmin executa a exclusão compensatória
-      mock.method(
-        supabaseAdmin.auth.admin,
-        "deleteUser",
-        async (userId: string) => {
-          deleteUserCalledWith = userId;
-          return { data: { user: null }, error: null };
-        }
-      );
-
-      await assert.rejects(
-        async () => {
-          await authService.register({
-            email: orphanEmail,
-            password: "password123",
-          });
-        },
-        {
-          name: "Error",
-          message: "DUAL_WRITE_FAILED",
-        }
-      );
-
-      // Validação inegociável da regra de negócio:
-      assert.strictEqual(
-        deleteUserCalledWith,
-        orphanUserId,
-        "A transação compensatória DEVE chamar deleteUser com o ID do usuário órfão!"
-      );
-
-      mock.reset();
-    });
-
-    it("AuthController.register deve retornar status 500 informando falha e reversão quando DUAL_WRITE_FAILED ocorrer", async () => {
-      const mockReq = {
-        body: { email: "fail@example.com", password: "password123" },
-      } as any;
-
-      let statusCode: number | null = null;
-      let responseBody: any = null;
-
-      const mockRes = {
-        status(code: number) {
-          statusCode = code;
-          return this;
-        },
-        json(data: any) {
-          responseBody = data;
-          return this;
-        },
-      } as any;
-
-      const mockNext = () => {};
-
-      mock.method(authService, "register", async () => {
-        throw new Error("DUAL_WRITE_FAILED");
-      });
-
-      await authController.register(mockReq, mockRes, mockNext);
-
-      assert.strictEqual(statusCode, 500);
-      assert.ok(
-        responseBody?.error?.includes("revertida"),
-        "Mensagem de erro deve informar reversão da criação"
-      );
+      assert.strictEqual(result.session?.accessToken, "mock-access-token");
+      assert.strictEqual(result.session?.refreshToken, "mock-refresh-token");
 
       mock.reset();
     });
@@ -328,14 +207,8 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
 
       assert.strictEqual(result.user.id, userId);
       assert.strictEqual(result.user.email, email);
-      assert.strictEqual(
-        result.session.accessToken,
-        "mock-access-token"
-      );
-      assert.strictEqual(
-        result.session.refreshToken,
-        "mock-refresh-token"
-      );
+      assert.strictEqual(result.session.accessToken, "mock-access-token");
+      assert.strictEqual(result.session.refreshToken, "mock-refresh-token");
 
       mock.reset();
     });
@@ -363,7 +236,7 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
     });
   });
 
-  describe("Etapa 4: Middleware de Autenticação", () => {
+  describe("Etapa 4: Middleware de Autenticação (JWT Offline Verification)", () => {
     it("deve retornar 401 se cabeçalho Authorization estiver ausente ou sem Bearer", async () => {
       let statusCode: number | null = null;
       let responseBody: any = null;
@@ -386,19 +259,15 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
       assert.ok(responseBody?.error);
     });
 
-    it("deve validar token remotamente via supabase.auth.getUser e anexar user no request", async () => {
+    it("deve validar token offline via jwt.verify e anexar user no request", async () => {
+      process.env.SUPABASE_JWT_SECRET = "test-secret";
       const validUserId = "44444444-4444-4444-4444-444444444444";
       const validEmail = "auth-user@example.com";
 
-      mock.method(supabase.auth, "getUser", async (token: string) => {
-        assert.strictEqual(token, "valid-jwt-token");
-        return {
-          data: {
-            user: { id: validUserId, email: validEmail },
-          },
-          error: null,
-        } as any;
-      });
+      mock.method(jwt, "verify", () => ({
+        sub: validUserId,
+        email: validEmail,
+      }));
 
       const mockReq = {
         headers: { authorization: "Bearer valid-jwt-token" },
@@ -411,21 +280,22 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
         nextCalled = true;
       });
 
-      assert.strictEqual(nextCalled, true, "next() deve ter sido chamado");
+      assert.strictEqual(nextCalled, true);
       assert.strictEqual(mockReq.user?.id, validUserId);
       assert.strictEqual(mockReq.user?.email, validEmail);
 
       mock.reset();
     });
 
-    it("deve retornar 401 se o token for revogado remotamente ou inválido", async () => {
-      mock.method(supabase.auth, "getUser", async () => ({
-        data: { user: null },
-        error: { message: "Session revoked", status: 401 } as any,
-      }));
+    it("deve rejeitar token com assinatura inválida e retornar 401", async () => {
+      process.env.SUPABASE_JWT_SECRET = "test-secret";
+
+      mock.method(jwt, "verify", () => {
+        throw new Error("invalid signature");
+      });
 
       const mockReq = {
-        headers: { authorization: "Bearer revoked-jwt-token" },
+        headers: { authorization: "Bearer invalid-jwt-token" },
       } as any;
 
       let statusCode: number | null = null;
@@ -447,9 +317,12 @@ describe("Auth Layer - Issue #2 Comprehensive Verification Suite", () => {
         nextCalled = true;
       });
 
-      assert.strictEqual(nextCalled, false, "NÃO deve chamar next()");
+      assert.strictEqual(nextCalled, false);
       assert.strictEqual(statusCode, 401);
-      assert.ok(responseBody?.error);
+      assert.strictEqual(
+        responseBody?.error,
+        "Token de acesso inválido ou expirado."
+      );
 
       mock.reset();
     });
