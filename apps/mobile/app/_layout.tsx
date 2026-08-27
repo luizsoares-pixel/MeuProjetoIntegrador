@@ -29,7 +29,7 @@ function RootNavigator() {
         router.replace("/redefinir-senha");
       }
     } else if (session) {
-      if (pathname !== "/home") {
+      if (publicRoutes.includes(pathname) || pathname === "/") {
         router.replace("/home");
       }
     } else {
