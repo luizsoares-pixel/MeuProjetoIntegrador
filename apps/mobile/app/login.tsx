@@ -11,7 +11,7 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";

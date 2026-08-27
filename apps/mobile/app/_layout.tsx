@@ -3,7 +3,8 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
-import { AuthProvider, useAuth } from "../contexts/AuthContext";
+import { AuthProvider } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 
 // Mantém a splash screen nativa visível até a sessão ser resolvida
 SplashScreen.preventAutoHideAsync();
