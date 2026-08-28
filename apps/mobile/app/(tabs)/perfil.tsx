@@ -1,41 +1,110 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../hooks/useAuth";
+import { useFadeSlide } from "../../hooks/useFadeSlide";
+import { Button } from "../../components/Button";
+import { colors, spacing, typography } from "../../theme";
 
 export default function PerfilTab() {
   const { user, signOut } = useAuth();
 
+  const avatarAnim = useFadeSlide({ delay: 0, translateY: 20 });
+  const infoAnim = useFadeSlide({ delay: 150, translateY: 16 });
+  const buttonAnim = useFadeSlide({ delay: 280, translateY: 12 });
+
+  // Gera iniciais do email para o avatar
+  const initials = user?.email?.charAt(0).toUpperCase() ?? "U";
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Seu perfil</Text>
-      <Text style={styles.email}>{user?.email ?? "Usuário"}</Text>
-      <TouchableOpacity
-        accessibilityRole="button"
-        onPress={signOut}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>Sair</Text>
-      </TouchableOpacity>
-    </View>
+    <LinearGradient
+      colors={[colors.background.primary, colors.background.secondary]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.container}
+    >
+      {/* Avatar */}
+      <Animated.View style={[styles.avatarContainer, avatarAnim.animatedStyle]}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarInitials}>{initials}</Text>
+        </View>
+      </Animated.View>
+
+      {/* Info */}
+      <Animated.View style={[styles.infoContainer, infoAnim.animatedStyle]}>
+        <Text style={styles.title}>Seu perfil</Text>
+        <Text style={styles.email}>{user?.email ?? "Usuário"}</Text>
+
+        <View style={styles.divider} />
+      </Animated.View>
+
+      {/* Ações */}
+      <Animated.View style={[styles.actionsContainer, buttonAnim.animatedStyle]}>
+        <Button
+          title="SAIR DA CONTA"
+          variant="outline"
+          onPress={signOut}
+        />
+      </Animated.View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: "center",
-    backgroundColor: "#2f0000",
     flex: 1,
+    alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: spacing.xxxl,
   },
-  title: { color: "#fff", fontSize: 26, fontWeight: "700" },
-  email: { color: "rgba(255,255,255,0.7)", fontSize: 15, marginTop: 12 },
-  button: {
-    borderColor: "rgba(212,175,55,0.5)",
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 28,
-    paddingHorizontal: 36,
-    paddingVertical: 12,
+  avatarContainer: {
+    marginBottom: spacing.xxxl,
   },
-  buttonText: { color: "#d4af37", fontSize: 14, fontWeight: "700" },
+  avatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.accent.goldTintStrong,
+    borderWidth: 2,
+    borderColor: colors.accent.gold,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    shadowColor: colors.accent.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  avatarInitials: {
+    color: colors.accent.gold,
+    fontSize: 36,
+    fontWeight: typography.weight.bold,
+  },
+  infoContainer: {
+    alignItems: "center",
+    width: "100%",
+    marginBottom: spacing.xxxl,
+  },
+  title: {
+    color: colors.accent.white,
+    fontSize: typography.size.xxl,
+    fontWeight: typography.weight.bold,
+  },
+  email: {
+    color: colors.accent.whiteSoft,
+    fontSize: typography.size.md,
+    marginTop: spacing.sm,
+  },
+  divider: {
+    width: 60,
+    height: 1,
+    backgroundColor: colors.accent.goldTintStrong,
+    marginTop: spacing.xxxl,
+    borderRadius: 1,
+  },
+  actionsContainer: {
+    width: "100%",
+    maxWidth: 300,
+  },
 });

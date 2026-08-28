@@ -11,7 +11,9 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { useAuth } from "../hooks/useAuth";
+import { useFadeSlide } from "../hooks/useFadeSlide";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
@@ -39,6 +41,9 @@ export default function Login() {
   });
 
   const emailValue = useWatch({ control, name: "email" });
+
+  const logoAnim = useFadeSlide({ delay: 0 });
+  const footerAnim = useFadeSlide({ delay: 400 });
 
   async function handleLogin(formData: LoginInput) {
     const success = await signIn(formData.email, formData.password);
@@ -76,7 +81,7 @@ export default function Login() {
       style={styles.container}
     >
       {/* LOGO */}
-      <View style={styles.logoContainer}>
+      <Animated.View style={[styles.logoContainer, logoAnim.animatedStyle]}>
         <Text style={styles.watermarkText}>MD</Text>
 
         <MaterialCommunityIcons
@@ -112,10 +117,10 @@ export default function Login() {
           subtitle="DIGITAL"
           tagline="Seu cardápio na palma da mão"
         />
-      </View>
+      </Animated.View>
 
       {/* FORM CARD */}
-      <AuthCard>
+      <AuthCard animationDelay={200}>
         <Controller
           control={control}
           name="email"
@@ -189,12 +194,12 @@ export default function Login() {
       />
 
       {/* FOOTER */}
-      <View style={styles.footerContainer}>
+      <Animated.View style={[styles.footerContainer, footerAnim.animatedStyle]}>
         <Text style={styles.footerPromptText}>Não possui conta?</Text>
         <TouchableOpacity onPress={() => router.push("/cadastro")}>
           <Text style={styles.footerLinkText}>Cadastre-se</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </LinearGradient>
   );
 }
@@ -241,7 +246,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordButton: {
     alignSelf: "center",
-    marginBottom: 18,
+    marginBottom: spacing.lg,
   },
   forgotPasswordText: {
     color: colors.accent.gold,
@@ -249,7 +254,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.semibold,
   },
   footerContainer: {
-    marginTop: 25,
+    marginTop: spacing.xxl,
     alignItems: "center",
   },
   footerPromptText: {
@@ -259,11 +264,7 @@ const styles = StyleSheet.create({
   footerLinkText: {
     color: colors.accent.gold,
     fontWeight: typography.weight.bold,
-    marginTop: 8,
+    marginTop: spacing.xs,
     fontSize: typography.size.md,
-  },
-  recoveryLink: {
-    alignItems: "center",
-    marginTop: 16,
   },
 });

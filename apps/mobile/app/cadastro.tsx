@@ -14,12 +14,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { useAuth } from "../hooks/useAuth";
+import { useFadeSlide } from "../hooks/useFadeSlide";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { AuthCard } from "../components/AuthCard";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { CustomModal } from "../components/CustomModal";
+import { colors, spacing, typography } from "../theme";
 
 export default function Cadastro() {
   const { signUp } = useAuth();
@@ -45,6 +48,9 @@ export default function Cadastro() {
     },
   });
 
+  const logoAnim = useFadeSlide({ delay: 0 });
+  const footerAnim = useFadeSlide({ delay: 400 });
+
   async function handleCadastro(formData: RegisterFormInput) {
     const result = await signUp(formData.email, formData.password);
 
@@ -67,40 +73,40 @@ export default function Cadastro() {
 
   return (
     <LinearGradient
-      colors={["#2f0000", "#4a0505", "#700000"]}
+      colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       {/* HEADER / LOGO */}
-      <View style={styles.logoContainer}>
+      <Animated.View style={[styles.logoContainer, logoAnim.animatedStyle]}>
         <Text style={styles.watermarkText}>MD</Text>
 
         <MaterialCommunityIcons
           name="map-marker-radius"
           size={30}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconTopLeft}
         />
 
         <MaterialCommunityIcons
           name="compass-outline"
           size={30}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconTopRight}
         />
 
         <MaterialCommunityIcons
           name="store-search"
           size={30}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconBottomLeft}
         />
 
         <MaterialCommunityIcons
           name="silverware-fork-knife"
           size={30}
-          color="rgba(212,175,55,0.25)"
+          color={colors.accent.goldTint}
           style={styles.iconBottomRight}
         />
 
@@ -109,11 +115,10 @@ export default function Cadastro() {
           subtitle="RESTAURANTES"
           tagline="Descubra restaurantes próximos a você"
         />
-
-      </View>
+      </Animated.View>
 
       {/* FORM CARD */}
-      <AuthCard>
+      <AuthCard animationDelay={200}>
         <Controller
           control={control}
           name="email"
@@ -153,7 +158,7 @@ export default function Cadastro() {
                   <MaterialCommunityIcons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={20}
-                    color="#4a0505"
+                    color={colors.accent.darkRed}
                   />
                 </TouchableOpacity>
               }
@@ -189,7 +194,7 @@ export default function Cadastro() {
                         : "eye-outline"
                     }
                     size={20}
-                    color="#4a0505"
+                    color={colors.accent.darkRed}
                   />
                 </TouchableOpacity>
               }
@@ -211,7 +216,7 @@ export default function Cadastro() {
         iconName={
           isSuccessModal ? "check-circle-outline" : "information-outline"
         }
-        iconColor={isSuccessModal ? "#4BB543" : "#d4af37"}
+        iconColor={isSuccessModal ? colors.accent.success : colors.accent.gold}
         onConfirm={() => {
           setModalVisible(false);
 
@@ -229,12 +234,12 @@ export default function Cadastro() {
       />
 
       {/* FOOTER */}
-      <View style={styles.footerContainer}>
+      <Animated.View style={[styles.footerContainer, footerAnim.animatedStyle]}>
         <Text style={styles.footerPromptText}>Já possui uma conta?</Text>
         <TouchableOpacity onPress={() => router.replace("/login")}>
           <Text style={styles.footerLinkText}>Fazer login</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </LinearGradient>
   );
 }
@@ -244,21 +249,21 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     paddingTop: 120,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xxxl,
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 50,
+    marginBottom: spacing.xhuge,
     position: "relative",
     height: 180,
   },
   watermarkText: {
     position: "absolute",
     fontSize: 130,
-    fontWeight: "bold",
-    color: "rgba(212,175,55,0.06)",
+    fontWeight: typography.weight.bold,
+    color: colors.accent.goldWatermark,
     top: 0,
-    letterSpacing: 5,
+    letterSpacing: typography.letterSpacing.xWide,
   },
   iconTopLeft: {
     position: "absolute",
@@ -281,17 +286,17 @@ const styles = StyleSheet.create({
     right: 70,
   },
   footerContainer: {
-    marginTop: 25,
+    marginTop: spacing.xxl,
     alignItems: "center",
   },
   footerPromptText: {
-    color: "#FFF",
-    fontSize: 14,
+    color: colors.accent.white,
+    fontSize: typography.size.sm,
   },
   footerLinkText: {
-    color: "#d4af37",
-    fontWeight: "bold",
-    marginTop: 8,
-    fontSize: 15,
+    color: colors.accent.gold,
+    fontWeight: typography.weight.bold,
+    marginTop: spacing.xs,
+    fontSize: typography.size.md,
   },
 });

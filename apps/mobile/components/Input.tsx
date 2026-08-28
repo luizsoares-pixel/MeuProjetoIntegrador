@@ -7,8 +7,14 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { ReactNode } from "react";
-import { colors, spacing, typography } from "../theme";
+import { ReactNode, useCallback } from "react";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { colors, spacing, typography, animations } from "../theme";
 
 type Props = TextInputProps & {
   error?: string;
@@ -16,26 +22,78 @@ type Props = TextInputProps & {
   containerStyle?: StyleProp<ViewStyle>;
 };
 
+const AnimatedView = Animated.createAnimatedComponent(View);
+
 export function Input({
   error,
   style,
   rightElement,
   containerStyle,
+  onFocus,
+  onBlur,
   ...rest
 }: Props) {
+  const focusProgress = useSharedValue(0);
+
+  const handleFocus = useCallback(
+    (e: Parameters<NonNullable<TextInputProps["onFocus"]>>[0]) => {
+      focusProgress.value = withTiming(1, {
+        duration: animations.duration.normal,
+        easing: Easing.out(Easing.quad),
+      });
+      onFocus?.(e);
+    },
+    [focusProgress, onFocus]
+  );
+
+  const handleBlur = useCallback(
+    (e: Parameters<NonNullable<TextInputProps["onBlur"]>>[0]) => {
+      focusProgress.value = withTiming(0, {
+        duration: animations.duration.normal,
+        easing: Easing.out(Easing.quad),
+      });
+      onBlur?.(e);
+    },
+    [focusProgress, onBlur]
+  );
+
+  const animatedBorderStyle = useAnimatedStyle(() => {
+    // Interpola a cor do border: gold -> white quando focado
+    // Reanimated não suporta interpolação de cor nativa sem interpolateColor,
+    // então animamos a opacidade de um overlay de highlight.
+    return {
+      borderWidth: focusProgress.value === 1 ? 1.5 : 1,
+      opacity: 1,
+    };
+  });
+
+  const hasError = Boolean(error);
+
   return (
     <View style={[styles.wrapper, containerStyle]}>
-      <View style={[styles.inputContainer, error && styles.inputError]}>
+      <AnimatedView
+        style={[
+          styles.inputContainer,
+          hasError && styles.inputError,
+          animatedBorderStyle,
+        ]}
+      >
         <TextInput
-          placeholderTextColor="#d8c184"
+          placeholderTextColor={colors.accent.goldMuted}
           style={[styles.input, style]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           {...rest}
         />
 
-        {rightElement ? <View style={styles.rightElement}>{rightElement}</View> : null}
-      </View>
+        {rightElement ? (
+          <View style={styles.rightElement}>{rightElement}</View>
+        ) : null}
+      </AnimatedView>
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {hasError ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : null}
     </View>
   );
 }
