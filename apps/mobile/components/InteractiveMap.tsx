@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import * as Location from "expo-location";
-import MapView, { UrlTile } from "react-native-maps";
+import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
 
 const DEFAULT_REGION = {
@@ -21,59 +24,101 @@ const DEFAULT_REGION = {
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_USER_AGENT = "MenuDigital/1.0 (mapa; contato: suporte@menudigital.app)";
 
+type LocationState = "loading" | "granted" | "denied" | "gps-off" | "unavailable";
+
 export default function InteractiveMap() {
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState(DEFAULT_REGION);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [locationReady, setLocationReady] = useState(false);
-  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationState, setLocationState] = useState<LocationState>("loading");
   const [mapReady, setMapReady] = useState(false);
   const [tilesReady, setTilesReady] = useState(false);
   const [mapError, setMapError] = useState(false);
 
+  const locationEnabled = locationState === "granted" && !!userLocation;
   const isLoading = !locationReady || (!tilesReady && !mapError) || (!mapReady && !mapError);
+  const showLocationFallback =
+    locationReady && (locationState === "denied" || locationState === "gps-off" || locationState === "unavailable");
 
-  function centerOnUser() {
-    if (!locationEnabled) return;
-
-    mapRef.current?.animateToRegion(region, 500);
-  }
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadLocation() {
-      try {
-        const permission = await Location.requestForegroundPermissionsAsync();
-
-        if (!mounted) return;
-
-        if (permission.status !== Location.PermissionStatus.GRANTED) {
-          setLocationReady(true);
-          return;
-        }
-
-        setLocationEnabled(true);
-        const currentLocation = await Location.getCurrentPositionAsync({});
-
-        if (mounted) {
-          setRegion((currentRegion) => ({
-            ...currentRegion,
-            latitude: currentLocation.coords.latitude,
-            longitude: currentLocation.coords.longitude,
-          }));
-          setLocationReady(true);
-        }
-      } catch {
-        if (mounted) setLocationReady(true);
-      }
+  const openLocationSettings = useCallback(async () => {
+    const canOpen = await Linking.canOpenURL("app-settings:");
+    if (canOpen) {
+      await Linking.openURL("app-settings:");
+      return;
     }
 
-    loadLocation();
-
-    return () => {
-      mounted = false;
-    };
+    await Linking.openSettings();
   }, []);
+
+  const centerOnUser = useCallback(() => {
+    if (!userLocation) return;
+
+    const nextRegion = {
+      ...DEFAULT_REGION,
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+    };
+
+    mapRef.current?.animateToRegion(nextRegion, 500);
+  }, [userLocation]);
+
+  const loadLocation = useCallback(async () => {
+    setLocationReady(false);
+    setLocationState("loading");
+    setUserLocation(null);
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (permission.status !== "granted") {
+        setLocationState("denied");
+        setLocationReady(true);
+        return;
+      }
+
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        setLocationState("gps-off");
+        setLocationReady(true);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const nextUserLocation = {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      };
+
+      setUserLocation(nextUserLocation);
+      setRegion((currentRegion) => ({
+        ...currentRegion,
+        ...nextUserLocation,
+      }));
+      setLocationState("granted");
+      setLocationReady(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown";
+      setLocationState("unavailable");
+      setLocationReady(true);
+      Alert.alert(
+        "Localização indisponível",
+        `Não foi possível acessar sua localização no momento. ${message}`,
+      );
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadLocation();
+    }, [loadLocation]),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -102,10 +147,17 @@ export default function InteractiveMap() {
   }, [mapReady]);
 
   useEffect(() => {
-    if (mapReady && locationEnabled) {
-      mapRef.current?.animateToRegion(region, 700);
+    if (mapReady && locationEnabled && userLocation) {
+      mapRef.current?.animateToRegion(
+        {
+          ...DEFAULT_REGION,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+        },
+        700,
+      );
     }
-  }, [mapReady, locationEnabled, region]);
+  }, [mapReady, locationEnabled, userLocation]);
 
   return (
     <View style={styles.container}>
@@ -113,8 +165,6 @@ export default function InteractiveMap() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
-        showsUserLocation={locationEnabled}
-        showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
         rotateEnabled={false}
@@ -125,8 +175,17 @@ export default function InteractiveMap() {
           urlTemplate={TILE_URL}
           maximumZ={19}
           flipY={false}
-          urlHeaders={{ "User-Agent": TILE_USER_AGENT }}
         />
+
+        {userLocation ? (
+          <Marker coordinate={userLocation} tracksViewChanges={false}>
+            <View style={styles.userMarkerContainer}>
+              <View style={styles.userMarkerOuterRing}>
+                <View style={styles.userMarkerInnerDot} />
+              </View>
+            </View>
+          </Marker>
+        ) : null}
       </MapView>
 
       <View style={styles.topBar}>
@@ -184,10 +243,31 @@ export default function InteractiveMap() {
         </View>
       ) : null}
 
-      {locationReady && !locationEnabled && !mapError ? (
+      {showLocationFallback ? (
         <View style={styles.infoBanner}>
-          <MaterialCommunityIcons name="map-marker-off-outline" size={20} color={colors.accent.gold} />
-          <Text style={styles.infoText}>Ative a localização para encontrar restaurantes perto de você.</Text>
+          <MaterialCommunityIcons
+            name="map-marker-off-outline"
+            size={20}
+            color={colors.accent.gold}
+          />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoText}>
+              {locationState === "gps-off"
+                ? "O GPS do dispositivo está desligado. Ligue o GPS para localizar restaurantes próximos."
+                : locationState === "unavailable"
+                  ? "Não foi possível acessar sua localização agora. Tente novamente em instantes."
+                  : "Precisamos da sua localização para centralizar o mapa e mostrar restaurantes perto de você."}
+            </Text>
+            {locationState === "denied" ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={openLocationSettings}
+                style={styles.settingsButton}
+              >
+                <Text style={styles.settingsButtonText}>Abrir configurações</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       ) : null}
     </View>
@@ -201,6 +281,30 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  userMarkerContainer: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  userMarkerOuterRing: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(33, 150, 243, 0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(33, 150, 243, 0.75)",
+  },
+  userMarkerInnerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.accent.gold,
+    borderWidth: 2,
+    borderColor: colors.accent.white,
   },
   topBar: {
     position: "absolute",
@@ -336,10 +440,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.accent.goldTintStrong,
   },
+  infoContent: {
+    flex: 1,
+    gap: 10,
+  },
   infoText: {
     color: colors.accent.white,
-    textAlign: "center",
+    textAlign: "left",
     fontSize: 13,
     flex: 1,
+  },
+  settingsButton: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.accent.gold,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  settingsButtonText: {
+    color: colors.background.primary,
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
