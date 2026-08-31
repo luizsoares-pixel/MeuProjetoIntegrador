@@ -212,10 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(47, 0, 0, 0.92)",
     borderWidth: 1,
     borderColor: colors.accent.goldTintStrong,
-    shadowColor: colors.accent.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.22)",
     elevation: 6,
   },
   titleRow: {
@@ -276,10 +273,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 16,
     backgroundColor: colors.accent.gold,
-    shadowColor: colors.accent.black,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.25)",
     elevation: 5,
   },
   controlButtonDisabled: {

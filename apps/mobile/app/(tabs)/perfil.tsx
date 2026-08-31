@@ -71,10 +71,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     elevation: 8,
-    shadowColor: colors.accent.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    boxShadow: "0px 4px 8px rgba(181, 90, 25, 0.35)",
   },
   avatarInitials: {
     color: colors.accent.gold,

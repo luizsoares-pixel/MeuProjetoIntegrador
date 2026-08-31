@@ -102,10 +102,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: colors.accent.goldSoft,
     elevation: 8,
-    shadowColor: colors.accent.gold,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    boxShadow: "0px 3px 8px rgba(181, 90, 25, 0.35)",
   },
 
   outlineButton: {
