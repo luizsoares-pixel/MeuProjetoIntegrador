@@ -104,10 +104,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     alignItems: "center",
     elevation: 10,
-    shadowColor: colors.accent.black,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    boxShadow: "0px 5px 10px rgba(0, 0, 0, 0.2)",
   },
   icon: {
     marginBottom: spacing.sm,
