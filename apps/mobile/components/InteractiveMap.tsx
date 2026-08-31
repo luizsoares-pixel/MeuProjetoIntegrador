@@ -30,6 +30,8 @@ export default function InteractiveMap() {
   const [tilesReady, setTilesReady] = useState(false);
   const [mapError, setMapError] = useState(false);
 
+  const isLoading = !locationReady || (!tilesReady && !mapError) || (!mapReady && !mapError);
+
   function centerOnUser() {
     if (!locationEnabled) return;
 
@@ -111,7 +113,6 @@ export default function InteractiveMap() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
-        customMapStyle={mapStyle}
         showsUserLocation={locationEnabled}
         showsMyLocationButton={false}
         showsCompass={false}
@@ -120,7 +121,12 @@ export default function InteractiveMap() {
         onMapReady={() => setMapReady(true)}
         accessibilityLabel="Mapa de restaurantes próximos"
       >
-        <UrlTile urlTemplate={TILE_URL} maximumZ={19} flipY={false} />
+        <UrlTile
+          urlTemplate={TILE_URL}
+          maximumZ={19}
+          flipY={false}
+          urlHeaders={{ "User-Agent": TILE_USER_AGENT }}
+        />
       </MapView>
 
       <View style={styles.topBar}>
@@ -163,7 +169,7 @@ export default function InteractiveMap() {
         <Text style={styles.attributionText}>© OpenStreetMap contributors</Text>
       </View>
 
-      {!locationReady || !tilesReady || (!mapReady && !mapError) ? (
+      {isLoading ? (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator color={colors.accent.gold} size="large" />
           <Text style={styles.statusText}>Carregando mapa...</Text>
@@ -343,11 +349,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
-const mapStyle = [
-  {
-    featureType: "poi",
-    elementType: "labels",
-    stylers: [{ visibility: "off" }],
-  },
-];
