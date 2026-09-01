@@ -28,6 +28,33 @@ const DEFAULT_REGION = {
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_USER_AGENT = "MenuDigital/1.0 (mapa; contato: suporte@menudigital.app)";
 
+/**
+ * Distância mínima (em metros) que o usuário precisa se deslocar entre
+ * focagens na tela para que uma nova requisição ao endpoint de restaurantes
+ * seja disparada. Evita chamadas redundantes causadas por ruído de precisão
+ * do GPS (que pode variar alguns metros a cada leitura sem o usuário se mover).
+ */
+const MIN_LOCATION_UPDATE_METERS = 100;
+
+/**
+ * Fórmula de Haversine simplificada para uso no cliente.
+ * Retorna distância em metros entre dois pontos geográficos.
+ * Mesma implementação do backend (restaurant.service.ts) — mantém consistência.
+ */
+function haversineDistance(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number,
+): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 type LocationState = "loading" | "granted" | "denied" | "gps-off" | "unavailable";
 
 export default function InteractiveMap() {
@@ -89,10 +116,6 @@ export default function InteractiveMap() {
   }, [userLocation]);
 
   const loadLocation = useCallback(async () => {
-    setLocationReady(false);
-    setLocationState("loading");
-    setUserLocation(null);
-
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
 
@@ -118,7 +141,26 @@ export default function InteractiveMap() {
         longitude: currentLocation.coords.longitude,
       };
 
-      setUserLocation(nextUserLocation);
+      // Evita chamadas redundantes à API quando o GPS retorna coordenadas
+      // praticamente idênticas entre focagens (ruído de precisão < 100 m).
+      // Na primeira carga (userLocationRef.current === null) sempre prossegue.
+      setUserLocation((prevLocation) => {
+        if (prevLocation !== null) {
+          const moved = haversineDistance(
+            prevLocation.latitude,
+            prevLocation.longitude,
+            nextUserLocation.latitude,
+            nextUserLocation.longitude,
+          );
+          if (moved < MIN_LOCATION_UPDATE_METERS) {
+            // Sem deslocamento significativo: mantém a localização anterior
+            // e não dispara nova requisição de restaurantes.
+            return prevLocation;
+          }
+        }
+        return nextUserLocation;
+      });
+
       setRegion((currentRegion) => ({
         ...currentRegion,
         ...nextUserLocation,
@@ -135,6 +177,7 @@ export default function InteractiveMap() {
       );
     }
   }, []);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -187,10 +230,16 @@ export default function InteractiveMap() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
+        showsUserLocation={locationEnabled}
+        showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
         rotateEnabled={false}
         onMapReady={() => setMapReady(true)}
+        // Mantém region sincronizado ao pan/zoom do usuário.
+        // Os pins de restaurantes são baseados na posição GPS (não no centro do mapa) —
+        // comportamento intencional para HU2. feat/35 usará esta region para clustering.
+        onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
         accessibilityLabel="Mapa de restaurantes próximos"
       >
         <UrlTile

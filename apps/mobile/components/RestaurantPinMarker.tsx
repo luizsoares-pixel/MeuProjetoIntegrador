@@ -28,10 +28,9 @@ export function RestaurantPinMarker({ restaurant, onPress }: RestaurantPinMarker
       accessibilityLabel={`Restaurante ${restaurant.name}`}
       accessibilityRole="button"
     >
+      {/* Pressable apenas para o visual do pin — o toque é capturado pelo Marker */}
       <Pressable
-        onPress={() => onPress(restaurant)}
-        accessibilityRole="button"
-        accessibilityLabel={`Ver detalhes de ${restaurant.name}`}
+        accessible={false}
       >
         <View style={styles.pinContainer}>
           <View style={styles.pinBody}>
