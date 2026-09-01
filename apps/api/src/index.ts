@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express, { NextFunction, Request, Response } from "express";
 import { authRouter } from "./routes/auth.routes";
+import { restaurantRouter } from "./routes/restaurant.routes";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3333);
@@ -14,6 +15,7 @@ app.get("/health", (_request: Request, response: Response) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/restaurants", restaurantRouter);
 
 // Global Error Handler
 app.use(
