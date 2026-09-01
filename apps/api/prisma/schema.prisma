@@ -15,3 +15,16 @@ model User {
 
   @@map("users")
 }
+
+model Restaurant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  address   String
+  imageUrl  String?  @map("image_url")
+  latitude  Float
+  longitude Float
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("restaurants")
+}

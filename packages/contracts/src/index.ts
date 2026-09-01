@@ -1,5 +1,47 @@
 import { z } from "zod";
 
+// ── Restaurants ────────────────────────────────────────────────────────────────
+
+export const nearbyRestaurantsSchema = z.object({
+  lat: z
+    .string({ required_error: "O parâmetro 'lat' é obrigatório." })
+    .refine((v) => v.trim() !== "", { message: "O parâmetro 'lat' não pode ser vazio." })
+    .transform(Number)
+    .refine((v) => !isNaN(v) && v >= -90 && v <= 90, {
+      message: "O parâmetro 'lat' deve ser um número entre -90 e 90.",
+    }),
+  lng: z
+    .string({ required_error: "O parâmetro 'lng' é obrigatório." })
+    .refine((v) => v.trim() !== "", { message: "O parâmetro 'lng' não pode ser vazio." })
+    .transform(Number)
+    .refine((v) => !isNaN(v) && v >= -180 && v <= 180, {
+      message: "O parâmetro 'lng' deve ser um número entre -180 e 180.",
+    }),
+  radius: z
+    .string()
+    .optional()
+    .transform((v) => (v !== undefined ? Number(v) : 5000))
+    .refine((v) => !isNaN(v) && v > 0, {
+      message: "O parâmetro 'radius' deve ser um número positivo (metros).",
+    }),
+});
+
+export type NearbyRestaurantsQuery = z.infer<typeof nearbyRestaurantsSchema>;
+
+export interface RestaurantResponse {
+  id: string;
+  name: string;
+  address: string;
+  imageUrl: string | null;
+  latitude: number;
+  longitude: number;
+  distanceInMeters: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+
 export const loginSchema = z.object({
   email: z
     .string({ required_error: "O e-mail é obrigatório." })
