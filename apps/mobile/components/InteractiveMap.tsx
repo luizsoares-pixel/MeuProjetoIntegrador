@@ -81,6 +81,8 @@ export default function InteractiveMap() {
   // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
   const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
 
+  const shouldFetchRestaurants = !__DEV__ && locationState === "granted";
+
   const {
     restaurants,
     isLoading: isLoadingRestaurants,
@@ -92,14 +94,13 @@ export default function InteractiveMap() {
     lat: userLocation?.latitude ?? null,
     lng: userLocation?.longitude ?? null,
     radius: 5000,
-    enabled: locationState === "granted",
+    enabled: shouldFetchRestaurants,
   });
   // ────────────────────────────────────────────────────────────────────────────
 
   // ── Issue #35: Clustering de pins ───────────────────────────────────────────
-  // Em __DEV__, substitui os dados reais por 80 pontos simulados para validar
-  // performance e comportamento de clustering sem precisar de backend ativo.
-  // Em produção, useMockRestaurants retorna [] e allRestaurants === restaurants.
+  // Em desenvolvimento, usamos dados simulados para validar clustering e gesto
+  // do mapa sem depender do backend ou do banco real.
   const mockRestaurants = useMockRestaurants(
     userLocation?.latitude ?? null,
     userLocation?.longitude ?? null,

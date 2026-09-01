@@ -2,12 +2,29 @@
  * Serviço HTTP para consumo da API Menu Digital.
  * Issue #34 — Pins de Restaurantes no Mapa
  *
- * A URL base é lida de EXPO_PUBLIC_API_URL (env pública do Expo).
- * Fallback para localhost para desenvolvimento local.
+ * Em Expo, o host real do dev server pode ser diferente de localhost ou 10.0.2.2.
+ * Em aparelhos físicos, por exemplo, a URL correta normalmente é o IP da máquina.
+ * Por isso a API tenta usar o host do Expo primeiro e só usa o fallback estático se
+ * não houver host de desenvolvimento disponível.
  */
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3333";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+function resolveApiBaseUrl(): string {
+  const expoHost = Constants.expoConfig?.hostUri;
+  if (expoHost) {
+    const host = expoHost.split(":")[0];
+    return `http://${host}:3333`;
+  }
+
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl) return envUrl.replace(/\/$/, "");
+
+  return Platform.OS === "android" ? "http://10.0.2.2:3333" : "http://127.0.0.1:3333";
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export interface NearbyRestaurant {
   id: string;

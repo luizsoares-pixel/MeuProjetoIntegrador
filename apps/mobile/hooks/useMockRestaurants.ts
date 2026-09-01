@@ -28,16 +28,36 @@ export function useMockRestaurants(
       return state / 0xffff_ffff;
     }
 
+    const mockNames = [
+      "Brasa & Bistrô",
+      "Sabor do Bairro",
+      "La Mesa",
+      "Canto da Praça",
+      "Ponto da Feira",
+      "Aroma do Centro",
+      "Bistro Verde",
+      "Casa do Pão",
+      "Vila Grill",
+      "Sushi & Co",
+      "Rota do Sabores",
+      "Pátio Gourmet",
+      "Taberna do Largo",
+      "Fogão da Rua",
+      "Café do Mercado",
+    ];
+
     return Array.from({ length: count }, (_, i) => {
       // Distribui em uma área de ~13 km × 13 km ao redor do centro
       const latOffset = (lcgNext() - 0.5) * 0.12;
       const lngOffset = (lcgNext() - 0.5) * 0.12;
       const distance  = lcgNext() * 6_000;
+      const name = mockNames[i % mockNames.length];
+      const suffix = i >= mockNames.length ? ` ${Math.floor(i / mockNames.length) + 2}` : "";
 
       return {
         id: `mock-${i}`,
-        name: `Restaurante Simulado ${i + 1}`,
-        address: `Quadra Simulada ${Math.floor(i / 5) + 1}, Bloco ${String.fromCharCode(65 + (i % 5))}`,
+        name: `${name}${suffix}`,
+        address: `Rua ${i + 12}, ${Math.floor(i / 4) + 1}º andar`,
         imageUrl: null,
         latitude:  centerLat + latOffset,
         longitude: centerLng + lngOffset,
