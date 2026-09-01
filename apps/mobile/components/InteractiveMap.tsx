@@ -13,6 +13,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
+import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
+import { RestaurantPinMarker } from "./RestaurantPinMarker";
+import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
+import type { NearbyRestaurant } from "../services/api";
 
 const DEFAULT_REGION = {
   latitude: -23.55052,
@@ -23,6 +27,33 @@ const DEFAULT_REGION = {
 
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_USER_AGENT = "MenuDigital/1.0 (mapa; contato: suporte@menudigital.app)";
+
+/**
+ * Distância mínima (em metros) que o usuário precisa se deslocar entre
+ * focagens na tela para que uma nova requisição ao endpoint de restaurantes
+ * seja disparada. Evita chamadas redundantes causadas por ruído de precisão
+ * do GPS (que pode variar alguns metros a cada leitura sem o usuário se mover).
+ */
+const MIN_LOCATION_UPDATE_METERS = 100;
+
+/**
+ * Fórmula de Haversine simplificada para uso no cliente.
+ * Retorna distância em metros entre dois pontos geográficos.
+ * Mesma implementação do backend (restaurant.service.ts) — mantém consistência.
+ */
+function haversineDistance(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number,
+): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 type LocationState = "loading" | "granted" | "denied" | "gps-off" | "unavailable";
 
@@ -43,6 +74,24 @@ export default function InteractiveMap() {
   const isLoading = !locationReady || (!tilesReady && !mapError) || (!mapReady && !mapError);
   const showLocationFallback =
     locationReady && (locationState === "denied" || locationState === "gps-off" || locationState === "unavailable");
+
+  // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
+  const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
+
+  const {
+    restaurants,
+    isLoading: isLoadingRestaurants,
+    isError: isRestaurantError,
+    isEmpty: isRestaurantEmpty,
+    errorMessage: restaurantErrorMessage,
+    refetch: refetchRestaurants,
+  } = useNearbyRestaurants({
+    lat: userLocation?.latitude ?? null,
+    lng: userLocation?.longitude ?? null,
+    radius: 5000,
+    enabled: locationState === "granted",
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   const openLocationSettings = useCallback(async () => {
     const canOpen = await Linking.canOpenURL("app-settings:");
@@ -67,10 +116,6 @@ export default function InteractiveMap() {
   }, [userLocation]);
 
   const loadLocation = useCallback(async () => {
-    setLocationReady(false);
-    setLocationState("loading");
-    setUserLocation(null);
-
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
 
@@ -96,7 +141,26 @@ export default function InteractiveMap() {
         longitude: currentLocation.coords.longitude,
       };
 
-      setUserLocation(nextUserLocation);
+      // Evita chamadas redundantes à API quando o GPS retorna coordenadas
+      // praticamente idênticas entre focagens (ruído de precisão < 100 m).
+      // Na primeira carga (userLocationRef.current === null) sempre prossegue.
+      setUserLocation((prevLocation) => {
+        if (prevLocation !== null) {
+          const moved = haversineDistance(
+            prevLocation.latitude,
+            prevLocation.longitude,
+            nextUserLocation.latitude,
+            nextUserLocation.longitude,
+          );
+          if (moved < MIN_LOCATION_UPDATE_METERS) {
+            // Sem deslocamento significativo: mantém a localização anterior
+            // e não dispara nova requisição de restaurantes.
+            return prevLocation;
+          }
+        }
+        return nextUserLocation;
+      });
+
       setRegion((currentRegion) => ({
         ...currentRegion,
         ...nextUserLocation,
@@ -113,6 +177,7 @@ export default function InteractiveMap() {
       );
     }
   }, []);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -165,10 +230,16 @@ export default function InteractiveMap() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
+        showsUserLocation={locationEnabled}
+        showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
         rotateEnabled={false}
         onMapReady={() => setMapReady(true)}
+        // Mantém region sincronizado ao pan/zoom do usuário.
+        // Os pins de restaurantes são baseados na posição GPS (não no centro do mapa) —
+        // comportamento intencional para HU2. feat/35 usará esta region para clustering.
+        onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
         accessibilityLabel="Mapa de restaurantes próximos"
       >
         <UrlTile
@@ -186,6 +257,15 @@ export default function InteractiveMap() {
             </View>
           </Marker>
         ) : null}
+
+        {/* Issue #34: Pins de restaurantes próximos */}
+        {restaurants.map((restaurant) => (
+          <RestaurantPinMarker
+            key={restaurant.id}
+            restaurant={restaurant}
+            onPress={setSelectedRestaurant}
+          />
+        ))}
       </MapView>
 
       <View style={styles.topBar}>
@@ -270,6 +350,61 @@ export default function InteractiveMap() {
           </View>
         </View>
       ) : null}
+
+      {/* Issue #34: Banners de estado dos restaurantes (visíveis só após o mapa carregar) */}
+      {mapReady && !isLoading ? (
+        <>
+          {isLoadingRestaurants ? (
+            <View style={styles.restaurantLoadingBanner}>
+              <ActivityIndicator color={colors.accent.gold} size="small" />
+              <Text style={styles.restaurantLoadingText}>
+                Buscando restaurantes próximos...
+              </Text>
+            </View>
+          ) : null}
+
+          {isRestaurantError && !isLoadingRestaurants ? (
+            <View style={styles.restaurantErrorBanner}>
+              <MaterialCommunityIcons
+                name="wifi-off"
+                size={18}
+                color={colors.accent.white}
+              />
+              <Text style={styles.restaurantErrorText} numberOfLines={2}>
+                {restaurantErrorMessage ?? "Não foi possível carregar os restaurantes."}
+              </Text>
+              <Pressable
+                onPress={refetchRestaurants}
+                style={styles.retryButton}
+                accessibilityRole="button"
+                accessibilityLabel="Tentar novamente"
+              >
+                <Text style={styles.retryButtonText}>Tentar novamente</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {isRestaurantEmpty && !isLoadingRestaurants ? (
+            <View style={styles.restaurantEmptyBanner}>
+              <MaterialCommunityIcons
+                name="store-search-outline"
+                size={18}
+                color={colors.accent.goldMuted}
+              />
+              <Text style={styles.restaurantEmptyText}>
+                Nenhum restaurante encontrado nesta área.
+              </Text>
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
+      {/* Preview ao tocar no pin */}
+      <RestaurantPreviewCard
+        restaurant={selectedRestaurant}
+        visible={selectedRestaurant !== null}
+        onClose={() => setSelectedRestaurant(null)}
+      />
     </View>
   );
 }
@@ -462,4 +597,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+
+  // ── Issue #34: Estilos de estado dos restaurantes ──────────────────────────
+  restaurantLoadingBanner: {
+    position: "absolute",
+    bottom: 88,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(47, 0, 0, 0.88)",
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+  },
+  restaurantLoadingText: {
+    color: colors.accent.white,
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+  restaurantErrorBanner: {
+    position: "absolute",
+    bottom: 88,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.accent.red,
+  },
+  restaurantErrorText: {
+    color: colors.accent.white,
+    fontSize: 12,
+    flex: 1,
+  },
+  retryButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.accent.white,
+  },
+  retryButtonText: {
+    color: colors.accent.red,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  restaurantEmptyBanner: {
+    position: "absolute",
+    bottom: 88,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(47, 0, 0, 0.88)",
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+  },
+  restaurantEmptyText: {
+    color: colors.accent.goldMuted,
+    fontSize: 13,
+    flex: 1,
+  },
 });
+
