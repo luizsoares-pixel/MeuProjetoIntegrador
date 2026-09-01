@@ -14,6 +14,9 @@ import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
+import { useMapClusters } from "../hooks/useMapClusters";
+import { useMockRestaurants } from "../hooks/useMockRestaurants";
+import { ClusterMarker } from "./ClusterMarker";
 import { RestaurantPinMarker } from "./RestaurantPinMarker";
 import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
 import type { NearbyRestaurant } from "../services/api";
@@ -91,6 +94,42 @@ export default function InteractiveMap() {
     radius: 5000,
     enabled: locationState === "granted",
   });
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── Issue #35: Clustering de pins ───────────────────────────────────────────
+  // Em __DEV__, substitui os dados reais por 80 pontos simulados para validar
+  // performance e comportamento de clustering sem precisar de backend ativo.
+  // Em produção, useMockRestaurants retorna [] e allRestaurants === restaurants.
+  const mockRestaurants = useMockRestaurants(
+    userLocation?.latitude ?? null,
+    userLocation?.longitude ?? null,
+    80
+  );
+  const allRestaurants = __DEV__ ? mockRestaurants : restaurants;
+
+  const { clusters, expandCluster } = useMapClusters(allRestaurants, region);
+
+  /**
+   * Ao tocar num cluster, anima o mapa para o zoom de expansão calculado
+   * pelo supercluster — revela os pins individuais daquela região.
+   * Converte nível de zoom tile → latitudeDelta (inverso de regionToZoom).
+   */
+  function handleClusterPress(
+    clusterId: number,
+    clusterCoordinate: { latitude: number; longitude: number }
+  ) {
+    const expansionZoom = expandCluster(clusterId);
+    const delta = 360 / Math.pow(2, expansionZoom);
+    mapRef.current?.animateToRegion(
+      {
+        latitude:        clusterCoordinate.latitude,
+        longitude:       clusterCoordinate.longitude,
+        latitudeDelta:   delta,
+        longitudeDelta:  delta,
+      },
+      400
+    );
+  }
   // ────────────────────────────────────────────────────────────────────────────
 
   const openLocationSettings = useCallback(async () => {
@@ -258,14 +297,32 @@ export default function InteractiveMap() {
           </Marker>
         ) : null}
 
-        {/* Issue #34: Pins de restaurantes próximos */}
-        {restaurants.map((restaurant) => (
-          <RestaurantPinMarker
-            key={restaurant.id}
-            restaurant={restaurant}
-            onPress={setSelectedRestaurant}
-          />
-        ))}
+        {/* Issue #35: Clusterização de pins próximos */}
+        {clusters.map((cluster) => {
+          const [longitude, latitude] = cluster.geometry.coordinates as [number, number];
+          const coordinate = { latitude, longitude };
+
+          if ("cluster" in cluster.properties && cluster.properties.cluster) {
+            return (
+              <ClusterMarker
+                key={`cluster-${cluster.id}`}
+                id={cluster.id as number}
+                coordinate={coordinate}
+                count={cluster.properties.point_count}
+                onPress={() => handleClusterPress(cluster.id as number, coordinate)}
+              />
+            );
+          }
+
+          const restaurant = cluster.properties.restaurant as NearbyRestaurant;
+          return (
+            <RestaurantPinMarker
+              key={restaurant.id}
+              restaurant={restaurant}
+              onPress={setSelectedRestaurant}
+            />
+          );
+        })}
       </MapView>
 
       <View style={styles.topBar}>
