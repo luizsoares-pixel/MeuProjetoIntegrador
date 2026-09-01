@@ -13,6 +13,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
+import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
+import { RestaurantPinMarker } from "./RestaurantPinMarker";
+import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
+import type { NearbyRestaurant } from "../services/api";
 
 const DEFAULT_REGION = {
   latitude: -23.55052,
@@ -43,6 +47,24 @@ export default function InteractiveMap() {
   const isLoading = !locationReady || (!tilesReady && !mapError) || (!mapReady && !mapError);
   const showLocationFallback =
     locationReady && (locationState === "denied" || locationState === "gps-off" || locationState === "unavailable");
+
+  // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
+  const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
+
+  const {
+    restaurants,
+    isLoading: isLoadingRestaurants,
+    isError: isRestaurantError,
+    isEmpty: isRestaurantEmpty,
+    errorMessage: restaurantErrorMessage,
+    refetch: refetchRestaurants,
+  } = useNearbyRestaurants({
+    lat: userLocation?.latitude ?? null,
+    lng: userLocation?.longitude ?? null,
+    radius: 5000,
+    enabled: locationState === "granted",
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   const openLocationSettings = useCallback(async () => {
     const canOpen = await Linking.canOpenURL("app-settings:");
@@ -186,6 +208,15 @@ export default function InteractiveMap() {
             </View>
           </Marker>
         ) : null}
+
+        {/* Issue #34: Pins de restaurantes próximos */}
+        {restaurants.map((restaurant) => (
+          <RestaurantPinMarker
+            key={restaurant.id}
+            restaurant={restaurant}
+            onPress={setSelectedRestaurant}
+          />
+        ))}
       </MapView>
 
       <View style={styles.topBar}>
@@ -270,6 +301,61 @@ export default function InteractiveMap() {
           </View>
         </View>
       ) : null}
+
+      {/* Issue #34: Banners de estado dos restaurantes (visíveis só após o mapa carregar) */}
+      {mapReady && !isLoading ? (
+        <>
+          {isLoadingRestaurants ? (
+            <View style={styles.restaurantLoadingBanner}>
+              <ActivityIndicator color={colors.accent.gold} size="small" />
+              <Text style={styles.restaurantLoadingText}>
+                Buscando restaurantes próximos...
+              </Text>
+            </View>
+          ) : null}
+
+          {isRestaurantError && !isLoadingRestaurants ? (
+            <View style={styles.restaurantErrorBanner}>
+              <MaterialCommunityIcons
+                name="wifi-off"
+                size={18}
+                color={colors.accent.white}
+              />
+              <Text style={styles.restaurantErrorText} numberOfLines={2}>
+                {restaurantErrorMessage ?? "Não foi possível carregar os restaurantes."}
+              </Text>
+              <Pressable
+                onPress={refetchRestaurants}
+                style={styles.retryButton}
+                accessibilityRole="button"
+                accessibilityLabel="Tentar novamente"
+              >
+                <Text style={styles.retryButtonText}>Tentar novamente</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {isRestaurantEmpty && !isLoadingRestaurants ? (
+            <View style={styles.restaurantEmptyBanner}>
+              <MaterialCommunityIcons
+                name="store-search-outline"
+                size={18}
+                color={colors.accent.goldMuted}
+              />
+              <Text style={styles.restaurantEmptyText}>
+                Nenhum restaurante encontrado nesta área.
+              </Text>
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
+      {/* Preview ao tocar no pin */}
+      <RestaurantPreviewCard
+        restaurant={selectedRestaurant}
+        visible={selectedRestaurant !== null}
+        onClose={() => setSelectedRestaurant(null)}
+      />
     </View>
   );
 }
@@ -462,4 +548,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+
+  // ── Issue #34: Estilos de estado dos restaurantes ──────────────────────────
+  restaurantLoadingBanner: {
+    position: "absolute",
+    bottom: 88,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(47, 0, 0, 0.88)",
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+  },
+  restaurantLoadingText: {
+    color: colors.accent.white,
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+  restaurantErrorBanner: {
+    position: "absolute",
+    bottom: 88,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.accent.red,
+  },
+  restaurantErrorText: {
+    color: colors.accent.white,
+    fontSize: 12,
+    flex: 1,
+  },
+  retryButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.accent.white,
+  },
+  retryButtonText: {
+    color: colors.accent.red,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  restaurantEmptyBanner: {
+    position: "absolute",
+    bottom: 88,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(47, 0, 0, 0.88)",
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+  },
+  restaurantEmptyText: {
+    color: colors.accent.goldMuted,
+    fontSize: 13,
+    flex: 1,
+  },
 });
+
