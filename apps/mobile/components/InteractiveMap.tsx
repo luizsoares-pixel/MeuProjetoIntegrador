@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
 import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
@@ -225,7 +226,8 @@ export default function InteractiveMap() {
   useFocusEffect(
     useCallback(() => {
       loadLocation();
-    }, [loadLocation]),
+      refetchRestaurants();
+    }, [loadLocation, refetchRestaurants]),
   );
 
   useEffect(() => {
@@ -346,6 +348,22 @@ export default function InteractiveMap() {
       </View>
 
       <View style={styles.mapControls}>
+        <Pressable
+          accessibilityLabel="Cadastrar novo restaurante"
+          accessibilityRole="button"
+          onPress={() => router.push("/cadastrar-restaurante")}
+          style={({ pressed }) => [
+            styles.controlButton,
+            pressed && styles.controlButtonPressed,
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="store-plus"
+            size={24}
+            color={colors.background.primary}
+          />
+        </Pressable>
+
         <Pressable
           accessibilityLabel="Centralizar mapa na minha localização"
           accessibilityRole="button"
@@ -565,6 +583,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
     bottom: 76,
+    gap: 12,
   },
   controlButton: {
     width: 50,

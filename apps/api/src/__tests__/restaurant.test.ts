@@ -1,4 +1,7 @@
-import { nearbyRestaurantsSchema } from "@menu-digital/contracts";
+import {
+  createRestaurantSchema,
+  nearbyRestaurantsSchema,
+} from "@menu-digital/contracts";
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { restaurantController } from "../controllers/restaurant.controller";
@@ -403,6 +406,184 @@ describe("Restaurants Layer - Issue #33", () => {
       assert.strictEqual(nextError.message, "DB error");
 
       mock.reset();
+    });
+  });
+
+  // ── Issue #36: Cadastro Básico de Restaurante ───────────────────────────────
+
+  describe("Issue #36: Cadastro Básico de Restaurante (POST /restaurants)", () => {
+    describe("Validação de payload com createRestaurantSchema", () => {
+      it("deve aceitar payload válido com todos os campos", async () => {
+        const payload = {
+          name: "Restaurante Sabor & Arte",
+          address: "CLS 405 Bloco B, Asa Sul, Brasília - DF",
+          cuisineType: "Brasileira",
+          latitude: -15.8234,
+          longitude: -47.9012,
+          imageUrl: "https://example.com/foto.jpg",
+        };
+
+        const result = await createRestaurantSchema.parseAsync(payload);
+        assert.strictEqual(result.name, payload.name);
+        assert.strictEqual(result.address, payload.address);
+        assert.strictEqual(result.cuisineType, payload.cuisineType);
+        assert.strictEqual(result.latitude, payload.latitude);
+        assert.strictEqual(result.longitude, payload.longitude);
+      });
+
+      it("deve rejeitar nome com menos de 2 caracteres", async () => {
+        await assert.rejects(
+          () =>
+            createRestaurantSchema.parseAsync({
+              name: "A",
+              address: "Rua 1",
+              cuisineType: "Italiana",
+              latitude: -15.8,
+              longitude: -47.9,
+            }),
+          (err: any) => {
+            assert.ok(err.issues?.some((i: any) => i.path.includes("name")));
+            return true;
+          }
+        );
+      });
+
+      it("deve rejeitar tipo de culinária vazio", async () => {
+        await assert.rejects(
+          () =>
+            createRestaurantSchema.parseAsync({
+              name: "Restaurante",
+              address: "Rua 1",
+              cuisineType: "",
+              latitude: -15.8,
+              longitude: -47.9,
+            }),
+          (err: any) => {
+            assert.ok(err.issues?.some((i: any) => i.path.includes("cuisineType")));
+            return true;
+          }
+        );
+      });
+
+      it("deve rejeitar latitude fora de [-90, 90]", async () => {
+        await assert.rejects(
+          () =>
+            createRestaurantSchema.parseAsync({
+              name: "Restaurante",
+              address: "Rua 1",
+              cuisineType: "Japonesa",
+              latitude: 95,
+              longitude: -47.9,
+            }),
+          (err: any) => {
+            assert.ok(err.issues?.some((i: any) => i.path.includes("latitude")));
+            return true;
+          }
+        );
+      });
+    });
+
+    describe("RestaurantService.create", () => {
+      it("deve criar restaurante vinculando ao ownerId", async () => {
+        const ownerId = "11111111-1111-1111-1111-111111111111";
+        const inputData = {
+          name: "Bistrô Central",
+          address: "Av. Paulista 1000",
+          cuisineType: "Francesa",
+          latitude: -23.56,
+          longitude: -46.65,
+          imageUrl: null,
+        };
+
+        (prisma as any).restaurant = {
+          create: async ({ data }: any) => ({
+            id: "22222222-2222-2222-2222-222222222222",
+            ...data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        };
+
+        const result = await restaurantService.create(inputData, ownerId);
+
+        assert.strictEqual(result.name, "Bistrô Central");
+        assert.strictEqual(result.ownerId, ownerId);
+        assert.strictEqual(result.cuisineType, "Francesa");
+        assert.ok(result.id);
+      });
+    });
+
+    describe("RestaurantController.create", () => {
+      it("deve retornar 201 com o restaurante criado", async () => {
+        const ownerId = "11111111-1111-1111-1111-111111111111";
+        const createdRestaurant = {
+          id: "rest-123",
+          name: "Cantina da Nonna",
+          address: "Rua das Flores 123",
+          cuisineType: "Italiana",
+          imageUrl: null,
+          latitude: -15.8,
+          longitude: -47.9,
+          ownerId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        mock.method(restaurantService, "create", async () => createdRestaurant);
+
+        const req = {
+          user: { id: ownerId },
+          body: {
+            name: "Cantina da Nonna",
+            address: "Rua das Flores 123",
+            cuisineType: "Italiana",
+            latitude: -15.8,
+            longitude: -47.9,
+          },
+        } as any;
+
+        let statusCode: number | null = null;
+        let responseBody: any = null;
+        const res = {
+          status(code: number) {
+            statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            responseBody = data;
+            return this;
+          },
+        } as any;
+
+        await restaurantController.create(req, res, () => {});
+
+        assert.strictEqual(statusCode, 201);
+        assert.strictEqual(responseBody.restaurant.id, "rest-123");
+        assert.strictEqual(responseBody.restaurant.ownerId, ownerId);
+
+        mock.reset();
+      });
+
+      it("deve retornar 401 se user não estiver autenticado", async () => {
+        const req = {
+          body: { name: "Teste" },
+        } as any;
+
+        let statusCode: number | null = null;
+        const res = {
+          status(code: number) {
+            statusCode = code;
+            return this;
+          },
+          json() {
+            return this;
+          },
+        } as any;
+
+        await restaurantController.create(req, res, () => {});
+
+        assert.strictEqual(statusCode, 401);
+      });
     });
   });
 });

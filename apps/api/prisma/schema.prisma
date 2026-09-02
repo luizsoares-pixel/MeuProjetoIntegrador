@@ -8,23 +8,27 @@ datasource db {
 }
 
 model User {
-  id        String   @id @db.Uuid
-  email     String   @unique
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String       @id @db.Uuid
+  email       String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  restaurants Restaurant[]
 
   @@map("users")
 }
 
 model Restaurant {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  address   String
-  imageUrl  String?  @map("image_url")
-  latitude  Float
-  longitude Float
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  address     String
+  cuisineType String?  @map("cuisine_type")
+  imageUrl    String?  @map("image_url")
+  latitude    Float
+  longitude   Float
+  ownerId     String?  @map("owner_id") @db.Uuid
+  owner       User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("restaurants")
 }
