@@ -1,4 +1,4 @@
-﻿import Supercluster from "supercluster";
+import Supercluster from "supercluster";
 import { useMemo } from "react";
 import type { Region } from "react-native-maps";
 import type { NearbyRestaurant } from "../services/api";
@@ -13,6 +13,9 @@ interface RestaurantProperties {
  * Fórmula inversa de: latitudeDelta ≈ 360 / 2^zoom
  */
 function regionToZoom(latitudeDelta: number): number {
+  if (!latitudeDelta || latitudeDelta <= 0 || Number.isNaN(latitudeDelta)) {
+    return 15;
+  }
   return Math.min(20, Math.max(0, Math.round(Math.log2(360 / latitudeDelta))));
 }
 

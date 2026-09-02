@@ -81,7 +81,8 @@ export default function InteractiveMap() {
   // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
   const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
 
-  const shouldFetchRestaurants = !__DEV__ && locationState === "granted";
+  // Ativa mocks apenas se explicitamente configurado no .env para validação de densidade/clustering
+  const useMocks = __DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true";
 
   const {
     restaurants,
@@ -94,19 +95,19 @@ export default function InteractiveMap() {
     lat: userLocation?.latitude ?? null,
     lng: userLocation?.longitude ?? null,
     radius: 5000,
-    enabled: shouldFetchRestaurants,
+    enabled: locationState === "granted" && !useMocks,
   });
   // ────────────────────────────────────────────────────────────────────────────
 
   // ── Issue #35: Clustering de pins ───────────────────────────────────────────
-  // Em desenvolvimento, usamos dados simulados para validar clustering e gesto
-  // do mapa sem depender do backend ou do banco real.
+  // Dados simulados opcionais para validar clustering e densidade de pins
+  // ativados via EXPO_PUBLIC_USE_MOCK_RESTAURANTS="true" em desenvolvimento.
   const mockRestaurants = useMockRestaurants(
     userLocation?.latitude ?? null,
     userLocation?.longitude ?? null,
     80
   );
-  const allRestaurants = __DEV__ ? mockRestaurants : restaurants;
+  const allRestaurants = useMocks ? mockRestaurants : restaurants;
 
   const { clusters, expandCluster } = useMapClusters(allRestaurants, region);
 
