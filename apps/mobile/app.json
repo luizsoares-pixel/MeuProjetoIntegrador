@@ -1,8 +1,6 @@
 {
   "expo": {
     "name": "menu-digital",
-    "slug": "menu-digital",
-    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "scheme": "menudigital",
@@ -43,7 +41,6 @@
         }
       ],
       "expo-font",
-      "expo-status-bar",
       "expo-web-browser"
     ],
     "experiments": {
