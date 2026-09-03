@@ -1,7 +1,7 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useFadeSlide } from "../../hooks/useFadeSlide";
 import { Button } from "../../components/Button";
@@ -41,6 +41,11 @@ export default function PerfilTab() {
 
       {/* Ações */}
       <Animated.View style={[styles.actionsContainer, buttonAnim.animatedStyle]}>
+        <Button
+          title="CADASTRAR RESTAURANTE"
+          onPress={() => router.push("/cadastrar-restaurante")}
+        />
+        <View style={{ height: spacing.md }} />
         <Button
           title="SAIR DA CONTA"
           variant="outline"

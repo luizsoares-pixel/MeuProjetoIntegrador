@@ -1,4 +1,9 @@
-import { NearbyRestaurantsQuery, RestaurantResponse } from "@menu-digital/contracts";
+import {
+  CreateRestaurantInput,
+  NearbyRestaurantResponse,
+  NearbyRestaurantsQuery,
+  RestaurantResponse,
+} from "@menu-digital/contracts";
 import { prisma } from "../lib/prisma";
 
 const EARTH_RADIUS_METERS = 6_371_000;
@@ -38,7 +43,7 @@ export class RestaurantService {
    * @param query - Coordenadas e raio de busca validados
    * @returns Lista de restaurantes com `distanceInMeters`, ou lista vazia
    */
-  async findNearby(query: NearbyRestaurantsQuery): Promise<RestaurantResponse[]> {
+  async findNearby(query: NearbyRestaurantsQuery): Promise<NearbyRestaurantResponse[]> {
     const { lat, lng, radius } = query;
 
     // Bounding box aproximado para reduzir o número de registros trazidos do banco.
@@ -53,14 +58,16 @@ export class RestaurantService {
       },
     });
 
-    const results: RestaurantResponse[] = candidates
+    const results: NearbyRestaurantResponse[] = candidates
       .map((restaurant) => ({
         id: restaurant.id,
         name: restaurant.name,
         address: restaurant.address,
+        cuisineType: restaurant.cuisineType,
         imageUrl: restaurant.imageUrl,
         latitude: restaurant.latitude,
         longitude: restaurant.longitude,
+        ownerId: restaurant.ownerId,
         distanceInMeters: haversineDistance(
           lat,
           lng,
@@ -70,10 +77,47 @@ export class RestaurantService {
         createdAt: restaurant.createdAt,
         updatedAt: restaurant.updatedAt,
       }))
-      .filter((r) => r.distanceInMeters <= radius)
-      .sort((a, b) => a.distanceInMeters - b.distanceInMeters);
+      .filter((r) => (r.distanceInMeters ?? 0) <= radius)
+      .sort((a, b) => (a.distanceInMeters ?? 0) - (b.distanceInMeters ?? 0));
 
     return results;
+  }
+
+  /**
+   * Cria um novo restaurante vinculado ao usuário autenticado (owner).
+   *
+   * @param data - Dados validados do restaurante
+   * @param ownerId - UUID do usuário proprietário
+   * @returns Restaurante criado
+   */
+  async create(
+    data: CreateRestaurantInput,
+    ownerId: string
+  ): Promise<RestaurantResponse> {
+    const restaurant = await prisma.restaurant.create({
+      data: {
+        name: data.name,
+        address: data.address,
+        cuisineType: data.cuisineType,
+        imageUrl: data.imageUrl ?? null,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        ownerId,
+      },
+    });
+
+    return {
+      id: restaurant.id,
+      name: restaurant.name,
+      address: restaurant.address,
+      cuisineType: restaurant.cuisineType,
+      imageUrl: restaurant.imageUrl,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      ownerId: restaurant.ownerId,
+      createdAt: restaurant.createdAt,
+      updatedAt: restaurant.updatedAt,
+    };
   }
 }
 

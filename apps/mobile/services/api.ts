@@ -10,6 +10,10 @@
 
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import type {
+  CreateRestaurantInput,
+  RestaurantResponse,
+} from "@menu-digital/contracts";
 
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -32,6 +36,7 @@ export interface NearbyRestaurant {
   id: string;
   name: string;
   address: string;
+  cuisineType?: string | null;
   imageUrl: string | null;
   latitude: number;
   longitude: number;
@@ -79,4 +84,47 @@ export async function fetchNearbyRestaurants(
 
   const data: NearbyRestaurantsResponse = await response.json();
   return data.restaurants;
+}
+
+/**
+ * Cadastra um novo restaurante vinculado ao usuário autenticado.
+ * Exige token JWT de autenticação.
+ */
+export async function createRestaurant(
+  input: CreateRestaurantInput,
+  token: string
+): Promise<RestaurantResponse> {
+  const url = `${API_BASE_URL}/restaurants`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao cadastrar restaurante: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      if (errorData.details && Array.isArray(errorData.details)) {
+        const detailsMsg = errorData.details
+          .map((d: any) => d.message)
+          .join(" ");
+        errorMessage = `${errorMessage} (${detailsMsg})`;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.restaurant;
 }

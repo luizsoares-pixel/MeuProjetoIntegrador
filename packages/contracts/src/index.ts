@@ -28,16 +28,52 @@ export const nearbyRestaurantsSchema = z.object({
 
 export type NearbyRestaurantsQuery = z.infer<typeof nearbyRestaurantsSchema>;
 
+export const createRestaurantSchema = z.object({
+  name: z
+    .string({ required_error: "O nome do restaurante é obrigatório." })
+    .trim()
+    .min(2, "O nome do restaurante deve ter pelo menos 2 caracteres."),
+  address: z
+    .string({ required_error: "O endereço é obrigatório." })
+    .trim()
+    .min(3, "O endereço deve ter pelo menos 3 caracteres."),
+  cuisineType: z
+    .string({ required_error: "O tipo de culinária é obrigatório." })
+    .trim()
+    .min(2, "Informe o tipo de culinária."),
+  latitude: z
+    .number({ required_error: "A latitude é obrigatória." })
+    .min(-90, "Latitude deve ser entre -90 e 90.")
+    .max(90, "Latitude deve ser entre -90 e 90."),
+  longitude: z
+    .number({ required_error: "A longitude é obrigatória." })
+    .min(-180, "Longitude deve ser entre -180 e 180.")
+    .max(180, "Longitude deve ser entre -180 e 180."),
+  imageUrl: z
+    .string()
+    .url("A URL da imagem deve ser válida.")
+    .nullable()
+    .optional(),
+});
+
+export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
+
 export interface RestaurantResponse {
   id: string;
   name: string;
   address: string;
+  cuisineType?: string | null;
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  distanceInMeters: number;
+  distanceInMeters?: number;
+  ownerId?: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface NearbyRestaurantResponse extends RestaurantResponse {
+  distanceInMeters: number;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
