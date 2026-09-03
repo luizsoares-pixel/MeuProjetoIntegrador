@@ -17,6 +17,7 @@ import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useMapClusters, isCluster } from "../hooks/useMapClusters";
 import { useMockRestaurants } from "../hooks/useMockRestaurants";
 import { ClusterMarker } from "./ClusterMarker";
+import { Loading } from "./Loading";
 import { RestaurantPinMarker } from "./RestaurantPinMarker";
 import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
 import type { NearbyRestaurant } from "../services/api";
@@ -368,8 +369,10 @@ export default function InteractiveMap() {
 
       {isLoading ? (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator color={colors.accent.gold} size="large" />
-          <Text style={styles.statusText}>Carregando mapa...</Text>
+          <Loading size="large" color={colors.accent.gold} />
+          <Text style={styles.statusText}>
+            {!locationReady ? "Obtendo sua localização..." : "Carregando mapa..."}
+          </Text>
         </View>
       ) : null}
 
@@ -409,12 +412,12 @@ export default function InteractiveMap() {
         </View>
       ) : null}
 
-      {/* Issue #34: Banners de estado dos restaurantes (visíveis só após o mapa carregar) */}
+      {/* Issue #37: Banners padronizados de estado dos restaurantes */}
       {mapReady && !isLoading ? (
         <>
           {isLoadingRestaurants ? (
             <View style={styles.restaurantLoadingBanner}>
-              <ActivityIndicator color={colors.accent.gold} size="small" />
+              <Loading size="small" color={colors.accent.gold} />
               <Text style={styles.restaurantLoadingText}>
                 Buscando restaurantes próximos...
               </Text>
@@ -450,7 +453,7 @@ export default function InteractiveMap() {
                 color={colors.accent.goldMuted}
               />
               <Text style={styles.restaurantEmptyText}>
-                Nenhum restaurante encontrado nesta área.
+                Nenhum restaurante encontrado no raio de busca.
               </Text>
             </View>
           ) : null}
