@@ -94,6 +94,17 @@ export class RestaurantService {
     data: CreateRestaurantInput,
     ownerId: string
   ): Promise<RestaurantResponse> {
+    if (ownerId) {
+      await prisma.user.upsert({
+        where: { id: ownerId },
+        update: {},
+        create: {
+          id: ownerId,
+          email: `${ownerId}@auth.supabase`,
+        },
+      });
+    }
+
     const restaurant = await prisma.restaurant.create({
       data: {
         name: data.name,

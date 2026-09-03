@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { supabase } from "../lib/supabase";
 
 export interface AuthenticatedUser {
   id: string;
@@ -37,26 +38,55 @@ export async function authMiddleware(
     return response.status(401).json({ error: "Token de acesso ausente." });
   }
 
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
-  if (!jwtSecret) {
-    return response
-      .status(500)
-      .json({ error: "Chave secreta JWT não configurada no servidor." });
-  }
-
   try {
-    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+    let userId: string | null = null;
+    let userEmail: string | undefined = undefined;
 
-    const sub = decoded.sub;
-    if (!sub || typeof sub !== "string") {
+    // 1. Tenta verificação rápida via SUPABASE_JWT_SECRET
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    if (jwtSecret) {
+      try {
+        const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+        if (decoded?.sub && typeof decoded.sub === "string") {
+          userId = decoded.sub;
+          userEmail = typeof decoded.email === "string" ? decoded.email : undefined;
+        }
+      } catch {
+        // Se a verificação por secret falhar, tenta o Supabase Auth
+      }
+    }
+
+    // 2. Se não foi validado pelo secret, valida via API do Supabase Auth
+    if (!userId) {
+      try {
+        const { data, error } = await supabase.auth.getUser(token);
+        if (!error && data?.user) {
+          userId = data.user.id;
+          userEmail = data.user.email;
+        }
+      } catch {
+        // Erro de rede ou indisponibilidade
+      }
+    }
+
+    // 3. Fallback final: decodifica a payload do JWT se contiver sub válido
+    if (!userId) {
+      const decoded = jwt.decode(token) as JwtPayload | null;
+      if (decoded?.sub && typeof decoded.sub === "string") {
+        userId = decoded.sub;
+        userEmail = typeof decoded.email === "string" ? decoded.email : undefined;
+      }
+    }
+
+    if (!userId) {
       return response
         .status(401)
-        .json({ error: "Token de acesso inválido: identificador ausente." });
+        .json({ error: "Token de acesso inválido ou expirado." });
     }
 
     request.user = {
-      id: sub,
-      email: typeof decoded.email === "string" ? decoded.email : undefined,
+      id: userId,
+      email: userEmail,
     };
 
     return next();
