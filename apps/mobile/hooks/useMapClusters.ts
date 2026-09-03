@@ -1,16 +1,30 @@
 import Supercluster from "supercluster";
+import type { ClusterFeature, ClusterOrPoint } from "supercluster";
 import { useMemo } from "react";
 import type { Region } from "react-native-maps";
 import type { NearbyRestaurant } from "../services/api";
 
 /** Propriedades injetadas em cada ponto individual pelo supercluster */
-interface RestaurantProperties {
+export interface RestaurantProperties {
   restaurant: NearbyRestaurant;
+}
+
+/**
+ * Type guard que identifica se uma feature é um agrupamento de pontos (cluster)
+ * ou um restaurante individual, garantindo narrowing estrito de tipos.
+ */
+export function isCluster(
+  feature: ClusterOrPoint<RestaurantProperties>
+): feature is ClusterFeature {
+  return Boolean(feature.properties.cluster);
 }
 
 /**
  * Converte o latitudeDelta do react-native-maps para nível de zoom inteiro (0-20).
  * Fórmula inversa de: latitudeDelta ≈ 360 / 2^zoom
+ *
+ * Inclui guard clause defensivo contra valores <= 0 ou NaN gerados
+ * durante inicialização rápida ou transições de layout no Android.
  */
 function regionToZoom(latitudeDelta: number): number {
   if (!latitudeDelta || latitudeDelta <= 0 || Number.isNaN(latitudeDelta)) {

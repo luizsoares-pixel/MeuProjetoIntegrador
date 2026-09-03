@@ -1,4 +1,4 @@
-﻿import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Marker } from "react-native-maps";
 import { colors } from "../theme";
 
@@ -39,19 +39,16 @@ export function ClusterMarker({
       accessibilityLabel={`Grupo de ${count} restaurantes. Toque para expandir.`}
       accessibilityRole="button"
     >
-      {/* Pressable apenas como container visual — toque capturado pelo Marker */}
-      <Pressable accessible={false}>
-        <View
-          style={[
-            styles.bubble,
-            { width: size, height: size, borderRadius: size / 2 },
-          ]}
-        >
-          <Text style={styles.count} numberOfLines={1}>
-            {label}
-          </Text>
-        </View>
-      </Pressable>
+      <View
+        style={[
+          styles.bubble,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
+      >
+        <Text style={styles.count} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
     </Marker>
   );
 }

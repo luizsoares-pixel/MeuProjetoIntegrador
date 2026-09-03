@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+import { useMemo } from "react";
 import type { NearbyRestaurant } from "../services/api";
 
 /**

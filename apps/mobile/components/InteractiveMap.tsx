@@ -14,7 +14,7 @@ import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
-import { useMapClusters } from "../hooks/useMapClusters";
+import { useMapClusters, isCluster } from "../hooks/useMapClusters";
 import { useMockRestaurants } from "../hooks/useMockRestaurants";
 import { ClusterMarker } from "./ClusterMarker";
 import { RestaurantPinMarker } from "./RestaurantPinMarker";
@@ -81,8 +81,11 @@ export default function InteractiveMap() {
   // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
   const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
 
-  // Ativa mocks apenas se explicitamente configurado no .env para validação de densidade/clustering
-  const useMocks = __DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true";
+  // ── Issue #34 & #35: Controle de dados reais vs. mocks para validação ───────
+  // Por padrão em desenvolvimento (__DEV__), consome a API local real.
+  // Mocks de estresse (80 pontos) só são ativados sob demanda via flag explícita no .env.
+  const useMocks =
+    __DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true";
 
   const {
     restaurants,
@@ -95,13 +98,12 @@ export default function InteractiveMap() {
     lat: userLocation?.latitude ?? null,
     lng: userLocation?.longitude ?? null,
     radius: 5000,
+    // Se estiver usando mocks de estresse, desativa requisições HTTP redundantes
     enabled: locationState === "granted" && !useMocks,
   });
   // ────────────────────────────────────────────────────────────────────────────
 
   // ── Issue #35: Clustering de pins ───────────────────────────────────────────
-  // Dados simulados opcionais para validar clustering e densidade de pins
-  // ativados via EXPO_PUBLIC_USE_MOCK_RESTAURANTS="true" em desenvolvimento.
   const mockRestaurants = useMockRestaurants(
     userLocation?.latitude ?? null,
     userLocation?.longitude ?? null,
@@ -301,22 +303,22 @@ export default function InteractiveMap() {
 
         {/* Issue #35: Clusterização de pins próximos */}
         {clusters.map((cluster) => {
-          const [longitude, latitude] = cluster.geometry.coordinates as [number, number];
+          const [longitude, latitude] = cluster.geometry.coordinates;
           const coordinate = { latitude, longitude };
 
-          if ("cluster" in cluster.properties && cluster.properties.cluster) {
+          if (isCluster(cluster)) {
             return (
               <ClusterMarker
                 key={`cluster-${cluster.id}`}
-                id={cluster.id as number}
+                id={cluster.id}
                 coordinate={coordinate}
                 count={cluster.properties.point_count}
-                onPress={() => handleClusterPress(cluster.id as number, coordinate)}
+                onPress={() => handleClusterPress(cluster.id, coordinate)}
               />
             );
           }
 
-          const restaurant = cluster.properties.restaurant as NearbyRestaurant;
+          const restaurant = cluster.properties.restaurant;
           return (
             <RestaurantPinMarker
               key={restaurant.id}
