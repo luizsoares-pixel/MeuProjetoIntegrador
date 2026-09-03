@@ -15,7 +15,9 @@
       }
     },
     "android": {
-      "permissions": ["ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#2f0000",
         "foregroundImage": "./assets/logo.png"
@@ -39,7 +41,10 @@
           "resizeMode": "contain",
           "backgroundColor": "#2f0000"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

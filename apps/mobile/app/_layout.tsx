@@ -1,4 +1,4 @@
-import { Stack, router, usePathname } from "expo-router";
+import { Stack, router, useSegments, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -16,38 +16,34 @@ SplashScreen.preventAutoHideAsync();
 
 const publicRoutes = ["/login", "/cadastro", "/recuperar-senha"];
 
-function RootNavigator() {
+function RouteGuard() {
   const { session, isLoading, isPasswordRecovery } = useAuth();
-  const pathname = usePathname();
+  const segments = useSegments();
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!rootNavigationState?.key || isLoading) return;
 
     SplashScreen.hideAsync();
 
+    const currentPath = `/${segments.join("/")}`;
+
     if (isPasswordRecovery && session) {
-      if (pathname !== "/redefinir-senha") {
+      if (currentPath !== "/redefinir-senha") {
         router.replace("/redefinir-senha");
       }
     } else if (session) {
-      if (publicRoutes.includes(pathname) || pathname === "/") {
+      if (publicRoutes.includes(currentPath) || currentPath === "/" || currentPath === "/(tabs)") {
         router.replace("/home");
       }
     } else {
-      if (!publicRoutes.includes(pathname)) {
+      if (!publicRoutes.includes(currentPath)) {
         router.replace("/login");
       }
     }
-  }, [session, isLoading, isPasswordRecovery, pathname]);
+  }, [session, isLoading, isPasswordRecovery, segments, rootNavigationState?.key]);
 
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: "fade",
-      }}
-    />
-  );
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +55,13 @@ export default function Layout() {
     <AuthProvider>
       <StatusBar style="light" backgroundColor={colors.background.dark} />
       <View style={styles.topBar} />
-      <RootNavigator />
+      <RouteGuard />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "fade",
+        }}
+      />
     </AuthProvider>
   );
 }

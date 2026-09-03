@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
@@ -223,12 +222,10 @@ export default function InteractiveMap() {
   }, []);
 
 
-  useFocusEffect(
-    useCallback(() => {
-      loadLocation();
-      refetchRestaurants();
-    }, [loadLocation, refetchRestaurants]),
-  );
+  useEffect(() => {
+    loadLocation();
+    refetchRestaurants();
+  }, [loadLocation, refetchRestaurants]);
 
   useEffect(() => {
     let mounted = true;
