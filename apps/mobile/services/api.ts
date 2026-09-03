@@ -16,16 +16,18 @@ import type {
 } from "@menu-digital/contracts";
 
 function resolveApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl) return envUrl.replace(/\/$/, "");
-
   const expoHost = Constants.expoConfig?.hostUri;
   if (expoHost) {
     const host = expoHost.includes(":")
       ? expoHost.substring(0, expoHost.lastIndexOf(":"))
       : expoHost;
-    return `http://${host}:3333`;
+    if (host && host !== "localhost" && host !== "127.0.0.1") {
+      return `http://${host}:3333`;
+    }
   }
+
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl) return envUrl.replace(/\/$/, "");
 
   return Platform.OS === "android" ? "http://10.0.2.2:3333" : "http://127.0.0.1:3333";
 }

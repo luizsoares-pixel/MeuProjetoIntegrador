@@ -28,7 +28,7 @@ const DEFAULT_REGION = {
   longitudeDelta: 0.08,
 };
 
-const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 const TILE_USER_AGENT = "MenuDigital/1.0 (mapa; contato: suporte@menudigital.app)";
 
 /**
@@ -228,22 +228,7 @@ export default function InteractiveMap() {
   }, [loadLocation, refetchRestaurants]);
 
   useEffect(() => {
-    let mounted = true;
-
-    fetch(TILE_URL.replace("{z}/{x}/{y}", "0/0/0"), {
-      headers: { "User-Agent": TILE_USER_AGENT },
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Tile server unavailable");
-        if (mounted) setTilesReady(true);
-      })
-      .catch(() => {
-        if (mounted) setMapError(true);
-      });
-
-    return () => {
-      mounted = false;
-    };
+    setTilesReady(true);
   }, []);
 
   useEffect(() => {
@@ -278,9 +263,6 @@ export default function InteractiveMap() {
         showsScale={false}
         rotateEnabled={false}
         onMapReady={() => setMapReady(true)}
-        // Mantém region sincronizado ao pan/zoom do usuário.
-        // Os pins de restaurantes são baseados na posição GPS (não no centro do mapa) —
-        // comportamento intencional para HU2. feat/35 usará esta region para clustering.
         onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
         accessibilityLabel="Mapa de restaurantes próximos"
       >
@@ -491,7 +473,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.soft,
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   userMarkerContainer: {
     width: 22,
@@ -613,7 +595,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(47, 0, 0, 0.72)",

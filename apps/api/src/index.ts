@@ -31,8 +31,9 @@ app.use(
 );
 
 if (process.env.NODE_ENV !== "test") {
-  app.listen(port, () => {
-    console.log(`API disponível em http://localhost:${port}`);
+  const host = process.env.HOST ?? "0.0.0.0";
+  app.listen(port, host, () => {
+    console.log(`API disponível em http://${host}:${port} (Rede Local e Localhost)`);
   });
 }
 

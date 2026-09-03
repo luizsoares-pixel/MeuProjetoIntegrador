@@ -53,7 +53,7 @@ function RouteGuard() {
 export default function Layout() {
   return (
     <AuthProvider>
-      <StatusBar style="light" backgroundColor={colors.background.dark} />
+      <StatusBar style="light" />
       <View style={styles.topBar} />
       <RouteGuard />
       <Stack
