@@ -14,6 +14,9 @@ import * as Location from "expo-location";
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
+import { useMapClusters, isCluster } from "../hooks/useMapClusters";
+import { useMockRestaurants } from "../hooks/useMockRestaurants";
+import { ClusterMarker } from "./ClusterMarker";
 import { RestaurantPinMarker } from "./RestaurantPinMarker";
 import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
 import type { NearbyRestaurant } from "../services/api";
@@ -78,6 +81,12 @@ export default function InteractiveMap() {
   // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
   const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
 
+  // ── Issue #34 & #35: Controle de dados reais vs. mocks para validação ───────
+  // Por padrão em desenvolvimento (__DEV__), consome a API local real.
+  // Mocks de estresse (80 pontos) só são ativados sob demanda via flag explícita no .env.
+  const useMocks =
+    __DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true";
+
   const {
     restaurants,
     isLoading: isLoadingRestaurants,
@@ -89,8 +98,42 @@ export default function InteractiveMap() {
     lat: userLocation?.latitude ?? null,
     lng: userLocation?.longitude ?? null,
     radius: 5000,
-    enabled: locationState === "granted",
+    // Se estiver usando mocks de estresse, desativa requisições HTTP redundantes
+    enabled: locationState === "granted" && !useMocks,
   });
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── Issue #35: Clustering de pins ───────────────────────────────────────────
+  const mockRestaurants = useMockRestaurants(
+    userLocation?.latitude ?? null,
+    userLocation?.longitude ?? null,
+    80
+  );
+  const allRestaurants = useMocks ? mockRestaurants : restaurants;
+
+  const { clusters, expandCluster } = useMapClusters(allRestaurants, region);
+
+  /**
+   * Ao tocar num cluster, anima o mapa para o zoom de expansão calculado
+   * pelo supercluster — revela os pins individuais daquela região.
+   * Converte nível de zoom tile → latitudeDelta (inverso de regionToZoom).
+   */
+  function handleClusterPress(
+    clusterId: number,
+    clusterCoordinate: { latitude: number; longitude: number }
+  ) {
+    const expansionZoom = expandCluster(clusterId);
+    const delta = 360 / Math.pow(2, expansionZoom);
+    mapRef.current?.animateToRegion(
+      {
+        latitude:        clusterCoordinate.latitude,
+        longitude:       clusterCoordinate.longitude,
+        latitudeDelta:   delta,
+        longitudeDelta:  delta,
+      },
+      400
+    );
+  }
   // ────────────────────────────────────────────────────────────────────────────
 
   const openLocationSettings = useCallback(async () => {
@@ -258,14 +301,32 @@ export default function InteractiveMap() {
           </Marker>
         ) : null}
 
-        {/* Issue #34: Pins de restaurantes próximos */}
-        {restaurants.map((restaurant) => (
-          <RestaurantPinMarker
-            key={restaurant.id}
-            restaurant={restaurant}
-            onPress={setSelectedRestaurant}
-          />
-        ))}
+        {/* Issue #35: Clusterização de pins próximos */}
+        {clusters.map((cluster) => {
+          const [longitude, latitude] = cluster.geometry.coordinates;
+          const coordinate = { latitude, longitude };
+
+          if (isCluster(cluster)) {
+            return (
+              <ClusterMarker
+                key={`cluster-${cluster.id}`}
+                id={cluster.id}
+                coordinate={coordinate}
+                count={cluster.properties.point_count}
+                onPress={() => handleClusterPress(cluster.id, coordinate)}
+              />
+            );
+          }
+
+          const restaurant = cluster.properties.restaurant;
+          return (
+            <RestaurantPinMarker
+              key={restaurant.id}
+              restaurant={restaurant}
+              onPress={setSelectedRestaurant}
+            />
+          );
+        })}
       </MapView>
 
       <View style={styles.topBar}>
