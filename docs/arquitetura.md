@@ -29,3 +29,11 @@ Liste os riscos técnicos, de integração, de dados, de prazo e de dependência
 ## Diagramas e relação com ADRs
 
 Inclua diagramas de contexto, componentes, fluxo ou implantação quando ajudarem a explicar a solução. Quando uma decisão técnica for consolidada, registre o racional em um ADR e vincule o diagrama ou a seção correspondente.
+
+### Registros de Decisões Arquiteturais (ADRs)
+
+Todas as decisões arquiteturais da solução são documentadas formalmente em [docs/adr/](adr/):
+* **[ADR 0001](adr/0001-autenticacao-hibrida-supabase-prisma.md)**: Autenticação Híbrida Supabase Auth e Prisma ORM com Transação Compensatória para Prevenção do Dual-Write Problem.
+
+Para detalhes sobre a governança técnica e os agentes que auxiliam na manutenção dessa arquitetura, consulte o **[Guia de Desenvolvimento com IA](desenvolvimento-com-ia.md)**.
+
