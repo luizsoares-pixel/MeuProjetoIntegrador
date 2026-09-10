@@ -6,12 +6,10 @@ module.exports = defineConfig([
   expoConfig,
   {
     rules: {
-      'import/no-unresolved': [
-        'error',
-        {
-          ignore: ['^react-native-maps', '^expo-location'],
-        },
-      ],
+      // Desabilitadas: dependem do eslint-import-resolver-typescript /
+      // unrs-resolver (binding nativo) que crasham em certas plataformas.
+      'import/no-unresolved': 'off',
+      'import/namespace': 'off',
     },
   },
   {
