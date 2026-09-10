@@ -34,6 +34,9 @@ Inclua diagramas de contexto, componentes, fluxo ou implantação quando ajudare
 
 Todas as decisões arquiteturais da solução são documentadas formalmente em [docs/adr/](adr/):
 * **[ADR 0001](adr/0001-autenticacao-hibrida-supabase-prisma.md)**: Autenticação Híbrida Supabase Auth e Prisma ORM com Transação Compensatória para Prevenção do Dual-Write Problem.
+* **[ADR 0002](adr/0002-expo-router-v6-e-reanimated.md)**: Roteamento Baseado em Arquivos com Expo Router v6 e Animações com Reanimated.
+* **[ADR 0003](adr/0003-contratos-compartilhados-zod-monorepo.md)**: Desenvolvimento Contract-First com Zod em Monorepo Compartilhado.
+* **[ADR 0004](adr/0004-arquitetura-mapas-geolocalizacao-hibrida.md)**: Arquitetura de Mapas, Geolocalização Híbrida e Agrupamento Espacial.
 
 Para detalhes sobre a governança técnica e os agentes que auxiliam na manutenção dessa arquitetura, consulte o **[Guia de Desenvolvimento com IA](desenvolvimento-com-ia.md)**.
 

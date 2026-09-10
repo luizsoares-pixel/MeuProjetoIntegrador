@@ -28,6 +28,12 @@ Ao trabalhar em qualquer funcionalidade, consulte as regras contextuais:
 * **`grill-with-docs`**: Entrevista o desenvolvedor para esclarecer regras de negócio antes de implementar, atualizando o dicionário em `CONTEXT.md` e registrando decisões em `docs/adr/`.
 * **`verify-monorepo`**: Executa a bateria de verificação completa (build dos contratos, linter estático e testes unitários da API e Mobile).
 
+### Skills Globais do Antigravity Integradas
+* **`writing-plans`**: Elaboração de planos de implementação atômicos com passos TDD antes de alterar código.
+* **`executing-plans`**: Execução autônoma de planos aprovados com checkpoints de revisão.
+* **`dispatching-parallel-agents`**: Delegação de tarefas independentes (ex: mobile e backend) para execução concorrente.
+* **`verification-before-completion`**: Proibição de alegar sucesso antes de executar comandos e inspecionar logs reais.
+
 ---
 
 ## 4. Subagentes Especializados (`.agents/agents/`)
@@ -48,9 +54,12 @@ Ao trabalhar em qualquer funcionalidade, consulte as regras contextuais:
 ## 6. Comandos de Verificação Rápida
 
 ```powershell
-# Executar a verificação completa do monorepo
-npm run build -w packages/contracts
-npm run lint -w apps/api
-npm run test -w apps/api
-npm run lint -w apps/mobile
+# Executar a verificação completa do monorepo de forma unificada
+npm run verify
+
+# Ou executar individualmente por workspace:
+npm run build:contracts
+npm run lint:api
+npm run test:api
+npm run lint:mobile
 ```
