@@ -1,0 +1,42 @@
+name: CI Monorepo (Qualidade & Testes)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    name: Verificação Completa do Monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Instalar Dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npm run prisma:generate
+
+      - name: 1. Compilar Contratos Compartilhados
+        run: npm run build:contracts
+
+      - name: 2. Validar Tipos e Linter da API
+        run: npm run lint:api
+
+      - name: 3. Executar Testes Unitários da API
+        run: npm run test:api
+
+      - name: 4. Validar Linter do App Mobile
+        run: npm run lint:mobile

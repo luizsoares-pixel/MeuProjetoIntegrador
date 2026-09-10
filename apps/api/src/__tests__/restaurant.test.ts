@@ -495,6 +495,9 @@ describe("Restaurants Layer - Issue #33", () => {
           imageUrl: null,
         };
 
+        (prisma as any).user = {
+          upsert: async () => ({ id: ownerId, email: `${ownerId}@auth.supabase` }),
+        };
         (prisma as any).restaurant = {
           create: async ({ data }: any) => ({
             id: "22222222-2222-2222-2222-222222222222",
