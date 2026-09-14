@@ -114,6 +114,8 @@ export class RestaurantService {
         latitude: data.latitude,
         longitude: data.longitude,
         ownerId,
+        phone: data.phone ?? null,
+        cnpj: data.cnpj ?? null,
       },
     });
 
@@ -126,6 +128,8 @@ export class RestaurantService {
       latitude: restaurant.latitude,
       longitude: restaurant.longitude,
       ownerId: restaurant.ownerId,
+      phone: restaurant.phone,
+      cnpj: restaurant.cnpj,
       createdAt: restaurant.createdAt,
       updatedAt: restaurant.updatedAt,
     };

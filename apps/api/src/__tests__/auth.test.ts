@@ -2,6 +2,7 @@ import {
   loginSchema,
   passwordRecoverySchema,
   registerSchema,
+  registerRestaurantSchema,
 } from "@menu-digital/contracts";
 import jwt from "jsonwebtoken";
 import assert from "node:assert/strict";
@@ -460,6 +461,282 @@ describe("Auth Layer - Refactored Verification Suite", () => {
       assert.strictEqual(responseBody?.error, "Usuário não encontrado.");
 
       mock.reset();
+    });
+  });
+
+  describe("Issue #48: Cadastro de Conta de Restaurante na Tela Inicial", () => {
+    const validRestaurantPayload = {
+      email: "dono@restaurante.com",
+      password: "password123",
+      restaurant: {
+        name: "Restaurante Sabor & Arte",
+        address: "Rua das Flores, 123",
+        cuisineType: "Brasileira",
+        latitude: -15.7942,
+        longitude: -47.8822,
+        phone: "61999998888",
+        cnpj: "12345678000195",
+      },
+    };
+
+    describe("Validação de Payload (registerRestaurantSchema)", () => {
+      it("deve aceitar payload válido com todos os dados de conta e restaurante", () => {
+        const result = registerRestaurantSchema.safeParse(validRestaurantPayload);
+        assert.strictEqual(result.success, true);
+      });
+
+      it("deve rejeitar payload sem telefone do restaurante", () => {
+        const payload = {
+          ...validRestaurantPayload,
+          restaurant: {
+            ...validRestaurantPayload.restaurant,
+            phone: "",
+          },
+        };
+        const result = registerRestaurantSchema.safeParse(payload);
+        assert.strictEqual(result.success, false);
+      });
+
+      it("deve rejeitar CNPJ com dígitos repetidos", () => {
+        const payload = {
+          ...validRestaurantPayload,
+          restaurant: {
+            ...validRestaurantPayload.restaurant,
+            cnpj: "11111111111111",
+          },
+        };
+        const result = registerRestaurantSchema.safeParse(payload);
+        assert.strictEqual(result.success, false);
+      });
+
+      it("deve rejeitar CNPJ com tamanho diferente de 14 dígitos", () => {
+        const payload = {
+          ...validRestaurantPayload,
+          restaurant: {
+            ...validRestaurantPayload.restaurant,
+            cnpj: "12345",
+          },
+        };
+        const result = registerRestaurantSchema.safeParse(payload);
+        assert.strictEqual(result.success, false);
+      });
+    });
+
+    describe("authService.registerRestaurant", () => {
+      it("deve rejeitar cadastro quando o CNPJ já estiver cadastrado", async () => {
+        (prisma as any).restaurant = {
+          findUnique: async () => ({
+            id: "existing-restaurant",
+            name: "Outro Restaurante",
+          }),
+        };
+
+        await assert.rejects(
+          async () => {
+            await authService.registerRestaurant(validRestaurantPayload);
+          },
+          { message: "CNPJ_ALREADY_REGISTERED" }
+        );
+      });
+
+      it("deve cadastrar usuário como role restaurant e vincular ao restaurante", async () => {
+        const userId = "b90956b6-9bb2-4a0b-8d76-e17f739cbcd9";
+
+        let upsertedUser: any = null;
+        (prisma as any).restaurant = {
+          findUnique: async () => null,
+          create: async (args: any) => ({
+            id: "rest-uuid",
+            ...args.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }),
+        };
+        let rolePassedToUpsert: string | undefined = undefined;
+        (prisma as any).user = {
+          upsert: async (args: any) => {
+            if (args.create?.role) {
+              rolePassedToUpsert = args.create.role;
+            }
+            return { id: userId, email: validRestaurantPayload.email, role: "restaurant" };
+          },
+        };
+
+        mock.method(supabase.auth, "signUp", async () => ({
+          data: {
+            user: { id: userId, email: validRestaurantPayload.email },
+            session: {
+              access_token: "mock-access-token",
+              refresh_token: "mock-refresh-token",
+              expires_at: 1234567890,
+            },
+          } as any,
+          error: null,
+        }));
+
+        let updatedAppMetadata: any = null;
+        Object.defineProperty(supabaseAdmin.auth, "admin", {
+          value: {
+            updateUserById: async (_id: string, attrs: any) => {
+              updatedAppMetadata = attrs;
+              return { data: { user: { id: userId } }, error: null };
+            },
+            deleteUser: async () => ({ data: {}, error: null }),
+          },
+          configurable: true,
+        });
+
+        const result = await authService.registerRestaurant(validRestaurantPayload);
+
+        assert.strictEqual(result.user.id, userId);
+        assert.strictEqual(result.user.role, "restaurant");
+        assert.strictEqual(result.restaurant.name, validRestaurantPayload.restaurant.name);
+        assert.strictEqual(rolePassedToUpsert, "restaurant");
+        assert.strictEqual(updatedAppMetadata?.app_metadata?.role, "restaurant");
+
+        mock.reset();
+      });
+
+      it("deve executar transação compensatória e deletar usuário se criação de restaurante falhar", async () => {
+        const userId = "compensatory-user-id";
+
+        (prisma as any).restaurant = {
+          findUnique: async () => null,
+          create: async () => {
+            throw new Error("DB_WRITE_FAILED");
+          },
+        };
+        (prisma as any).user = {
+          upsert: async () => ({ id: userId }),
+        };
+
+        mock.method(supabase.auth, "signUp", async () => ({
+          data: {
+            user: { id: userId, email: validRestaurantPayload.email },
+            session: null,
+          } as any,
+          error: null,
+        }));
+
+        let deletedUserId: string | null = null;
+        Object.defineProperty(supabaseAdmin.auth, "admin", {
+          value: {
+            updateUserById: async () => ({ data: {}, error: null }),
+            deleteUser: async (id: string) => {
+              deletedUserId = id;
+              return { data: {}, error: null };
+            },
+          },
+          configurable: true,
+        });
+
+        await assert.rejects(
+          async () => {
+            await authService.registerRestaurant(validRestaurantPayload);
+          },
+          { message: "DB_WRITE_FAILED" }
+        );
+
+        assert.strictEqual(deletedUserId, userId);
+
+        mock.reset();
+      });
+    });
+
+    describe("authController.registerRestaurant", () => {
+      it("deve retornar 201 com dados do restaurante em caso de sucesso", async () => {
+        mock.method(authService, "registerRestaurant", async () => ({
+          user: { id: "user-1", email: "dono@restaurante.com", role: "restaurant" as const },
+          restaurant: { id: "rest-1", name: "Restaurante Sabor & Arte" } as any,
+          session: null,
+        }));
+
+        let statusCode = 0;
+        let responseBody: any = null;
+        const res = {
+          status(code: number) {
+            statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            responseBody = data;
+            return this;
+          },
+        } as any;
+
+        await authController.registerRestaurant(
+          { body: validRestaurantPayload } as any,
+          res,
+          () => {}
+        );
+
+        assert.strictEqual(statusCode, 201);
+        assert.strictEqual(responseBody?.user?.role, "restaurant");
+        assert.strictEqual(responseBody?.restaurant?.name, "Restaurante Sabor & Arte");
+
+        mock.reset();
+      });
+
+      it("deve retornar 409 quando CNPJ já cadastrado", async () => {
+        mock.method(authService, "registerRestaurant", async () => {
+          throw new Error("CNPJ_ALREADY_REGISTERED");
+        });
+
+        let statusCode = 0;
+        let responseBody: any = null;
+        const res = {
+          status(code: number) {
+            statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            responseBody = data;
+            return this;
+          },
+        } as any;
+
+        await authController.registerRestaurant(
+          { body: validRestaurantPayload } as any,
+          res,
+          () => {}
+        );
+
+        assert.strictEqual(statusCode, 409);
+        assert.strictEqual(responseBody?.error, "CNPJ já cadastrado.");
+
+        mock.reset();
+      });
+    });
+
+    describe("authMiddleware com role: restaurant", () => {
+      it("deve identificar role restaurant a partir do token JWT e anexar ao request", async () => {
+        const secret = "test-jwt-secret-issue48";
+        process.env.SUPABASE_JWT_SECRET = secret;
+
+        const token = jwt.sign(
+          {
+            sub: "rest-owner-id",
+            email: "dono@rest.com",
+            app_metadata: { role: "restaurant" },
+          },
+          secret
+        );
+
+        const req = {
+          headers: { authorization: `Bearer ${token}` },
+        } as any;
+
+        let nextCalled = false;
+        await authMiddleware(req, {} as any, () => {
+          nextCalled = true;
+        });
+
+        assert.strictEqual(nextCalled, true);
+        assert.strictEqual(req.user?.id, "rest-owner-id");
+        assert.strictEqual(req.user?.role, "restaurant");
+
+        delete process.env.SUPABASE_JWT_SECRET;
+      });
     });
   });
 });

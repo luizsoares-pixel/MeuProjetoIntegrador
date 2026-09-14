@@ -12,6 +12,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import type {
   CreateRestaurantInput,
+  RegisterRestaurantInput,
   RestaurantResponse,
 } from "@menu-digital/contracts";
 
@@ -129,4 +130,41 @@ export async function createRestaurant(
 
   const data = await response.json();
   return data.restaurant;
+}
+
+/**
+ * Cadastra uma conta de usuário e o restaurante em etapa unificada.
+ */
+export async function registerRestaurant(
+  input: RegisterRestaurantInput
+): Promise<void> {
+  const url = `${API_BASE_URL}/auth/register/restaurant`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao cadastrar conta de restaurante: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      if (errorData.details && Array.isArray(errorData.details)) {
+        const detailsMsg = errorData.details
+          .map((d: any) => d.message)
+          .join(" ");
+        errorMessage = `${errorMessage} (${detailsMsg})`;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
 }

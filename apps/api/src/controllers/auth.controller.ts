@@ -30,6 +30,36 @@ export class AuthController {
     }
   }
 
+  async registerRestaurant(request: Request, response: Response, next: NextFunction) {
+    try {
+      const result = await authService.registerRestaurant(request.body);
+      return response.status(201).json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === "CNPJ_ALREADY_REGISTERED") {
+        return response.status(409).json({ error: "CNPJ já cadastrado." });
+      }
+
+      if (error instanceof Error) {
+        const msg = error.message.toLowerCase();
+        if (
+          msg.includes("already registered") ||
+          msg.includes("user_already_exists") ||
+          msg.includes("duplicate key")
+        ) {
+          return response
+            .status(409)
+            .json({ error: mapAuthErrorMessage(error.message) });
+        }
+
+        return response
+          .status(400)
+          .json({ error: mapAuthErrorMessage(error.message) });
+      }
+
+      return next(error);
+    }
+  }
+
   async login(request: Request, response: Response, next: NextFunction) {
     try {
       const result = await authService.login(request.body);
