@@ -7,7 +7,12 @@ import { describe, it, mock } from "node:test";
 import { restaurantController } from "../controllers/restaurant.controller";
 import { prisma } from "../lib/prisma";
 import { validateQuery } from "../middleware/validateQuery";
-import { restaurantService, RestaurantService } from "../services/restaurant.service";
+import {
+  restaurantService,
+  RestaurantService,
+  isRestaurantOpen,
+  getBrasiliaDateParts,
+} from "../services/restaurant.service";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -1184,6 +1189,272 @@ describe("Restaurants Layer - Issue #33", () => {
       assert.strictEqual(result.pagination.total, 0);
       assert.strictEqual(result.pagination.totalPages, 0);
       assert.strictEqual(result.pagination.hasMore, false);
+    });
+  });
+
+  // ── HU7: Filtros por Preço, Avaliação, Distância e Horário ──────────────────
+  describe("HU7: Horário de Funcionamento (isRestaurantOpen)", () => {
+    it("deve retornar false quando businessHours for nulo, indefinido ou vazio", () => {
+      assert.strictEqual(isRestaurantOpen(null), false);
+      assert.strictEqual(isRestaurantOpen(undefined), false);
+      assert.strictEqual(isRestaurantOpen({}), false);
+    });
+
+    it("deve identificar restaurante aberto durante turno regular diurno", () => {
+      // Quarta-feira (2026-09-16T15:00:00Z = 12:00 no fuso de Brasília UTC-3)
+      const wednesdayNoon = new Date("2026-09-16T15:00:00.000Z");
+      const businessHours = {
+        wednesday: [{ open: "11:30", close: "15:00" }],
+      };
+
+      assert.strictEqual(isRestaurantOpen(businessHours, wednesdayNoon), true);
+    });
+
+    it("deve identificar restaurante fechado antes da abertura ou após o fechamento", () => {
+      // Quarta-feira 10:00 em Brasília (13:00Z)
+      const wednesdayMorning = new Date("2026-09-16T13:00:00.000Z");
+      // Quarta-feira 16:00 em Brasília (19:00Z)
+      const wednesdayAfternoon = new Date("2026-09-16T19:00:00.000Z");
+
+      const businessHours = {
+        wednesday: [{ open: "11:30", close: "15:00" }],
+      };
+
+      assert.strictEqual(isRestaurantOpen(businessHours, wednesdayMorning), false);
+      assert.strictEqual(isRestaurantOpen(businessHours, wednesdayAfternoon), false);
+    });
+
+    it("deve suportar múltiplos turnos no mesmo dia (almoço e jantar)", () => {
+      // Quarta-feira 20:00 em Brasília (23:00Z)
+      const wednesdayDinner = new Date("2026-09-16T23:00:00.000Z");
+      // Quarta-feira 16:30 em Brasília (19:30Z) - intervalo entre turnos
+      const wednesdayBreak = new Date("2026-09-16T19:30:00.000Z");
+
+      const businessHours = {
+        wednesday: [
+          { open: "11:30", close: "15:00" },
+          { open: "18:30", close: "23:00" },
+        ],
+      };
+
+      assert.strictEqual(isRestaurantOpen(businessHours, wednesdayDinner), true);
+      assert.strictEqual(isRestaurantOpen(businessHours, wednesdayBreak), false);
+    });
+
+    it("deve tratar virada de noite (overnight shift): aberto na noite do dia e na madrugada do dia seguinte", () => {
+      const businessHours = {
+        friday: [{ open: "18:00", close: "02:00" }],
+      };
+
+      // Sexta-feira 2026-09-18 às 22:00 em Brasília (2026-09-19T01:00:00Z)
+      const fridayNight = new Date("2026-09-19T01:00:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, fridayNight), true);
+
+      // Sábado 2026-09-19 às 01:30 em Brasília (2026-09-19T04:30:00Z)
+      const saturdayEarlyMorning = new Date("2026-09-19T04:30:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, saturdayEarlyMorning), true);
+
+      // Sábado 2026-09-19 às 02:30 em Brasília (2026-09-19T05:30:00Z) - após fechamento
+      const saturdayAfterClose = new Date("2026-09-19T05:30:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, saturdayAfterClose), false);
+    });
+
+    it("deve suportar turnos ininterruptos de 24 horas (open === close)", () => {
+      const businessHours = {
+        wednesday: [{ open: "00:00", close: "00:00" }],
+      };
+      const anyTimeWednesday = new Date("2026-09-16T15:00:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, anyTimeWednesday), true);
+    });
+  });
+
+  describe("HU7: RestaurantService.list com Filtros Avançados", () => {
+    it("deve filtrar por faixa de preço simples e múltipla", async () => {
+      let capturedWhere: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          capturedWhere = args.where;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      // Faixa única
+      await restaurantService.list({ page: 1, limit: 10, priceRange: ["$"] });
+      assert.deepStrictEqual(capturedWhere.priceRange, { in: ["$"] });
+
+      // Múltiplas faixas
+      await restaurantService.list({ page: 1, limit: 10, priceRange: ["$", "$$"] });
+      assert.deepStrictEqual(capturedWhere.priceRange, { in: ["$", "$$"] });
+    });
+
+    it("deve filtrar por avaliação mínima (minRating)", async () => {
+      let capturedWhere: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          capturedWhere = args.where;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, minRating: 4 });
+      assert.deepStrictEqual(capturedWhere.rating, { gte: 4 });
+    });
+
+    it("deve filtrar por maxDistance refinando com Haversine e populando distanceInMeters", async () => {
+      // Usuário em Brasília: -15.7942, -47.8822
+      const userLat = -15.7942;
+      const userLng = -47.8822;
+
+      // Restaurante perto (~500m): -15.798, -47.882
+      // Restaurante longe (~12km): -15.89, -47.95
+      const nearRestaurant = {
+        id: "near-1",
+        name: "Restaurante Perto",
+        address: "Asa Sul",
+        latitude: -15.798,
+        longitude: -47.882,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const farRestaurant = {
+        id: "far-1",
+        name: "Restaurante Longe",
+        address: "Taguatinga",
+        latitude: -15.89,
+        longitude: -47.95,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async () => [nearRestaurant, farRestaurant],
+        count: async () => 2,
+      };
+
+      const result = await restaurantService.list({
+        page: 1,
+        limit: 10,
+        maxDistance: 2000, // 2 km
+        lat: userLat,
+        lng: userLng,
+      });
+
+      assert.strictEqual(result.restaurants.length, 1);
+      assert.strictEqual(result.restaurants[0].id, "near-1");
+      assert.ok(
+        result.restaurants[0].distanceInMeters !== undefined &&
+          result.restaurants[0].distanceInMeters <= 2000,
+        "Distância calculada deve ser menor ou igual a 2000m"
+      );
+      assert.strictEqual(result.pagination.total, 1);
+    });
+
+    it("deve filtrar por openNow=true retornando apenas estabelecimentos abertos no horário de Brasília", async () => {
+      const now = new Date();
+      const { dayOfWeek } = getBrasiliaDateParts(now);
+
+      const openRestaurant = {
+        id: "open-1",
+        name: "Restaurante Aberto",
+        address: "Rua 1",
+        latitude: -15.78,
+        longitude: -47.88,
+        businessHours: {
+          [dayOfWeek]: [{ open: "00:00", close: "00:00" }], // 24h
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const closedRestaurant = {
+        id: "closed-1",
+        name: "Restaurante Fechado",
+        address: "Rua 2",
+        latitude: -15.78,
+        longitude: -47.88,
+        businessHours: {
+          [dayOfWeek]: [{ open: "03:00", close: "04:00" }], // fechado agora
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async () => [openRestaurant, closedRestaurant],
+        count: async () => 2,
+      };
+
+      const result = await restaurantService.list({
+        page: 1,
+        limit: 10,
+        openNow: true,
+      });
+
+      assert.strictEqual(result.restaurants.length, 1);
+      assert.strictEqual(result.restaurants[0].id, "open-1");
+      assert.strictEqual(result.pagination.total, 1);
+    });
+
+    it("deve combinar simultaneamente todos os filtros (search, cuisine, city, priceRange, minRating, maxDistance, openNow)", async () => {
+      let capturedWhere: any = null;
+      const now = new Date();
+      const { dayOfWeek } = getBrasiliaDateParts(now);
+
+      const matchingRestaurant = {
+        id: "match-1",
+        name: "Trattoria Pasta & Co",
+        cuisineType: "Italiana",
+        city: "Brasília",
+        priceRange: "$$",
+        rating: 4.8,
+        latitude: -15.781,
+        longitude: -47.881,
+        businessHours: {
+          [dayOfWeek]: [{ open: "00:00", close: "00:00" }],
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          capturedWhere = args.where;
+          return [matchingRestaurant];
+        },
+        count: async () => 1,
+      };
+
+      const result = await restaurantService.list({
+        page: 1,
+        limit: 10,
+        search: "Trattoria",
+        cuisine: "Italiana",
+        city: "Brasília",
+        priceRange: ["$$"],
+        minRating: 4,
+        maxDistance: 5000,
+        openNow: true,
+        lat: -15.78,
+        lng: -47.88,
+      });
+
+      assert.deepStrictEqual(capturedWhere.cuisineType, {
+        contains: "Italiana",
+        mode: "insensitive",
+      });
+      assert.deepStrictEqual(capturedWhere.city, {
+        contains: "Brasília",
+        mode: "insensitive",
+      });
+      assert.deepStrictEqual(capturedWhere.priceRange, { in: ["$$"] });
+      assert.deepStrictEqual(capturedWhere.rating, { gte: 4 });
+      assert.strictEqual(result.restaurants.length, 1);
+      assert.strictEqual(result.restaurants[0].id, "match-1");
+      assert.strictEqual(result.pagination.total, 1);
     });
   });
 });
