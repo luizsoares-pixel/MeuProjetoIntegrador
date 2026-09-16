@@ -56,6 +56,7 @@ model Restaurant {
   cnpj           String?           @unique
   description    String?           @db.Text
   priceRange     PriceRange?       @map("price_range")
+  rating         Float?
   businessHours  Json?             @map("business_hours")
   paymentMethods PaymentMethod[]   @default([]) @map("payment_methods")
   socialLinks    Json?             @map("social_links")
