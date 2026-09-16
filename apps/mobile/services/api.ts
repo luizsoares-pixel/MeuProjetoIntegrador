@@ -279,11 +279,14 @@ export async function getRestaurantById(
 export interface FetchRestaurantsParams {
   page?: number;
   limit?: number;
+  search?: string;
+  cuisine?: string;
+  city?: string;
 }
 
 /**
- * Busca a listagem paginada de restaurantes (HU5).
- * GET /restaurants?page=&limit=
+ * Busca a listagem paginada de restaurantes com suporte a busca e filtros (HU5 & HU6).
+ * GET /restaurants?page=&limit=&search=&cuisine=&city=
  */
 export async function fetchRestaurants(
   params?: FetchRestaurantsParams
@@ -294,6 +297,15 @@ export async function fetchRestaurants(
   }
   if (params?.limit !== undefined) {
     url.searchParams.set("limit", String(params.limit));
+  }
+  if (params?.search && params.search.trim() !== "") {
+    url.searchParams.set("search", params.search.trim());
+  }
+  if (params?.cuisine && params.cuisine.trim() !== "") {
+    url.searchParams.set("cuisine", params.cuisine.trim());
+  }
+  if (params?.city && params.city.trim() !== "") {
+    url.searchParams.set("city", params.city.trim());
   }
 
   const response = await fetch(url.toString(), {
