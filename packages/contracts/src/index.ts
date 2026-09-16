@@ -28,6 +28,111 @@ export const nearbyRestaurantsSchema = z.object({
 
 export type NearbyRestaurantsQuery = z.infer<typeof nearbyRestaurantsSchema>;
 
+// ── Restaurant Profile Types & Schemas (Issue #49) ───────────────────────────
+
+export const priceRangeEnum = z.enum(["$", "$$", "$$$"]);
+export type PriceRange = z.infer<typeof priceRangeEnum>;
+
+export const paymentMethodEnum = z.enum([
+  "PIX",
+  "CREDIT_CARD",
+  "DEBIT_CARD",
+  "CASH",
+  "MEAL_VOUCHER",
+]);
+export type PaymentMethod = z.infer<typeof paymentMethodEnum>;
+
+export const timeShiftSchema = z.object({
+  open: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Horário deve estar no formato HH:mm"),
+  close: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Horário deve estar no formato HH:mm"),
+});
+export type TimeShift = z.infer<typeof timeShiftSchema>;
+
+export const businessHoursDaySchema = z.array(timeShiftSchema);
+export type BusinessHoursDay = z.infer<typeof businessHoursDaySchema>;
+
+export const businessHoursSchema = z.object({
+  monday: businessHoursDaySchema.optional(),
+  tuesday: businessHoursDaySchema.optional(),
+  wednesday: businessHoursDaySchema.optional(),
+  thursday: businessHoursDaySchema.optional(),
+  friday: businessHoursDaySchema.optional(),
+  saturday: businessHoursDaySchema.optional(),
+  sunday: businessHoursDaySchema.optional(),
+});
+export type BusinessHours = z.infer<typeof businessHoursSchema>;
+
+export const socialLinksSchema = z.object({
+  instagram: z.string().trim().optional().nullable(),
+  facebook: z.string().trim().optional().nullable(),
+  website: z.string().trim().url("URL do website inválida").optional().nullable(),
+});
+export type SocialLinks = z.infer<typeof socialLinksSchema>;
+
+export const restaurantPhotoSchema = z.object({
+  id: z.string().uuid().optional(),
+  url: z.string().url("URL da foto inválida"),
+  order: z.number().int().nonnegative().default(0),
+});
+export type RestaurantPhotoInput = z.infer<typeof restaurantPhotoSchema>;
+
+export interface RestaurantPhotoResponse {
+  id: string;
+  restaurantId?: string;
+  url: string;
+  order: number;
+  createdAt?: Date | string;
+}
+
+export const updateRestaurantProfileSchema = z.object({
+  name: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres").optional(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}[-\s]?\d{4}$/, "Telefone inválido")
+    .optional()
+    .nullable(),
+  cnpj: z
+    .string()
+    .trim()
+    .regex(/^\d{14}$/, "CNPJ deve conter 14 dígitos numéricos")
+    .optional()
+    .nullable(),
+  description: z
+    .string()
+    .trim()
+    .max(500, "A descrição não pode exceder 500 caracteres")
+    .optional()
+    .nullable(),
+  cuisineType: z.string().trim().min(2, "Informe a culinária").optional().nullable(),
+  priceRange: priceRangeEnum.optional().nullable(),
+  businessHours: businessHoursSchema.optional().nullable(),
+  paymentMethods: z.array(paymentMethodEnum).optional(),
+  socialLinks: socialLinksSchema.optional().nullable(),
+  imageUrl: z.string().url("URL de capa inválida").optional().nullable(),
+  photos: z.array(z.string().url("URL de foto inválida")).optional(),
+  address: z.string().trim().optional(),
+  street: z.string().trim().optional().nullable(),
+  number: z.string().trim().optional().nullable(),
+  complement: z.string().trim().optional().nullable(),
+  neighborhood: z.string().trim().optional().nullable(),
+  city: z.string().trim().optional().nullable(),
+  state: z.string().trim().max(2).optional().nullable(),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^\d{5}-?\d{3}$/, "CEP inválido")
+    .optional()
+    .nullable(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+});
+export type UpdateRestaurantProfileInput = z.infer<typeof updateRestaurantProfileSchema>;
+
 export const createRestaurantSchema = z.object({
   name: z
     .string({ required_error: "O nome do restaurante é obrigatório." })
@@ -56,6 +161,28 @@ export const createRestaurantSchema = z.object({
     .optional(),
   phone: z.string().trim().optional(),
   cnpj: z.string().trim().optional(),
+  description: z
+    .string()
+    .trim()
+    .max(500, "A descrição não pode exceder 500 caracteres")
+    .optional()
+    .nullable(),
+  priceRange: priceRangeEnum.optional().nullable(),
+  businessHours: businessHoursSchema.optional().nullable(),
+  paymentMethods: z.array(paymentMethodEnum).optional(),
+  socialLinks: socialLinksSchema.optional().nullable(),
+  street: z.string().trim().optional().nullable(),
+  number: z.string().trim().optional().nullable(),
+  complement: z.string().trim().optional().nullable(),
+  neighborhood: z.string().trim().optional().nullable(),
+  city: z.string().trim().optional().nullable(),
+  state: z.string().trim().max(2).optional().nullable(),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^\d{5}-?\d{3}$/, "CEP inválido")
+    .optional()
+    .nullable(),
 });
 
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
@@ -72,6 +199,19 @@ export interface RestaurantResponse {
   ownerId?: string | null;
   phone?: string | null;
   cnpj?: string | null;
+  description?: string | null;
+  priceRange?: PriceRange | null;
+  businessHours?: BusinessHours | null;
+  paymentMethods?: PaymentMethod[];
+  socialLinks?: SocialLinks | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  photos?: RestaurantPhotoResponse[];
   createdAt: Date;
   updatedAt: Date;
 }
