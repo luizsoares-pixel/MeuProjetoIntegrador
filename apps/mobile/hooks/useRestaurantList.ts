@@ -7,6 +7,12 @@ interface UseRestaurantListOptions {
   search?: string;
   cuisine?: string | null;
   city?: string | null;
+  priceRange?: string | string[] | null;
+  minRating?: number | null;
+  maxDistance?: number | null;
+  openNow?: boolean | null;
+  lat?: number | null;
+  lng?: number | null;
   autoLoad?: boolean;
   debounceMs?: number;
 }
@@ -20,6 +26,7 @@ interface UseRestaurantListReturn {
   isError: boolean;
   isEmpty: boolean;
   isSearching: boolean;
+  activeFilterCount: number;
   errorMessage: string | null;
   hasMore: boolean;
   refresh: () => Promise<void>;
@@ -28,7 +35,7 @@ interface UseRestaurantListReturn {
 }
 
 /**
- * Hook para gerenciar o feed paginado de restaurantes com busca e filtros (HU5 & HU6).
+ * Hook para gerenciar o feed paginado de restaurantes com busca e filtros avançados (HU5, HU6 & HU7).
  * Suporta debounce automático de 400ms para o termo de busca, scroll infinito,
  * pull-to-refresh e prevenção contra race conditions na digitação.
  */
@@ -37,6 +44,12 @@ export function useRestaurantList({
   search = "",
   cuisine = null,
   city = null,
+  priceRange = null,
+  minRating = null,
+  maxDistance = null,
+  openNow = null,
+  lat = null,
+  lng = null,
   autoLoad = true,
   debounceMs = 400,
 }: UseRestaurantListOptions = {}): UseRestaurantListReturn {
@@ -90,6 +103,12 @@ export function useRestaurantList({
           search: debouncedSearch.trim() || undefined,
           cuisine: cuisine?.trim() || undefined,
           city: city?.trim() || undefined,
+          priceRange: priceRange || undefined,
+          minRating: minRating ?? undefined,
+          maxDistance: maxDistance ?? undefined,
+          openNow: openNow ?? undefined,
+          lat: lat ?? undefined,
+          lng: lng ?? undefined,
         });
 
         // Ignora respostas desatualizadas caso uma nova requisição tenha sido disparada
@@ -109,7 +128,18 @@ export function useRestaurantList({
         }
       }
     },
-    [limit, debouncedSearch, cuisine, city]
+    [
+      limit,
+      debouncedSearch,
+      cuisine,
+      city,
+      priceRange,
+      minRating,
+      maxDistance,
+      openNow,
+      lat,
+      lng,
+    ]
   );
 
   const loadMore = useCallback(async () => {
@@ -134,6 +164,12 @@ export function useRestaurantList({
         search: debouncedSearch.trim() || undefined,
         cuisine: cuisine?.trim() || undefined,
         city: city?.trim() || undefined,
+        priceRange: priceRange || undefined,
+        minRating: minRating ?? undefined,
+        maxDistance: maxDistance ?? undefined,
+        openNow: openNow ?? undefined,
+        lat: lat ?? undefined,
+        lng: lng ?? undefined,
       });
 
       if (!mountedRef.current) return;
@@ -164,6 +200,12 @@ export function useRestaurantList({
     debouncedSearch,
     cuisine,
     city,
+    priceRange,
+    minRating,
+    maxDistance,
+    openNow,
+    lat,
+    lng,
   ]);
 
   const refresh = useCallback(async () => {
@@ -181,10 +223,25 @@ export function useRestaurantList({
     }
   }, [autoLoad, loadFirstPage]);
 
+  // Contagem de filtros ativos
+  const hasPriceFilter = Boolean(
+    priceRange &&
+      (Array.isArray(priceRange) ? priceRange.length > 0 : priceRange.trim() !== "")
+  );
+  const hasRatingFilter = minRating !== undefined && minRating !== null;
+  const hasDistanceFilter = maxDistance !== undefined && maxDistance !== null;
+  const hasOpenNowFilter = openNow === true;
+
+  const activeFilterCount =
+    (cuisine && cuisine.trim() !== "" ? 1 : 0) +
+    (city && city.trim() !== "" ? 1 : 0) +
+    (hasPriceFilter ? 1 : 0) +
+    (hasRatingFilter ? 1 : 0) +
+    (hasDistanceFilter ? 1 : 0) +
+    (hasOpenNowFilter ? 1 : 0);
+
   const isSearching = Boolean(
-    (debouncedSearch && debouncedSearch.trim() !== "") ||
-      (cuisine && cuisine.trim() !== "") ||
-      (city && city.trim() !== "")
+    (debouncedSearch && debouncedSearch.trim() !== "") || activeFilterCount > 0
   );
 
   const isEmpty = !isLoading && !errorMessage && restaurants.length === 0;
@@ -200,6 +257,7 @@ export function useRestaurantList({
     isError,
     isEmpty,
     isSearching,
+    activeFilterCount,
     errorMessage,
     hasMore,
     refresh,

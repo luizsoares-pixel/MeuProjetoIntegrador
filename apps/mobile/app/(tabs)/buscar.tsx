@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { CuisineFilterChips } from "../../components/CuisineFilterChips";
+import { FilterModal, FilterState } from "../../components/FilterModal";
 import { RestaurantCard } from "../../components/RestaurantCard";
 import { RestaurantCardSkeleton } from "../../components/RestaurantCardSkeleton";
 import { RestaurantEmptyState } from "../../components/RestaurantEmptyState";
@@ -27,6 +29,17 @@ export default function BuscarTab() {
   const [searchText, setSearchText] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [cityText, setCityText] = useState("");
+
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterState>({
+    priceRange: [],
+    minRating: null,
+    maxDistance: null,
+    openNow: false,
+  });
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
 
   const {
     restaurants,
@@ -46,7 +59,19 @@ export default function BuscarTab() {
     search: searchText,
     cuisine: selectedCuisine,
     city: cityText,
+    priceRange: activeFilters.priceRange,
+    minRating: activeFilters.minRating,
+    maxDistance: activeFilters.maxDistance,
+    openNow: activeFilters.openNow,
+    lat: userCoords?.lat ?? null,
+    lng: userCoords?.lng ?? null,
   });
+
+  const modalFilterCount =
+    (activeFilters.priceRange.length > 0 ? 1 : 0) +
+    (activeFilters.minRating !== null ? 1 : 0) +
+    (activeFilters.maxDistance !== null ? 1 : 0) +
+    (activeFilters.openNow ? 1 : 0);
 
   const handleCardPress = useCallback((_restaurant: RestaurantResponse) => {
     // Integração futura com detalhes do cardápio (Sprint #4)
@@ -56,6 +81,12 @@ export default function BuscarTab() {
     setSearchText("");
     setSelectedCuisine(null);
     setCityText("");
+    setActiveFilters({
+      priceRange: [],
+      minRating: null,
+      maxDistance: null,
+      openNow: false,
+    });
   }, []);
 
   const renderHeader = useCallback(() => {
@@ -67,14 +98,42 @@ export default function BuscarTab() {
           Filtre restaurantes por nome, culinária ou cidade.
         </Text>
 
-        {/* Input de Busca por Nome */}
-        <View style={styles.inputSpacing}>
-          <SearchBar
-            value={searchText}
-            onChangeText={setSearchText}
-            onClear={() => setSearchText("")}
-            placeholder="Buscar por nome do restaurante..."
-          />
+        {/* Input de Busca por Nome e Botão de Filtros */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBarFlex}>
+            <SearchBar
+              value={searchText}
+              onChangeText={setSearchText}
+              onClear={() => setSearchText("")}
+              placeholder="Buscar por nome do restaurante..."
+            />
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.filterTriggerButton,
+              modalFilterCount > 0 && styles.filterTriggerButtonActive,
+            ]}
+            onPress={() => setFilterModalVisible(true)}
+            accessibilityLabel="Abrir filtros avançados"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name="tune-variant"
+              size={22}
+              color={
+                modalFilterCount > 0
+                  ? colors.background.primary
+                  : colors.accent.gold
+              }
+            />
+            {modalFilterCount > 0 && (
+              <View style={styles.badgeIndicator}>
+                <Text style={styles.badgeIndicatorText}>
+                  {modalFilterCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Input de Filtro por Cidade */}
@@ -120,7 +179,16 @@ export default function BuscarTab() {
         )}
       </View>
     );
-  }, [searchText, cityText, selectedCuisine, isLoading, isError, isEmpty, restaurants.length]);
+  }, [
+    searchText,
+    cityText,
+    selectedCuisine,
+    modalFilterCount,
+    isLoading,
+    isError,
+    isEmpty,
+    restaurants.length,
+  ]);
 
   const renderEmpty = useCallback(() => {
     if (isLoading) {
@@ -232,6 +300,25 @@ export default function BuscarTab() {
           />
         }
       />
+
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        filters={activeFilters}
+        onApply={(newFilters, coords) => {
+          setActiveFilters(newFilters);
+          if (coords) setUserCoords(coords);
+        }}
+        onReset={() => {
+          setActiveFilters({
+            priceRange: [],
+            minRating: null,
+            maxDistance: null,
+            openNow: false,
+          });
+        }}
+        userCoords={userCoords}
+      />
     </LinearGradient>
   );
 }
@@ -268,8 +355,48 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
-  inputSpacing: {
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  searchBarFlex: {
+    flex: 1,
+  },
+  filterTriggerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.background.dark,
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  filterTriggerButtonActive: {
+    backgroundColor: colors.accent.gold,
+    borderColor: colors.accent.gold,
+  },
+  badgeIndicator: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: colors.accent.gold,
+    borderColor: colors.background.primary,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeIndicatorText: {
+    color: colors.background.primary,
+    fontSize: 10,
+    fontWeight: typography.weight.bold,
   },
   cityInputContainer: {
     flexDirection: "row",

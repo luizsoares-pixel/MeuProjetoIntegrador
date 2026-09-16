@@ -20,6 +20,10 @@ function formatRestaurantResponse(restaurant: any): RestaurantResponse {
     imageUrl: restaurant.imageUrl,
     latitude: restaurant.latitude,
     longitude: restaurant.longitude,
+    distanceInMeters:
+      restaurant.distanceInMeters !== undefined
+        ? Math.round(restaurant.distanceInMeters)
+        : undefined,
     ownerId: restaurant.ownerId,
     phone: restaurant.phone,
     cnpj: restaurant.cnpj,
@@ -57,7 +61,7 @@ function formatRestaurantResponse(restaurant: any): RestaurantResponse {
  * Referência: Sinnott, R.W. (1984). "Virtues of the Haversine."
  *             Sky and Telescope, 68(2), 158.
  */
-function haversineDistance(
+export function haversineDistance(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -75,6 +79,115 @@ function haversineDistance(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return EARTH_RADIUS_METERS * c;
+}
+
+const DAYS_OF_WEEK = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+export function getBrasiliaDateParts(date: Date = new Date()): {
+  dayOfWeek: string;
+  previousDayOfWeek: string;
+  currentTimeString: string;
+} {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  });
+
+  const parts = dtf.formatToParts(date);
+  const weekdayPart =
+    parts.find((p) => p.type === "weekday")?.value?.toLowerCase() ?? "monday";
+  const hourPart = parts.find((p) => p.type === "hour")?.value ?? "00";
+  const minutePart = parts.find((p) => p.type === "minute")?.value ?? "00";
+
+  const dayIndex = DAYS_OF_WEEK.indexOf(weekdayPart as any);
+  const prevDayIndex = (dayIndex + 6) % 7;
+  const currentDay = DAYS_OF_WEEK[dayIndex >= 0 ? dayIndex : 1];
+  const previousDay = DAYS_OF_WEEK[prevDayIndex];
+
+  const currentTimeString = `${hourPart.padStart(2, "0")}:${minutePart.padStart(2, "0")}`;
+
+  return {
+    dayOfWeek: currentDay,
+    previousDayOfWeek: previousDay,
+    currentTimeString,
+  };
+}
+
+/**
+ * Avalia se o restaurante está aberto no momento com base no horário de Brasília (UTC-3),
+ * tratando múltiplos turnos por dia e turnos noturnos que cruzam a meia-noite (overnight shifts).
+ */
+export function isRestaurantOpen(
+  businessHours: any,
+  referenceDate: Date = new Date()
+): boolean {
+  if (!businessHours || typeof businessHours !== "object") {
+    return false;
+  }
+
+  const { dayOfWeek, previousDayOfWeek, currentTimeString } =
+    getBrasiliaDateParts(referenceDate);
+
+  // 1. Turnos cadastrados para o dia corrente
+  const todayShifts = businessHours[dayOfWeek];
+  if (Array.isArray(todayShifts)) {
+    for (const shift of todayShifts) {
+      if (!shift || typeof shift.open !== "string" || typeof shift.close !== "string") {
+        continue;
+      }
+      const { open, close } = shift;
+
+      // 24 horas ininterruptas
+      if (open === close) {
+        return true;
+      }
+
+      // Turno regular no mesmo dia (ex: 11:30 às 15:00)
+      if (open < close) {
+        if (currentTimeString >= open && currentTimeString < close) {
+          return true;
+        }
+      } else {
+        // Turno noturno que vira a noite (ex: 18:00 às 02:00)
+        // Durante a noite de hoje: a partir da abertura
+        if (currentTimeString >= open) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // 2. Turnos noturnos iniciados ontem que adentram a madrugada de hoje
+  const yesterdayShifts = businessHours[previousDayOfWeek];
+  if (Array.isArray(yesterdayShifts)) {
+    for (const shift of yesterdayShifts) {
+      if (!shift || typeof shift.open !== "string" || typeof shift.close !== "string") {
+        continue;
+      }
+      const { open, close } = shift;
+
+      // Se iniciou ontem e o fechamento é menor que a abertura (overnight)
+      if (open > close) {
+        if (currentTimeString < close) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 export class RestaurantService {
@@ -294,6 +407,93 @@ export class RestaurantService {
       }
     }
 
+    if (query.priceRange && query.priceRange.length > 0) {
+      where.priceRange = { in: query.priceRange };
+    }
+
+    if (query.minRating !== undefined) {
+      where.rating = { gte: query.minRating };
+    }
+
+    const hasDistanceFilter =
+      query.maxDistance !== undefined &&
+      query.lat !== undefined &&
+      query.lng !== undefined;
+
+    if (hasDistanceFilter) {
+      const latDelta = query.maxDistance! / 111_320;
+      const lngDelta =
+        query.maxDistance! /
+        (111_320 * Math.cos((query.lat! * Math.PI) / 180));
+
+      where.latitude = {
+        gte: query.lat! - latDelta,
+        lte: query.lat! + latDelta,
+      };
+      where.longitude = {
+        gte: query.lng! - lngDelta,
+        lte: query.lng! + lngDelta,
+      };
+    }
+
+    const needsInMemoryFiltering = query.openNow === true || hasDistanceFilter;
+
+    if (needsInMemoryFiltering) {
+      const candidates = await prisma.restaurant.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          photos: { orderBy: { order: "asc" } },
+        },
+      });
+
+      let filtered = candidates;
+
+      if (hasDistanceFilter) {
+        filtered = filtered
+          .map((r) => ({
+            ...r,
+            distanceInMeters: haversineDistance(
+              query.lat!,
+              query.lng!,
+              r.latitude,
+              r.longitude
+            ),
+          }))
+          .filter((r) => (r.distanceInMeters ?? Infinity) <= query.maxDistance!);
+      } else if (query.lat !== undefined && query.lng !== undefined) {
+        filtered = filtered.map((r) => ({
+          ...r,
+          distanceInMeters: haversineDistance(
+            query.lat!,
+            query.lng!,
+            r.latitude,
+            r.longitude
+          ),
+        }));
+      }
+
+      if (query.openNow === true) {
+        filtered = filtered.filter((r) => isRestaurantOpen(r.businessHours));
+      }
+
+      const total = filtered.length;
+      const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+      const hasMore = page < totalPages;
+      const pagedSlice = filtered.slice(skip, skip + limit);
+
+      return {
+        restaurants: pagedSlice.map(formatRestaurantResponse),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasMore,
+        },
+      };
+    }
+
     const [restaurants, total] = await Promise.all([
       prisma.restaurant.findMany({
         where,
@@ -307,11 +507,24 @@ export class RestaurantService {
       prisma.restaurant.count({ where }),
     ]);
 
+    let results = restaurants;
+    if (query.lat !== undefined && query.lng !== undefined) {
+      results = results.map((r) => ({
+        ...r,
+        distanceInMeters: haversineDistance(
+          query.lat!,
+          query.lng!,
+          r.latitude,
+          r.longitude
+        ),
+      }));
+    }
+
     const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
     const hasMore = page < totalPages;
 
     return {
-      restaurants: restaurants.map(formatRestaurantResponse),
+      restaurants: results.map(formatRestaurantResponse),
       pagination: {
         page,
         limit,

@@ -30,37 +30,109 @@ export type NearbyRestaurantsQuery = z.infer<typeof nearbyRestaurantsSchema>;
 
 // ── Restaurant Listing & Pagination (Issue #50) ──────────────────────────────
 
-export const listRestaurantsQuerySchema = z.object({
-  page: z
-    .string()
-    .optional()
-    .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : 1))
-    .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1, {
-      message: "O parâmetro 'page' deve ser um número inteiro maior ou igual a 1.",
-    }),
-  limit: z
-    .string()
-    .optional()
-    .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : 10))
-    .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1 && v <= 50, {
-      message: "O parâmetro 'limit' deve ser um número inteiro entre 1 e 50.",
-    }),
-  search: z
-    .string()
-    .trim()
-    .max(100, "O termo de busca não pode exceder 100 caracteres.")
-    .optional(),
-  cuisine: z
-    .string()
-    .trim()
-    .max(50, "O filtro de culinária não pode exceder 50 caracteres.")
-    .optional(),
-  city: z
-    .string()
-    .trim()
-    .max(100, "O filtro de cidade não pode exceder 100 caracteres.")
-    .optional(),
-});
+export const listRestaurantsQuerySchema = z
+  .object({
+    page: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : 1))
+      .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1, {
+        message: "O parâmetro 'page' deve ser um número inteiro maior ou igual a 1.",
+      }),
+    limit: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : 10))
+      .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1 && v <= 50, {
+        message: "O parâmetro 'limit' deve ser um número inteiro entre 1 e 50.",
+      }),
+    search: z
+      .string()
+      .trim()
+      .max(100, "O termo de busca não pode exceder 100 caracteres.")
+      .optional(),
+    cuisine: z
+      .string()
+      .trim()
+      .max(50, "O filtro de culinária não pode exceder 50 caracteres.")
+      .optional(),
+    city: z
+      .string()
+      .trim()
+      .max(100, "O filtro de cidade não pode exceder 100 caracteres.")
+      .optional(),
+    priceRange: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .transform((val) => {
+        if (!val) return undefined;
+        const raw = Array.isArray(val) ? val.join(",") : val;
+        const items = raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        return items.length > 0 ? items : undefined;
+      })
+      .refine(
+        (items) =>
+          items === undefined ||
+          items.every((item) => ["$", "$$", "$$$"].includes(item)),
+        {
+          message:
+            "O parâmetro 'priceRange' deve conter apenas valores válidos: $, $$, $$$.",
+        }
+      )
+      .transform((items) => items as ("$" | "$$" | "$$$")[] | undefined),
+    minRating: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : undefined))
+      .refine((v) => v === undefined || (!isNaN(v) && v >= 1 && v <= 5), {
+        message: "O parâmetro 'minRating' deve ser um número entre 1 e 5.",
+      }),
+    maxDistance: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : undefined))
+      .refine((v) => v === undefined || (!isNaN(v) && v > 0), {
+        message: "O parâmetro 'maxDistance' deve ser um número positivo em metros.",
+      }),
+    openNow: z
+      .union([z.string(), z.boolean()])
+      .optional()
+      .transform((v) => {
+        if (v === undefined || v === "") return undefined;
+        if (typeof v === "boolean") return v;
+        return v === "true";
+      }),
+    lat: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : undefined))
+      .refine((v) => v === undefined || (!isNaN(v) && v >= -90 && v <= 90), {
+        message: "O parâmetro 'lat' deve ser entre -90 e 90.",
+      }),
+    lng: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : undefined))
+      .refine((v) => v === undefined || (!isNaN(v) && v >= -180 && v <= 180), {
+        message: "O parâmetro 'lng' deve ser entre -180 e 180.",
+      }),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.maxDistance !== undefined &&
+      (data.lat === undefined || data.lng === undefined)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Os parâmetros 'lat' e 'lng' são obrigatórios quando 'maxDistance' for informado.",
+        path: ["maxDistance"],
+      });
+    }
+  });
 
 export type ListRestaurantsQuery = z.infer<typeof listRestaurantsQuerySchema>;
 
