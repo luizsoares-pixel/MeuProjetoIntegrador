@@ -282,11 +282,17 @@ export interface FetchRestaurantsParams {
   search?: string;
   cuisine?: string;
   city?: string;
+  priceRange?: string | string[];
+  minRating?: number;
+  maxDistance?: number;
+  openNow?: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 /**
- * Busca a listagem paginada de restaurantes com suporte a busca e filtros (HU5 & HU6).
- * GET /restaurants?page=&limit=&search=&cuisine=&city=
+ * Busca a listagem paginada de restaurantes com suporte a busca e filtros avançados (HU5, HU6 & HU7).
+ * GET /restaurants?page=&limit=&search=&cuisine=&city=&priceRange=&minRating=&maxDistance=&openNow=&lat=&lng=
  */
 export async function fetchRestaurants(
   params?: FetchRestaurantsParams
@@ -306,6 +312,29 @@ export async function fetchRestaurants(
   }
   if (params?.city && params.city.trim() !== "") {
     url.searchParams.set("city", params.city.trim());
+  }
+  if (params?.priceRange) {
+    const priceStr = Array.isArray(params.priceRange)
+      ? params.priceRange.join(",")
+      : params.priceRange;
+    if (priceStr.trim() !== "") {
+      url.searchParams.set("priceRange", priceStr.trim());
+    }
+  }
+  if (params?.minRating !== undefined) {
+    url.searchParams.set("minRating", String(params.minRating));
+  }
+  if (params?.maxDistance !== undefined) {
+    url.searchParams.set("maxDistance", String(params.maxDistance));
+  }
+  if (params?.openNow !== undefined) {
+    url.searchParams.set("openNow", String(params.openNow));
+  }
+  if (params?.lat !== undefined) {
+    url.searchParams.set("lat", String(params.lat));
+  }
+  if (params?.lng !== undefined) {
+    url.searchParams.set("lng", String(params.lng));
   }
 
   const response = await fetch(url.toString(), {
