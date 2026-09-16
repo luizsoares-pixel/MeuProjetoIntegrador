@@ -42,8 +42,14 @@ export default function PerfilTab() {
       {/* Ações */}
       <Animated.View style={[styles.actionsContainer, buttonAnim.animatedStyle]}>
         <Button
+          title="MEU RESTAURANTE: EDITAR PERFIL"
+          onPress={() => router.push("/editar-perfil-restaurante" as never)}
+        />
+        <View style={{ height: spacing.md }} />
+        <Button
           title="CADASTRAR RESTAURANTE"
-          onPress={() => router.push("/cadastrar-restaurante")}
+          variant="outline"
+          onPress={() => router.push("/cadastrar-restaurante" as never)}
         />
         <View style={{ height: spacing.md }} />
         <Button

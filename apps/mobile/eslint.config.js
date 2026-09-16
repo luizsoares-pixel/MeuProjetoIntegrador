@@ -11,6 +11,12 @@ module.exports = defineConfig([
       'import/no-unresolved': 'off',
       'import/namespace': 'off',
 
+      // Rebaixadas para warn: regras do React Compiler que geram
+      // falsos-positivos para padrões válidos em Reanimated e React Native.
+      // useSharedValue().value é mutável por design; funções async em
+      // useEffect são idiomáticas em RN (ex: loadLocation, refetch).
+      'react-hooks/immutability': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
   {
