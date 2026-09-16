@@ -16,7 +16,11 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 
 ### Restaurante (`Restaurant`)
 * **Definição**: O estabelecimento comercial físico cadastrado na plataforma.
-* **Atributos essenciais**: Nome, descrição, CNPJ, categoria culinária, endereço, coordenadas geográficas (`latitude`, `longitude`), horário de funcionamento, fotos e status (aberto/fechado).
+* **Atributos essenciais**:
+  * **Identificação**: Nome (`name`), CNPJ validado e único (`cnpj`), telefone/WhatsApp de contato (`phone`), descrição detalhada com limite de caracteres (`description`), tipo de culinária (`cuisineType`), e faixa de preço (`priceRange`: `$`, `$$`, `$$$`).
+  * **Localização**: Endereço textual (`address`), coordenadas geográficas (`latitude`, `longitude`) e endereço estruturado (`street`, `number`, `complement`, `neighborhood`, `city`, `state`, `postalCode`).
+  * **Operação**: Horários de funcionamento estruturados por dia da semana com múltiplos turnos (`businessHours`), formas de pagamento aceitas (`paymentMethods`) e status (aberto/fechado).
+  * **Presença Digital**: Foto de capa (`imageUrl`), galeria de fotos adicionais 1:N (`RestaurantPhoto`), links para redes sociais (`socialLinks`).
 * **Representação Visual**: Apresentado no mapa interativo através de um marcador customizado (`RestaurantPinMarker`) e um card de destaque (`RestaurantPreviewCard`).
 
 ### Cardápio (`Menu`)
@@ -59,3 +63,8 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `contracts` | Contratos Compartilhados | Schemas Zod e tipos em `packages/contracts` que regem a comunicação API-Mobile. |
 | `RestaurantPin` | Pino de Restaurante | Marcador renderizado no `react-native-maps` com coordenadas geográficas. |
 | `DoD` | Definition of Done | Critério de aceite obrigatório para fechamento de sprints no CEUB. |
+| `priceRange` | Faixa de Preço | Classificação de preço médio do restaurante em níveis (`$`, `$$`, `$$$`). |
+| `businessHours` | Horário de Funcionamento | Objeto estruturado com horários por dia da semana e suporte a múltiplos turnos. |
+| `paymentMethods` | Formas de Pagamento | Lista padronizada de formas de pagamento aceitas (PIX, cartões, dinheiro, etc.). |
+| `RestaurantPhoto` | Foto do Restaurante | Entidade de relacionamento 1:N que armazena a galeria de imagens secundárias do local. |
+| `structuredAddress` | Endereço Estruturado | Decomposição formal de endereço em rua, número, complemento, bairro, cidade, UF e CEP. |
