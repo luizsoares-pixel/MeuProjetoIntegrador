@@ -196,5 +196,117 @@ describe("Restaurant Contracts Schema", () => {
       listRestaurantsQuerySchema.parse({ city: "b".repeat(101) })
     ).toThrow();
   });
+
+  it("should parse priceRange with single value or comma-separated values", () => {
+    const single = listRestaurantsQuerySchema.parse({ priceRange: "$$" });
+    expect(single.priceRange).toEqual(["$$"]);
+
+    const multiple = listRestaurantsQuerySchema.parse({ priceRange: "$,$$$" });
+    expect(multiple.priceRange).toEqual(["$", "$$$"]);
+  });
+
+  it("should reject invalid priceRange values", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ priceRange: "$$$$" })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ priceRange: "$,INVALID" })
+    ).toThrow();
+  });
+
+  it("should parse valid minRating and reject invalid values", () => {
+    const parsed = listRestaurantsQuerySchema.parse({ minRating: "4.5" });
+    expect(parsed.minRating).toBe(4.5);
+
+    expect(() => listRestaurantsQuerySchema.parse({ minRating: "0.5" })).toThrow();
+    expect(() => listRestaurantsQuerySchema.parse({ minRating: "5.5" })).toThrow();
+    expect(() => listRestaurantsQuerySchema.parse({ minRating: "abc" })).toThrow();
+  });
+
+  it("should parse valid maxDistance when lat and lng are provided", () => {
+    const parsed = listRestaurantsQuerySchema.parse({
+      maxDistance: "5000",
+      lat: "-15.7942",
+      lng: "-47.8822",
+    });
+    expect(parsed.maxDistance).toBe(5000);
+    expect(parsed.lat).toBe(-15.7942);
+    expect(parsed.lng).toBe(-47.8822);
+  });
+
+  it("should reject maxDistance when lat or lng are missing", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ maxDistance: "5000" })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ maxDistance: "5000", lat: "-15.79" })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ maxDistance: "5000", lng: "-47.88" })
+    ).toThrow();
+  });
+
+  it("should reject invalid maxDistance, lat, or lng values", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({
+        maxDistance: "-10",
+        lat: "0",
+        lng: "0",
+      })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({
+        maxDistance: "1000",
+        lat: "95",
+        lng: "0",
+      })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({
+        maxDistance: "1000",
+        lat: "0",
+        lng: "185",
+      })
+    ).toThrow();
+  });
+
+  it("should parse openNow correctly as boolean", () => {
+    const trueParsed = listRestaurantsQuerySchema.parse({ openNow: "true" });
+    expect(trueParsed.openNow).toBe(true);
+
+    const falseParsed = listRestaurantsQuerySchema.parse({ openNow: "false" });
+    expect(falseParsed.openNow).toBe(false);
+
+    const boolParsed = listRestaurantsQuerySchema.parse({ openNow: true as any });
+    expect(boolParsed.openNow).toBe(true);
+  });
+
+  it("should parse all advanced filters together with pagination and search", () => {
+    const parsed = listRestaurantsQuerySchema.parse({
+      page: "2",
+      limit: "15",
+      search: "Trattoria",
+      cuisine: "Italiana",
+      city: "Brasília",
+      priceRange: "$,$$",
+      minRating: "4",
+      maxDistance: "3000",
+      openNow: "true",
+      lat: "-15.78",
+      lng: "-47.88",
+    });
+
+    expect(parsed.page).toBe(2);
+    expect(parsed.limit).toBe(15);
+    expect(parsed.search).toBe("Trattoria");
+    expect(parsed.cuisine).toBe("Italiana");
+    expect(parsed.city).toBe("Brasília");
+    expect(parsed.priceRange).toEqual(["$", "$$"]);
+    expect(parsed.minRating).toBe(4);
+    expect(parsed.maxDistance).toBe(3000);
+    expect(parsed.openNow).toBe(true);
+    expect(parsed.lat).toBe(-15.78);
+    expect(parsed.lng).toBe(-47.88);
+  });
 });
 
