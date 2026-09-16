@@ -5,13 +5,16 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { CuisineFilterChips } from "../../components/CuisineFilterChips";
+import { FilterModal, FilterState } from "../../components/FilterModal";
 import { RestaurantCard } from "../../components/RestaurantCard";
 import { RestaurantCardSkeleton } from "../../components/RestaurantCardSkeleton";
 import { RestaurantEmptyState } from "../../components/RestaurantEmptyState";
@@ -26,6 +29,17 @@ export default function HomeTab() {
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterState>({
+    priceRange: [],
+    minRating: null,
+    maxDistance: null,
+    openNow: false,
+  });
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
 
   const {
     restaurants,
@@ -44,7 +58,19 @@ export default function HomeTab() {
     limit: 10,
     search: searchText,
     cuisine: selectedCuisine,
+    priceRange: activeFilters.priceRange,
+    minRating: activeFilters.minRating,
+    maxDistance: activeFilters.maxDistance,
+    openNow: activeFilters.openNow,
+    lat: userCoords?.lat ?? null,
+    lng: userCoords?.lng ?? null,
   });
+
+  const modalFilterCount =
+    (activeFilters.priceRange.length > 0 ? 1 : 0) +
+    (activeFilters.minRating !== null ? 1 : 0) +
+    (activeFilters.maxDistance !== null ? 1 : 0) +
+    (activeFilters.openNow ? 1 : 0);
 
   const eyebrowAnim = useFadeSlide({ delay: 0, translateY: 8 });
   const titleAnim = useFadeSlide({ delay: 80, translateY: 12 });
@@ -57,6 +83,12 @@ export default function HomeTab() {
   const handleClearFilters = useCallback(() => {
     setSearchText("");
     setSelectedCuisine(null);
+    setActiveFilters({
+      priceRange: [],
+      minRating: null,
+      maxDistance: null,
+      openNow: false,
+    });
   }, []);
 
   const renderHeader = useCallback(() => {
@@ -76,14 +108,42 @@ export default function HomeTab() {
           Explore opções e cardápios digitais perto de você.
         </Animated.Text>
 
-        {/* Barra de Busca com Debounce */}
-        <View style={styles.searchWrapper}>
-          <SearchBar
-            value={searchText}
-            onChangeText={setSearchText}
-            onClear={() => setSearchText("")}
-            placeholder="Buscar por nome do restaurante..."
-          />
+        {/* Barra de Busca com Debounce e Botão de Filtros */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBarFlex}>
+            <SearchBar
+              value={searchText}
+              onChangeText={setSearchText}
+              onClear={() => setSearchText("")}
+              placeholder="Buscar por nome do restaurante..."
+            />
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.filterTriggerButton,
+              modalFilterCount > 0 && styles.filterTriggerButtonActive,
+            ]}
+            onPress={() => setFilterModalVisible(true)}
+            accessibilityLabel="Abrir filtros avançados"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name="tune-variant"
+              size={22}
+              color={
+                modalFilterCount > 0
+                  ? colors.background.primary
+                  : colors.accent.gold
+              }
+            />
+            {modalFilterCount > 0 && (
+              <View style={styles.badgeIndicator}>
+                <Text style={styles.badgeIndicatorText}>
+                  {modalFilterCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Chips de Filtro por Culinária */}
@@ -110,6 +170,7 @@ export default function HomeTab() {
     descAnim,
     searchText,
     selectedCuisine,
+    modalFilterCount,
     isSearching,
     isLoading,
     isError,
@@ -228,6 +289,25 @@ export default function HomeTab() {
           />
         }
       />
+
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        filters={activeFilters}
+        onApply={(newFilters, coords) => {
+          setActiveFilters(newFilters);
+          if (coords) setUserCoords(coords);
+        }}
+        onReset={() => {
+          setActiveFilters({
+            priceRange: [],
+            minRating: null,
+            maxDistance: null,
+            openNow: false,
+          });
+        }}
+        userCoords={userCoords}
+      />
     </LinearGradient>
   );
 }
@@ -264,8 +344,48 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
-  searchWrapper: {
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  searchBarFlex: {
+    flex: 1,
+  },
+  filterTriggerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.background.dark,
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  filterTriggerButtonActive: {
+    backgroundColor: colors.accent.gold,
+    borderColor: colors.accent.gold,
+  },
+  badgeIndicator: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: colors.accent.gold,
+    borderColor: colors.background.primary,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeIndicatorText: {
+    color: colors.background.primary,
+    fontSize: 10,
+    fontWeight: typography.weight.bold,
   },
   sectionHeader: {
     flexDirection: "row",
