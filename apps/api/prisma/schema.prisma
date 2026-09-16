@@ -18,20 +18,58 @@ model User {
   @@map("users")
 }
 
+enum PriceRange {
+  CHEAP     @map("$")
+  MODERATE  @map("$$")
+  EXPENSIVE @map("$$$")
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+  MEAL_VOUCHER
+}
+
+model RestaurantPhoto {
+  id           String     @id @default(uuid()) @db.Uuid
+  restaurantId String     @map("restaurant_id") @db.Uuid
+  url          String
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("restaurant_photos")
+}
+
 model Restaurant {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  address     String
-  cuisineType String?  @map("cuisine_type")
-  imageUrl    String?  @map("image_url")
-  latitude    Float
-  longitude   Float
-  ownerId     String?  @map("owner_id") @db.Uuid
-  phone       String?
-  cnpj        String?  @unique
-  owner       User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String            @id @default(uuid()) @db.Uuid
+  name           String
+  address        String
+  cuisineType    String?           @map("cuisine_type")
+  imageUrl       String?           @map("image_url")
+  latitude       Float
+  longitude      Float
+  ownerId        String?           @map("owner_id") @db.Uuid
+  phone          String?
+  cnpj           String?           @unique
+  description    String?           @db.Text
+  priceRange     PriceRange?       @map("price_range")
+  businessHours  Json?             @map("business_hours")
+  paymentMethods PaymentMethod[]   @default([]) @map("payment_methods")
+  socialLinks    Json?             @map("social_links")
+  street         String?
+  number         String?
+  complement     String?
+  neighborhood   String?
+  city           String?
+  state          String?           @db.VarChar(2)
+  postalCode     String?           @map("postal_code")
+  photos         RestaurantPhoto[]
+  owner          User?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("restaurants")
 }
