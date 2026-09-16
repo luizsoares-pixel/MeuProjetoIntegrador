@@ -1,5 +1,6 @@
 import {
   createRestaurantSchema,
+  listRestaurantsQuerySchema,
   nearbyRestaurantsSchema,
   updateRestaurantProfileSchema,
 } from "@menu-digital/contracts";
@@ -39,6 +40,16 @@ restaurantRouter.put(
   validateRequest(updateRestaurantProfileSchema),
   (req, res, next) => {
     restaurantController.updateProfile(req, res, next);
+  }
+);
+
+// GET /restaurants?page=&limit=
+// Retorna a listagem paginada de restaurantes ordenados por data decrescente.
+restaurantRouter.get(
+  "/",
+  validateQuery(listRestaurantsQuerySchema),
+  (req, res, next) => {
+    restaurantController.list(req, res, next);
   }
 );
 

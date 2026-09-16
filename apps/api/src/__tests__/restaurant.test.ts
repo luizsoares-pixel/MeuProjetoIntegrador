@@ -831,4 +831,210 @@ describe("Restaurants Layer - Issue #33", () => {
       });
     });
   });
+
+  // ── Issue #50: Listagem Paginada de Restaurantes (HU5) ────────────────────────
+  describe("Issue #50 - Listagem Paginada de Restaurantes (GET /restaurants)", () => {
+    describe("RestaurantService.list", () => {
+      it("deve retornar restaurantes paginados com metadados corretos", async () => {
+        const mockRestaurants = [
+          {
+            id: "rest-1",
+            name: "Restaurante 1",
+            address: "Rua A",
+            cuisineType: "Brasileira",
+            imageUrl: "https://example.com/rest1.jpg",
+            latitude: -15.78,
+            longitude: -47.92,
+            ownerId: "owner-1",
+            phone: "61999999999",
+            cnpj: "12345678000199",
+            description: "Desc 1",
+            priceRange: "$$",
+            rating: 4.8,
+            businessHours: null,
+            paymentMethods: ["PIX"],
+            socialLinks: null,
+            street: "Rua A",
+            number: "100",
+            complement: null,
+            neighborhood: "Asa Sul",
+            city: "Brasília",
+            state: "DF",
+            postalCode: "70000-000",
+            photos: [],
+            createdAt: new Date("2026-09-16T12:00:00Z"),
+            updatedAt: new Date("2026-09-16T12:00:00Z"),
+          },
+          {
+            id: "rest-2",
+            name: "Restaurante 2",
+            address: "Rua B",
+            cuisineType: "Italiana",
+            imageUrl: null,
+            latitude: -15.79,
+            longitude: -47.91,
+            ownerId: "owner-2",
+            phone: null,
+            cnpj: null,
+            description: null,
+            priceRange: "$",
+            rating: null,
+            businessHours: null,
+            paymentMethods: [],
+            socialLinks: null,
+            street: null,
+            number: null,
+            complement: null,
+            neighborhood: null,
+            city: null,
+            state: null,
+            postalCode: null,
+            photos: [],
+            createdAt: new Date("2026-09-15T12:00:00Z"),
+            updatedAt: new Date("2026-09-15T12:00:00Z"),
+          },
+        ];
+
+        let findManyArgs: any = null;
+        (prisma as any).restaurant = {
+          findMany: async (args: any) => {
+            findManyArgs = args;
+            return mockRestaurants;
+          },
+          count: async () => 5,
+        };
+
+        const result = await restaurantService.list({ page: 1, limit: 2 });
+
+        assert.strictEqual(findManyArgs.skip, 0);
+        assert.strictEqual(findManyArgs.take, 2);
+        assert.deepStrictEqual(findManyArgs.orderBy, { createdAt: "desc" });
+
+        assert.strictEqual(result.restaurants.length, 2);
+        assert.strictEqual(result.restaurants[0].name, "Restaurante 1");
+        assert.strictEqual(result.restaurants[0].rating, 4.8);
+        assert.strictEqual(result.restaurants[1].rating, null);
+
+        assert.strictEqual(result.pagination.page, 1);
+        assert.strictEqual(result.pagination.limit, 2);
+        assert.strictEqual(result.pagination.total, 5);
+        assert.strictEqual(result.pagination.totalPages, 3);
+        assert.strictEqual(result.pagination.hasMore, true);
+      });
+
+      it("deve lidar corretamente com banco vazio", async () => {
+        (prisma as any).restaurant = {
+          findMany: async () => [],
+          count: async () => 0,
+        };
+
+        const result = await restaurantService.list({ page: 1, limit: 10 });
+
+        assert.strictEqual(result.restaurants.length, 0);
+        assert.strictEqual(result.pagination.total, 0);
+        assert.strictEqual(result.pagination.totalPages, 0);
+        assert.strictEqual(result.pagination.hasMore, false);
+      });
+
+      it("deve calcular hasMore como false na última página", async () => {
+        (prisma as any).restaurant = {
+          findMany: async () => [{
+            id: "rest-3",
+            name: "Restaurante 3",
+            address: "Rua C",
+            cuisineType: "Japonesa",
+            imageUrl: null,
+            latitude: -15.78,
+            longitude: -47.92,
+            ownerId: null,
+            phone: null,
+            cnpj: null,
+            description: null,
+            priceRange: "$$$",
+            rating: 5.0,
+            businessHours: null,
+            paymentMethods: [],
+            socialLinks: null,
+            street: null,
+            number: null,
+            complement: null,
+            neighborhood: null,
+            city: null,
+            state: null,
+            postalCode: null,
+            photos: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }],
+          count: async () => 3,
+        };
+
+        const result = await restaurantService.list({ page: 2, limit: 2 });
+
+        assert.strictEqual(result.pagination.page, 2);
+        assert.strictEqual(result.pagination.total, 3);
+        assert.strictEqual(result.pagination.totalPages, 2);
+        assert.strictEqual(result.pagination.hasMore, false);
+      });
+    });
+
+    describe("RestaurantController.list", () => {
+      it("deve retornar status 200 com restaurants e pagination", async () => {
+        const mockResponseData = {
+          restaurants: [{ id: "r1", name: "R1" } as any],
+          pagination: {
+            page: 1,
+            limit: 10,
+            total: 1,
+            totalPages: 1,
+            hasMore: false,
+          },
+        };
+
+        mock.method(restaurantService, "list", async () => mockResponseData);
+
+        const req = {
+          parsedQuery: { page: 1, limit: 10 },
+        } as any;
+
+        let status = 0;
+        let body: any = null;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json(b: any) { body = b; return this; },
+        } as any;
+
+        await restaurantController.list(req, res, () => {});
+
+        assert.strictEqual(status, 200);
+        assert.deepStrictEqual(body, mockResponseData);
+
+        mock.reset();
+      });
+
+      it("deve chamar next(error) caso o service lance exceção", async () => {
+        const error = new Error("DB_ERROR");
+        mock.method(restaurantService, "list", async () => {
+          throw error;
+        });
+
+        const req = {
+          parsedQuery: { page: 1, limit: 10 },
+        } as any;
+
+        let errorReceived: any = null;
+        const res = {} as any;
+        const next = (err: any) => {
+          errorReceived = err;
+        };
+
+        await restaurantController.list(req, res, next);
+
+        assert.strictEqual(errorReceived, error);
+
+        mock.reset();
+      });
+    });
+  });
 });
+
