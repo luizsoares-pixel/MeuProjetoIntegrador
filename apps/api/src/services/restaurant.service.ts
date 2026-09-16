@@ -250,8 +250,53 @@ export class RestaurantService {
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
+    const where: any = {};
+
+    if (query.cuisine && query.cuisine.trim() !== "") {
+      where.cuisineType = {
+        contains: query.cuisine.trim(),
+        mode: "insensitive",
+      };
+    }
+
+    if (query.city && query.city.trim() !== "") {
+      where.city = {
+        contains: query.city.trim(),
+        mode: "insensitive",
+      };
+    }
+
+    if (query.search && query.search.trim() !== "") {
+      const searchTerm = query.search.trim();
+      let matchedIds: string[] | null = null;
+
+      try {
+        if (typeof (prisma as any).$queryRaw === "function") {
+          const rawResult = await (prisma as any).$queryRaw`
+            SELECT id FROM "restaurants"
+            WHERE unaccent("name") ILIKE unaccent(${`%${searchTerm}%`})
+          `;
+          if (Array.isArray(rawResult)) {
+            matchedIds = rawResult.map((r: any) => r.id);
+          }
+        }
+      } catch {
+        matchedIds = null;
+      }
+
+      if (matchedIds !== null) {
+        where.id = { in: matchedIds };
+      } else {
+        where.name = {
+          contains: searchTerm,
+          mode: "insensitive",
+        };
+      }
+    }
+
     const [restaurants, total] = await Promise.all([
       prisma.restaurant.findMany({
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
@@ -259,7 +304,7 @@ export class RestaurantService {
           photos: { orderBy: { order: "asc" } },
         },
       }),
-      prisma.restaurant.count(),
+      prisma.restaurant.count({ where }),
     ]);
 
     const totalPages = total === 0 ? 0 : Math.ceil(total / limit);

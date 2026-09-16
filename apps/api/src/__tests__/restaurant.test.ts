@@ -1036,5 +1036,155 @@ describe("Restaurants Layer - Issue #33", () => {
       });
     });
   });
+
+  // ── Issue #51: Busca por Nome, Culinária e Cidade (HU6) ──────────────────────
+  describe("Issue #51 - Busca por Nome, Culinária e Cidade (GET /restaurants?search=&cuisine=&city=)", () => {
+    it("deve aplicar filtro de culinária (cuisineType) com mode insensitive", async () => {
+      let findManyWhere: any = null;
+      let countWhere: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          findManyWhere = args.where;
+          return [];
+        },
+        count: async (args: any) => {
+          countWhere = args?.where;
+          return 0;
+        },
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, cuisine: "Italiana" });
+
+      assert.deepStrictEqual(findManyWhere.cuisineType, {
+        contains: "Italiana",
+        mode: "insensitive",
+      });
+      assert.deepStrictEqual(countWhere.cuisineType, {
+        contains: "Italiana",
+        mode: "insensitive",
+      });
+    });
+
+    it("deve aplicar filtro de cidade (city) com mode insensitive", async () => {
+      let findManyWhere: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          findManyWhere = args.where;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, city: "Brasília" });
+
+      assert.deepStrictEqual(findManyWhere.city, {
+        contains: "Brasília",
+        mode: "insensitive",
+      });
+    });
+
+    it("deve usar unaccent em queryRaw quando search for informado e unaccent estiver ativo", async () => {
+      let rawQueryCalled = false;
+      let findManyWhere: any = null;
+
+      (prisma as any).$queryRaw = async () => {
+        rawQueryCalled = true;
+        return [{ id: "matched-rest-id" }];
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          findManyWhere = args.where;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, search: "café" });
+
+      assert.strictEqual(rawQueryCalled, true);
+      assert.deepStrictEqual(findManyWhere.id, { in: ["matched-rest-id"] });
+
+      delete (prisma as any).$queryRaw;
+    });
+
+    it("deve usar fallback case-insensitive de name quando unaccent falhar ou queryRaw lançar erro", async () => {
+      let findManyWhere: any = null;
+
+      (prisma as any).$queryRaw = async () => {
+        throw new Error("UNACCENT_NOT_SUPPORTED");
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          findManyWhere = args.where;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, search: "Bistrô" });
+
+      assert.deepStrictEqual(findManyWhere.name, {
+        contains: "Bistrô",
+        mode: "insensitive",
+      });
+
+      delete (prisma as any).$queryRaw;
+    });
+
+    it("deve combinar simultaneamente search, cuisine e city na cláusula where", async () => {
+      let findManyWhere: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          findManyWhere = args.where;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({
+        page: 1,
+        limit: 10,
+        search: "Pizzaria",
+        cuisine: "Italiana",
+        city: "São Paulo",
+      });
+
+      assert.deepStrictEqual(findManyWhere.name, {
+        contains: "Pizzaria",
+        mode: "insensitive",
+      });
+      assert.deepStrictEqual(findManyWhere.cuisineType, {
+        contains: "Italiana",
+        mode: "insensitive",
+      });
+      assert.deepStrictEqual(findManyWhere.city, {
+        contains: "São Paulo",
+        mode: "insensitive",
+      });
+    });
+
+    it("deve retornar estado vazio com metadados corretos quando busca não encontrar registros", async () => {
+      (prisma as any).restaurant = {
+        findMany: async () => [],
+        count: async () => 0,
+      };
+
+      const result = await restaurantService.list({
+        page: 1,
+        limit: 10,
+        search: "Nome Inexistente 12345",
+      });
+
+      assert.strictEqual(result.restaurants.length, 0);
+      assert.strictEqual(result.pagination.total, 0);
+      assert.strictEqual(result.pagination.totalPages, 0);
+      assert.strictEqual(result.pagination.hasMore, false);
+    });
+  });
 });
 
