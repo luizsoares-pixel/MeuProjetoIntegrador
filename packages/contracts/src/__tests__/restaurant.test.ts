@@ -165,5 +165,36 @@ describe("Restaurant Contracts Schema", () => {
     expect(() => listRestaurantsQuerySchema.parse({ limit: "51" })).toThrow();
     expect(() => listRestaurantsQuerySchema.parse({ limit: "-1" })).toThrow();
   });
+
+  it("should parse listRestaurantsQuerySchema with search, cuisine, and city filters", () => {
+    const result = listRestaurantsQuerySchema.parse({
+      page: "1",
+      limit: "10",
+      search: "  Bistrô & Café  ",
+      cuisine: "  Francesa ",
+      city: " Brasília ",
+    });
+    expect(result.search).toBe("Bistrô & Café");
+    expect(result.cuisine).toBe("Francesa");
+    expect(result.city).toBe("Brasília");
+  });
+
+  it("should reject search query longer than 100 characters in listRestaurantsQuerySchema", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ search: "a".repeat(101) })
+    ).toThrow();
+  });
+
+  it("should reject cuisine longer than 50 characters in listRestaurantsQuerySchema", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ cuisine: "c".repeat(51) })
+    ).toThrow();
+  });
+
+  it("should reject city longer than 100 characters in listRestaurantsQuerySchema", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ city: "b".repeat(101) })
+    ).toThrow();
+  });
 });
 
