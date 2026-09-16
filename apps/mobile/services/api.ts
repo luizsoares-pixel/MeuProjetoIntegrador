@@ -14,6 +14,7 @@ import type {
   CreateRestaurantInput,
   RegisterRestaurantInput,
   RestaurantResponse,
+  UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
 
 function resolveApiBaseUrl(): string {
@@ -168,3 +169,109 @@ export async function registerRestaurant(
     throw new Error(errorMessage);
   }
 }
+
+/**
+ * Recupera o perfil do restaurante do usuário logado.
+ */
+export async function getRestaurantProfile(
+  token: string
+): Promise<RestaurantResponse> {
+  const url = `${API_BASE_URL}/restaurants/me`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao carregar perfil do restaurante: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.restaurant;
+}
+
+/**
+ * Atualiza os dados de perfil do restaurante do usuário logado.
+ */
+export async function updateRestaurantProfile(
+  input: UpdateRestaurantProfileInput,
+  token: string
+): Promise<RestaurantResponse> {
+  const url = `${API_BASE_URL}/restaurants/me`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao atualizar perfil do restaurante: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      if (errorData.details && Array.isArray(errorData.details)) {
+        const detailsMsg = errorData.details
+          .map((d: any) => d.message)
+          .join(" ");
+        errorMessage = `${errorMessage} (${detailsMsg})`;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.restaurant;
+}
+
+/**
+ * Busca restaurante por ID.
+ */
+export async function getRestaurantById(
+  id: string
+): Promise<RestaurantResponse> {
+  const url = `${API_BASE_URL}/restaurants/${id}`;
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao carregar restaurante: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.restaurant;
+}
+
