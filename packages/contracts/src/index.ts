@@ -45,6 +45,21 @@ export const listRestaurantsQuerySchema = z.object({
     .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1 && v <= 50, {
       message: "O parâmetro 'limit' deve ser um número inteiro entre 1 e 50.",
     }),
+  search: z
+    .string()
+    .trim()
+    .max(100, "O termo de busca não pode exceder 100 caracteres.")
+    .optional(),
+  cuisine: z
+    .string()
+    .trim()
+    .max(50, "O filtro de culinária não pode exceder 50 caracteres.")
+    .optional(),
+  city: z
+    .string()
+    .trim()
+    .max(100, "O filtro de cidade não pode exceder 100 caracteres.")
+    .optional(),
 });
 
 export type ListRestaurantsQuery = z.infer<typeof listRestaurantsQuerySchema>;

@@ -70,4 +70,9 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `structuredAddress` | Endereço Estruturado | Decomposição formal de endereço em rua, número, complemento, bairro, cidade, UF e CEP. |
 | `rating` / `averageRating` | Avaliação Média | Nota numérica (0 a 5) do estabelecimento, exibida como badge ou valor com estrelas. |
 | `paginatedFeed` | Feed Paginado | Lista com carregamento sob demanda (infinite scroll) controlada por `page` e `limit`. |
+| `unaccentSearch` | Busca Insensível a Acentos | Correspondência textual que normaliza caracteres diacríticos (ex: "cafe" encontra "Café"). |
+| `cuisineFilter` | Filtro por Culinária | Filtro parcial e case-insensitive sobre a culinária cadastrada do restaurante. |
+| `cityFilter` | Filtro por Cidade | Filtro parcial e case-insensitive sobre a localidade do restaurante. |
+| `searchDebounce` | Debounce de Busca | Intervalo temporal (400ms) para suspender chamadas HTTP sucessivas durante a digitação no app. |
+
 
