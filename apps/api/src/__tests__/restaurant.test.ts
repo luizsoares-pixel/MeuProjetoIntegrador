@@ -589,4 +589,246 @@ describe("Restaurants Layer - Issue #33", () => {
       });
     });
   });
+
+  // ── Issue #49: Perfil Completo do Restaurante ──────────────────────────────
+
+  describe("Issue #49: Perfil Completo do Restaurante (GET/PUT /restaurants/me e GET /restaurants/:id)", () => {
+    const mockOwnerId = "33333333-3333-3333-3333-333333333333";
+    const mockRestaurantId = "44444444-4444-4444-4444-444444444444";
+
+    const baseFullRestaurant = {
+      id: mockRestaurantId,
+      name: "Trattoria Pasta & Vino",
+      address: "CLN 201 Bloco B, Asa Norte, Brasília - DF",
+      cuisineType: "Italiana",
+      imageUrl: "https://example.com/logo.jpg",
+      latitude: -15.78,
+      longitude: -47.88,
+      ownerId: mockOwnerId,
+      phone: "61988887777",
+      cnpj: "12345678000195",
+      description: "Tradicional culinária italiana com massas artesanais.",
+      priceRange: "$$",
+      businessHours: {
+        monday: [{ open: "11:30", close: "15:00" }, { open: "19:00", close: "23:00" }],
+      },
+      paymentMethods: ["PIX", "CREDIT_CARD"],
+      socialLinks: {
+        instagram: "https://instagram.com/trattoria",
+        website: "https://trattoria.com.br",
+      },
+      street: "CLN 201 Bloco B",
+      number: "10",
+      complement: "Loja 2",
+      neighborhood: "Asa Norte",
+      city: "Brasília",
+      state: "DF",
+      postalCode: "70832-520",
+      photos: [
+        { id: "photo-1", restaurantId: mockRestaurantId, url: "https://example.com/p1.jpg", order: 0, createdAt: new Date() },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    describe("RestaurantService.getProfile", () => {
+      it("deve retornar o perfil completo do restaurante pertencente ao ownerId", async () => {
+        (prisma as any).restaurant = {
+          findFirst: async ({ where }: any) => {
+            if (where.ownerId === mockOwnerId) {
+              return baseFullRestaurant;
+            }
+            return null;
+          },
+        };
+
+        const result = await restaurantService.getProfile(mockOwnerId);
+        assert.ok(result);
+        assert.strictEqual(result?.id, mockRestaurantId);
+        assert.strictEqual(result?.description, "Tradicional culinária italiana com massas artesanais.");
+        assert.strictEqual(result?.priceRange, "$$");
+        assert.strictEqual(result?.photos?.length, 1);
+      });
+
+      it("deve retornar null se o usuário não possuir restaurante", async () => {
+        (prisma as any).restaurant = {
+          findFirst: async () => null,
+        };
+
+        const result = await restaurantService.getProfile("non-existent-user");
+        assert.strictEqual(result, null);
+      });
+    });
+
+    describe("RestaurantService.updateProfile", () => {
+      it("deve atualizar os dados de perfil e fotos do restaurante", async () => {
+        (prisma as any).restaurant = {
+          findFirst: async ({ where }: any) => {
+            if (where.ownerId === mockOwnerId) return baseFullRestaurant;
+            return null;
+          },
+          update: async ({ data }: any) => ({
+            ...baseFullRestaurant,
+            ...data,
+            updatedAt: new Date(),
+          }),
+        };
+
+        let deletedForRestaurant: string | null = null;
+        let createdPhotosList: any[] = [];
+
+        (prisma as any).restaurantPhoto = {
+          deleteMany: async ({ where }: any) => {
+            deletedForRestaurant = where.restaurantId;
+            return { count: 1 };
+          },
+          createMany: async ({ data }: any) => {
+            createdPhotosList = data;
+            return { count: data.length };
+          },
+          findMany: async () => [
+            { id: "new-p1", restaurantId: mockRestaurantId, url: "https://example.com/new1.jpg", order: 0, createdAt: new Date() },
+            { id: "new-p2", restaurantId: mockRestaurantId, url: "https://example.com/new2.jpg", order: 1, createdAt: new Date() },
+          ],
+        };
+
+        const updateInput = {
+          description: "Nova descrição atualizada",
+          priceRange: "$$$" as const,
+          paymentMethods: ["PIX" as const, "MEAL_VOUCHER" as const],
+          photos: ["https://example.com/new1.jpg", "https://example.com/new2.jpg"],
+        };
+
+        const updated = await restaurantService.updateProfile(mockOwnerId, updateInput);
+
+        assert.strictEqual(updated.description, "Nova descrição atualizada");
+        assert.strictEqual(deletedForRestaurant, mockRestaurantId);
+        assert.strictEqual(createdPhotosList.length, 2);
+      });
+
+      it("deve lançar erro se o restaurante do owner não existir", async () => {
+        (prisma as any).restaurant = {
+          findFirst: async () => null,
+        };
+
+        await assert.rejects(
+          () => restaurantService.updateProfile("unknown-owner", { description: "Teste" }),
+          (err: any) => {
+            assert.strictEqual(err.message, "RESTAURANT_NOT_FOUND");
+            return true;
+          }
+        );
+      });
+    });
+
+    describe("RestaurantController.getProfile & updateProfile", () => {
+      it("getProfile deve retornar 401 se não autenticado", async () => {
+        const req = {} as any;
+        let status = 0;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json() { return this; },
+        } as any;
+
+        await restaurantController.getProfile(req, res, () => {});
+        assert.strictEqual(status, 401);
+      });
+
+      it("getProfile deve retornar 200 com restaurante quando encontrado", async () => {
+        mock.method(restaurantService, "getProfile", async () => baseFullRestaurant as any);
+
+        const req = { user: { id: mockOwnerId } } as any;
+        let status = 0;
+        let body: any = null;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json(b: any) { body = b; return this; },
+        } as any;
+
+        await restaurantController.getProfile(req, res, () => {});
+        assert.strictEqual(status, 200);
+        assert.strictEqual(body.restaurant.id, mockRestaurantId);
+        mock.reset();
+      });
+
+      it("updateProfile deve retornar 200 ao atualizar dados", async () => {
+        mock.method(restaurantService, "updateProfile", async () => ({
+          ...baseFullRestaurant,
+          description: "Atualizado",
+        } as any));
+
+        const req = {
+          user: { id: mockOwnerId },
+          body: { description: "Atualizado" },
+        } as any;
+
+        let status = 0;
+        let body: any = null;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json(b: any) { body = b; return this; },
+        } as any;
+
+        await restaurantController.updateProfile(req, res, () => {});
+        assert.strictEqual(status, 200);
+        assert.strictEqual(body.restaurant.description, "Atualizado");
+        mock.reset();
+      });
+
+      it("updateProfile deve retornar 404 quando restaurante não for encontrado", async () => {
+        mock.method(restaurantService, "updateProfile", async () => {
+          throw new Error("RESTAURANT_NOT_FOUND");
+        });
+
+        const req = {
+          user: { id: "unknown" },
+          body: { description: "Atualizado" },
+        } as any;
+
+        let status = 0;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json() { return this; },
+        } as any;
+
+        await restaurantController.updateProfile(req, res, () => {});
+        assert.strictEqual(status, 404);
+        mock.reset();
+      });
+    });
+
+    describe("RestaurantController.getById", () => {
+      it("deve retornar 200 quando restaurante existir", async () => {
+        mock.method(restaurantService, "getById", async () => baseFullRestaurant as any);
+
+        const req = { params: { id: mockRestaurantId } } as any;
+        let status = 0;
+        let body: any = null;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json(b: any) { body = b; return this; },
+        } as any;
+
+        await restaurantController.getById(req, res, () => {});
+        assert.strictEqual(status, 200);
+        assert.strictEqual(body.restaurant.id, mockRestaurantId);
+        mock.reset();
+      });
+
+      it("deve retornar 404 quando restaurante não existir", async () => {
+        mock.method(restaurantService, "getById", async () => null);
+
+        const req = { params: { id: "inexistente" } } as any;
+        let status = 0;
+        const res = {
+          status(c: number) { status = c; return this; },
+          json() { return this; },
+        } as any;
+
+        await restaurantController.getById(req, res, () => {});
+        assert.strictEqual(status, 404);
+        mock.reset();
+      });
+    });
+  });
 });

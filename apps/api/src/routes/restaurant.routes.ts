@@ -1,6 +1,7 @@
 import {
   createRestaurantSchema,
   nearbyRestaurantsSchema,
+  updateRestaurantProfileSchema,
 } from "@menu-digital/contracts";
 import { Router } from "express";
 import { restaurantController } from "../controllers/restaurant.controller";
@@ -20,6 +21,27 @@ restaurantRouter.get(
   }
 );
 
+// GET /restaurants/me
+// Retorna os dados completos do restaurante do usuário logado.
+restaurantRouter.get(
+  "/me",
+  authMiddleware,
+  (req, res, next) => {
+    restaurantController.getProfile(req, res, next);
+  }
+);
+
+// PUT /restaurants/me
+// Atualiza as informações cadastrais e perfil do restaurante do usuário logado.
+restaurantRouter.put(
+  "/me",
+  authMiddleware,
+  validateRequest(updateRestaurantProfileSchema),
+  (req, res, next) => {
+    restaurantController.updateProfile(req, res, next);
+  }
+);
+
 // POST /restaurants
 // Cria um novo restaurante vinculado ao usuário autenticado (owner_id).
 restaurantRouter.post(
@@ -30,3 +52,13 @@ restaurantRouter.post(
     restaurantController.create(req, res, next);
   }
 );
+
+// GET /restaurants/:id
+// Retorna os dados completos de um restaurante específico por ID.
+restaurantRouter.get(
+  "/:id",
+  (req, res, next) => {
+    restaurantController.getById(req, res, next);
+  }
+);
+
