@@ -74,5 +74,10 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `cuisineFilter` | Filtro por Culinária | Filtro parcial e case-insensitive sobre a culinária cadastrada do restaurante. |
 | `cityFilter` | Filtro por Cidade | Filtro parcial e case-insensitive sobre a localidade do restaurante. |
 | `searchDebounce` | Debounce de Busca | Intervalo temporal (400ms) para suspender chamadas HTTP sucessivas durante a digitação no app. |
+| `minRating` | Avaliação Mínima | Filtro por nota mínima (1 a 5 estrelas) no feed de restaurantes. |
+| `maxDistance` | Distância Máxima | Raio limite em metros para estabelecimentos ao redor da coordenada do usuário. |
+| `openNow` | Aberto Agora | Filtro booleano que verifica se o estabelecimento está operando no momento da requisição (horário de Brasília). |
+| `FilterModal` | Modal de Filtros | Painel modal/bottom-sheet no mobile para configuração dos filtros combinados de preço, avaliação, distância e horário. |
+| `activeFiltersBadge` | Badge de Filtros Ativos | Indicador numérico no botão de filtros sinalizando a quantidade de restrições ativas. |
 
 
