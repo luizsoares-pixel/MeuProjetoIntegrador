@@ -68,3 +68,6 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `paymentMethods` | Formas de Pagamento | Lista padronizada de formas de pagamento aceitas (PIX, cartões, dinheiro, etc.). |
 | `RestaurantPhoto` | Foto do Restaurante | Entidade de relacionamento 1:N que armazena a galeria de imagens secundárias do local. |
 | `structuredAddress` | Endereço Estruturado | Decomposição formal de endereço em rua, número, complemento, bairro, cidade, UF e CEP. |
+| `rating` / `averageRating` | Avaliação Média | Nota numérica (0 a 5) do estabelecimento, exibida como badge ou valor com estrelas. |
+| `paginatedFeed` | Feed Paginado | Lista com carregamento sob demanda (infinite scroll) controlada por `page` e `limit`. |
+

@@ -4,6 +4,7 @@ import {
   businessHoursDaySchema,
   businessHoursSchema,
   createRestaurantSchema,
+  listRestaurantsQuerySchema,
   paymentMethodEnum,
   priceRangeEnum,
   registerRestaurantSchema,
@@ -140,4 +141,29 @@ describe("Restaurant Contracts Schema", () => {
     };
     expect(createRestaurantSchema.parse(restaurantData)).toMatchObject(restaurantData);
   });
+
+  it("should parse listRestaurantsQuerySchema with defaults", () => {
+    const result = listRestaurantsQuerySchema.parse({});
+    expect(result.page).toBe(1);
+    expect(result.limit).toBe(10);
+  });
+
+  it("should parse listRestaurantsQuerySchema with valid string numbers", () => {
+    const result = listRestaurantsQuerySchema.parse({ page: "3", limit: "25" });
+    expect(result.page).toBe(3);
+    expect(result.limit).toBe(25);
+  });
+
+  it("should reject invalid page numbers in listRestaurantsQuerySchema", () => {
+    expect(() => listRestaurantsQuerySchema.parse({ page: "0" })).toThrow();
+    expect(() => listRestaurantsQuerySchema.parse({ page: "-5" })).toThrow();
+    expect(() => listRestaurantsQuerySchema.parse({ page: "abc" })).toThrow();
+  });
+
+  it("should reject invalid limit numbers in listRestaurantsQuerySchema", () => {
+    expect(() => listRestaurantsQuerySchema.parse({ limit: "0" })).toThrow();
+    expect(() => listRestaurantsQuerySchema.parse({ limit: "51" })).toThrow();
+    expect(() => listRestaurantsQuerySchema.parse({ limit: "-1" })).toThrow();
+  });
 });
+

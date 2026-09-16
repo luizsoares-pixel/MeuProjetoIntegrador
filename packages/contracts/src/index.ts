@@ -28,7 +28,37 @@ export const nearbyRestaurantsSchema = z.object({
 
 export type NearbyRestaurantsQuery = z.infer<typeof nearbyRestaurantsSchema>;
 
+// ── Restaurant Listing & Pagination (Issue #50) ──────────────────────────────
+
+export const listRestaurantsQuerySchema = z.object({
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : 1))
+    .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1, {
+      message: "O parâmetro 'page' deve ser um número inteiro maior ou igual a 1.",
+    }),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v !== undefined && v.trim() !== "" ? Number(v) : 10))
+    .refine((v) => !isNaN(v) && Number.isInteger(v) && v >= 1 && v <= 50, {
+      message: "O parâmetro 'limit' deve ser um número inteiro entre 1 e 50.",
+    }),
+});
+
+export type ListRestaurantsQuery = z.infer<typeof listRestaurantsQuerySchema>;
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
 // ── Restaurant Profile Types & Schemas (Issue #49) ───────────────────────────
+
 
 export const priceRangeEnum = z.enum(["$", "$$", "$$$"]);
 export type PriceRange = z.infer<typeof priceRangeEnum>;
@@ -201,6 +231,7 @@ export interface RestaurantResponse {
   cnpj?: string | null;
   description?: string | null;
   priceRange?: PriceRange | null;
+  rating?: number | null;
   businessHours?: BusinessHours | null;
   paymentMethods?: PaymentMethod[];
   socialLinks?: SocialLinks | null;
@@ -216,7 +247,13 @@ export interface RestaurantResponse {
   updatedAt: Date;
 }
 
+export interface PaginatedRestaurantsResponse {
+  restaurants: RestaurantResponse[];
+  pagination: PaginationMeta;
+}
+
 export interface NearbyRestaurantResponse extends RestaurantResponse {
+
   distanceInMeters: number;
 }
 

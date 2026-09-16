@@ -12,6 +12,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import type {
   CreateRestaurantInput,
+  PaginatedRestaurantsResponse,
   RegisterRestaurantInput,
   RestaurantResponse,
   UpdateRestaurantProfileInput,
@@ -274,4 +275,50 @@ export async function getRestaurantById(
   const data = await response.json();
   return data.restaurant;
 }
+
+export interface FetchRestaurantsParams {
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Busca a listagem paginada de restaurantes (HU5).
+ * GET /restaurants?page=&limit=
+ */
+export async function fetchRestaurants(
+  params?: FetchRestaurantsParams
+): Promise<PaginatedRestaurantsResponse> {
+  const url = new URL(`${API_BASE_URL}/restaurants`);
+  if (params?.page !== undefined) {
+    url.searchParams.set("page", String(params.page));
+  }
+  if (params?.limit !== undefined) {
+    url.searchParams.set("limit", String(params.limit));
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao carregar restaurantes: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data: PaginatedRestaurantsResponse = await response.json();
+  return data;
+}
+
 

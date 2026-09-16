@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import {
   CreateRestaurantInput,
+  ListRestaurantsQuery,
   NearbyRestaurantsQuery,
 } from "@menu-digital/contracts";
 import { restaurantService } from "../services/restaurant.service";
@@ -16,6 +17,20 @@ export class RestaurantController {
       const query = (request as any).parsedQuery as NearbyRestaurantsQuery;
       const restaurants = await restaurantService.findNearby(query);
       return response.status(200).json({ restaurants });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  /**
+   * GET /restaurants
+   * Retorna restaurantes paginados ordenados por data de criação decrescente.
+   */
+  async list(request: Request, response: Response, next: NextFunction) {
+    try {
+      const query = (request as any).parsedQuery as ListRestaurantsQuery;
+      const result = await restaurantService.list(query);
+      return response.status(200).json(result);
     } catch (error) {
       return next(error);
     }
@@ -99,7 +114,7 @@ export class RestaurantController {
    */
   async getById(request: Request, response: Response, next: NextFunction) {
     try {
-      const { id } = request.params;
+      const id = String(request.params.id);
       const restaurant = await restaurantService.getById(id);
       if (!restaurant) {
         return response

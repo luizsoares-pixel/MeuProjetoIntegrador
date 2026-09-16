@@ -1,7 +1,9 @@
 import {
   CreateRestaurantInput,
+  ListRestaurantsQuery,
   NearbyRestaurantResponse,
   NearbyRestaurantsQuery,
+  PaginatedRestaurantsResponse,
   RestaurantResponse,
   UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
@@ -23,6 +25,7 @@ function formatRestaurantResponse(restaurant: any): RestaurantResponse {
     cnpj: restaurant.cnpj,
     description: restaurant.description,
     priceRange: restaurant.priceRange,
+    rating: restaurant.rating ?? null,
     businessHours: restaurant.businessHours,
     paymentMethods: restaurant.paymentMethods,
     socialLinks: restaurant.socialLinks,
@@ -211,7 +214,7 @@ export class RestaurantService {
     const updated = await prisma.restaurant.update({
       where: { id: restaurant.id },
       data: {
-        ...restaurantFields,
+        ...(restaurantFields as any),
       },
       include: {
         photos: { orderBy: { order: "asc" } },
@@ -234,6 +237,44 @@ export class RestaurantService {
 
     if (!restaurant) return null;
     return formatRestaurantResponse(restaurant);
+  }
+
+  /**
+   * Retorna a listagem paginada de restaurantes ordenada pelos mais recentes primeiro.
+   *
+   * @param query - Parâmetros validados com page e limit
+   * @returns Restaurantes formatados e metadados de paginação
+   */
+  async list(query: ListRestaurantsQuery): Promise<PaginatedRestaurantsResponse> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [restaurants, total] = await Promise.all([
+      prisma.restaurant.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          photos: { orderBy: { order: "asc" } },
+        },
+      }),
+      prisma.restaurant.count(),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    const hasMore = page < totalPages;
+
+    return {
+      restaurants: restaurants.map(formatRestaurantResponse),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore,
+      },
+    };
   }
 }
 
