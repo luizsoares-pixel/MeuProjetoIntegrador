@@ -31,7 +31,6 @@ export default function Login() {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch,
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -196,9 +195,24 @@ export default function Login() {
       {/* FOOTER */}
       <Animated.View style={[styles.footerContainer, footerAnim.animatedStyle]}>
         <Text style={styles.footerPromptText}>Não possui conta?</Text>
-        <TouchableOpacity onPress={() => router.push("/cadastro")}>
-          <Text style={styles.footerLinkText}>Cadastre-se</Text>
-        </TouchableOpacity>
+        <View style={styles.footerButtonsContainer}>
+          <TouchableOpacity
+            style={styles.accountButton}
+            onPress={() => router.push("/cadastro")}
+            accessibilityRole="button"
+            accessibilityLabel="Criar conta de usuário"
+          >
+            <Text style={styles.footerLinkText}>Criar conta de usuário</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.accountButton, styles.restaurantButton]}
+            onPress={() => router.push("/cadastro-restaurante" as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Criar conta de restaurante"
+          >
+            <Text style={styles.restaurantLinkText}>Criar conta de restaurante</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </LinearGradient>
   );
@@ -256,15 +270,36 @@ const styles = StyleSheet.create({
   footerContainer: {
     marginTop: spacing.xxl,
     alignItems: "center",
+    gap: spacing.sm,
   },
   footerPromptText: {
     color: colors.accent.white,
     fontSize: typography.size.sm,
   },
+  footerButtonsContainer: {
+    width: "100%",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  accountButton: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.accent.gold,
+    borderRadius: 10,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+  },
+  restaurantButton: {
+    backgroundColor: "rgba(218, 165, 32, 0.12)",
+  },
   footerLinkText: {
     color: colors.accent.gold,
     fontWeight: typography.weight.bold,
-    marginTop: spacing.xs,
-    fontSize: typography.size.md,
+    fontSize: typography.size.sm,
+  },
+  restaurantLinkText: {
+    color: colors.accent.goldTint,
+    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.sm,
   },
 });

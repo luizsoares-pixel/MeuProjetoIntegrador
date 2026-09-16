@@ -2,6 +2,7 @@ import {
   loginSchema,
   passwordRecoverySchema,
   registerSchema,
+  registerRestaurantSchema,
 } from "@menu-digital/contracts";
 import { Router } from "express";
 import { authController } from "../controllers/auth.controller";
@@ -9,6 +10,15 @@ import { authMiddleware } from "../middlewares/auth";
 import { validateRequest } from "../middleware/validateRequest";
 
 export const authRouter = Router();
+
+// POST /auth/register/restaurant - Cadastro unificado de conta e restaurante
+authRouter.post(
+  "/register/restaurant",
+  validateRequest(registerRestaurantSchema),
+  (req, res, next) => {
+    authController.registerRestaurant(req, res, next);
+  }
+);
 
 // POST /auth/register - Cadastro de usuário com validação de esquema e transação compensatória
 authRouter.post(

@@ -54,6 +54,8 @@ export const createRestaurantSchema = z.object({
     .url("A URL da imagem deve ser válida.")
     .nullable()
     .optional(),
+  phone: z.string().trim().optional(),
+  cnpj: z.string().trim().optional(),
 });
 
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
@@ -68,6 +70,8 @@ export interface RestaurantResponse {
   longitude: number;
   distanceInMeters?: number;
   ownerId?: string | null;
+  phone?: string | null;
+  cnpj?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -99,6 +103,25 @@ export const registerSchema = z.object({
     .string({ required_error: "A senha é obrigatória." })
     .min(8, "A senha deve ter pelo menos 8 caracteres."),
 });
+
+export const registerRestaurantSchema = registerSchema.extend({
+  restaurant: createRestaurantSchema.extend({
+    phone: z
+      .string({ required_error: "O telefone é obrigatório." })
+      .trim()
+      .regex(
+        /^(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}[-\s]?\d{4}$/,
+        "Informe um telefone válido."
+      ),
+    cnpj: z
+      .string({ required_error: "O CNPJ é obrigatório." })
+      .trim()
+      .regex(/^\d{14}$/, "Informe um CNPJ válido com 14 dígitos.")
+      .refine((value) => value !== value[0].repeat(14), "Informe um CNPJ válido."),
+  }),
+});
+
+export type RegisterRestaurantInput = z.infer<typeof registerRestaurantSchema>;
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -146,6 +169,7 @@ export interface UserResponse {
   email: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
+  role?: "user" | "restaurant";
 }
 
 export function mapAuthErrorMessage(errorMessage?: string | null): string {
@@ -154,6 +178,13 @@ export function mapAuthErrorMessage(errorMessage?: string | null): string {
   }
 
   const msg = errorMessage.toLowerCase();
+
+  if (
+    msg.includes("cnpj_already_registered") ||
+    msg.includes("cnpj já cadastrado")
+  ) {
+    return "CNPJ já cadastrado.";
+  }
 
   if (
     msg.includes("user already registered") ||

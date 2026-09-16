@@ -1,10 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { prisma } from "../lib/prisma";
 import { supabase } from "../lib/supabase";
 
 export interface AuthenticatedUser {
   id: string;
   email?: string;
+  role?: "user" | "restaurant";
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -84,9 +86,31 @@ export async function authMiddleware(
         .json({ error: "Token de acesso inválido ou expirado." });
     }
 
+    let role: "user" | "restaurant" | undefined = undefined;
+    const decodedToken = jwt.decode(token) as (JwtPayload & {
+      app_metadata?: { role?: string };
+      user_metadata?: { role?: string };
+    }) | null;
+
+    if (
+      decodedToken?.app_metadata?.role === "restaurant" ||
+      decodedToken?.user_metadata?.role === "restaurant"
+    ) {
+      role = "restaurant";
+    }
+
+    if (!role) {
+      const profile = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      role = profile?.role === "restaurant" ? "restaurant" : "user";
+    }
+
     request.user = {
       id: userId,
       email: userEmail,
+      role,
     };
 
     return next();
