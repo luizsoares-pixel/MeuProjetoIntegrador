@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,16 +11,22 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import type { RestaurantResponse } from "@menu-digital/contracts";
+import { CuisineFilterChips } from "../../components/CuisineFilterChips";
 import { RestaurantCard } from "../../components/RestaurantCard";
 import { RestaurantCardSkeleton } from "../../components/RestaurantCardSkeleton";
 import { RestaurantEmptyState } from "../../components/RestaurantEmptyState";
 import { RestaurantErrorState } from "../../components/RestaurantErrorState";
+import { SearchBar } from "../../components/SearchBar";
+import { SearchEmptyState } from "../../components/SearchEmptyState";
 import { useRestaurantList } from "../../hooks/useRestaurantList";
 import { useFadeSlide } from "../../hooks/useFadeSlide";
 import { colors, spacing, typography } from "../../theme";
 
 export default function HomeTab() {
   const insets = useSafeAreaInsets();
+  const [searchText, setSearchText] = useState("");
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+
   const {
     restaurants,
     isLoading,
@@ -28,12 +34,17 @@ export default function HomeTab() {
     isRefreshing,
     isError,
     isEmpty,
+    isSearching,
     errorMessage,
     hasMore,
     refresh,
     loadMore,
     retry,
-  } = useRestaurantList({ limit: 10 });
+  } = useRestaurantList({
+    limit: 10,
+    search: searchText,
+    cuisine: selectedCuisine,
+  });
 
   const eyebrowAnim = useFadeSlide({ delay: 0, translateY: 8 });
   const titleAnim = useFadeSlide({ delay: 80, translateY: 12 });
@@ -43,7 +54,14 @@ export default function HomeTab() {
     // Integração futura com a tela de detalhes do cardápio (Sprint #4)
   }, []);
 
+  const handleClearFilters = useCallback(() => {
+    setSearchText("");
+    setSelectedCuisine(null);
+  }, []);
+
   const renderHeader = useCallback(() => {
+    const isFilterActive = isSearching || Boolean(searchText || selectedCuisine);
+
     return (
       <View style={styles.headerContainer}>
         <Animated.Text style={[styles.eyebrow, eyebrowAnim.animatedStyle]}>
@@ -58,9 +76,27 @@ export default function HomeTab() {
           Explore opções e cardápios digitais perto de você.
         </Animated.Text>
 
+        {/* Barra de Busca com Debounce */}
+        <View style={styles.searchWrapper}>
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            onClear={() => setSearchText("")}
+            placeholder="Buscar por nome do restaurante..."
+          />
+        </View>
+
+        {/* Chips de Filtro por Culinária */}
+        <CuisineFilterChips
+          selectedCuisine={selectedCuisine}
+          onSelectCuisine={setSelectedCuisine}
+        />
+
         {!isLoading && !isError && !isEmpty && (
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Restaurantes em destaque</Text>
+            <Text style={styles.sectionTitle}>
+              {isFilterActive ? "Resultados da busca" : "Restaurantes em destaque"}
+            </Text>
             <Text style={styles.sectionBadge}>
               {restaurants.length} {restaurants.length === 1 ? "opção" : "opções"}
             </Text>
@@ -68,7 +104,18 @@ export default function HomeTab() {
         )}
       </View>
     );
-  }, [eyebrowAnim, titleAnim, descAnim, isLoading, isError, isEmpty, restaurants.length]);
+  }, [
+    eyebrowAnim,
+    titleAnim,
+    descAnim,
+    searchText,
+    selectedCuisine,
+    isSearching,
+    isLoading,
+    isError,
+    isEmpty,
+    restaurants.length,
+  ]);
 
   const renderEmpty = useCallback(() => {
     if (isLoading) {
@@ -91,11 +138,31 @@ export default function HomeTab() {
     }
 
     if (isEmpty) {
+      if (isSearching || searchText || selectedCuisine) {
+        return (
+          <SearchEmptyState
+            searchTerm={searchText}
+            cuisineFilter={selectedCuisine}
+            onClearFilters={handleClearFilters}
+          />
+        );
+      }
       return <RestaurantEmptyState onRefresh={refresh} />;
     }
 
     return null;
-  }, [isLoading, isError, isEmpty, errorMessage, retry, refresh]);
+  }, [
+    isLoading,
+    isError,
+    isEmpty,
+    isSearching,
+    searchText,
+    selectedCuisine,
+    errorMessage,
+    retry,
+    handleClearFilters,
+    refresh,
+  ]);
 
   const renderFooter = useCallback(() => {
     if (isLoadingMore) {
@@ -151,6 +218,7 @@ export default function HomeTab() {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -173,7 +241,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headerContainer: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   eyebrow: {
     color: colors.accent.gold,
@@ -195,6 +263,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.xs,
     marginBottom: spacing.md,
+  },
+  searchWrapper: {
+    marginBottom: spacing.xs,
   },
   sectionHeader: {
     flexDirection: "row",

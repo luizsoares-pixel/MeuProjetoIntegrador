@@ -4,7 +4,11 @@ import { fetchRestaurants } from "../services/api";
 
 interface UseRestaurantListOptions {
   limit?: number;
+  search?: string;
+  cuisine?: string | null;
+  city?: string | null;
   autoLoad?: boolean;
+  debounceMs?: number;
 }
 
 interface UseRestaurantListReturn {
@@ -15,6 +19,7 @@ interface UseRestaurantListReturn {
   isRefreshing: boolean;
   isError: boolean;
   isEmpty: boolean;
+  isSearching: boolean;
   errorMessage: string | null;
   hasMore: boolean;
   refresh: () => Promise<void>;
@@ -23,13 +28,17 @@ interface UseRestaurantListReturn {
 }
 
 /**
- * Hook para gerenciar o feed paginado de restaurantes (HU5).
- * Suporta carregamento inicial com skeleton, scroll infinito,
- * pull-to-refresh e recuperação de erros de rede com retry.
+ * Hook para gerenciar o feed paginado de restaurantes com busca e filtros (HU5 & HU6).
+ * Suporta debounce automático de 400ms para o termo de busca, scroll infinito,
+ * pull-to-refresh e prevenção contra race conditions na digitação.
  */
 export function useRestaurantList({
   limit = 10,
+  search = "",
+  cuisine = null,
+  city = null,
   autoLoad = true,
+  debounceMs = 400,
 }: UseRestaurantListOptions = {}): UseRestaurantListReturn {
   const [restaurants, setRestaurants] = useState<RestaurantResponse[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
@@ -38,8 +47,12 @@ export function useRestaurantList({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Termo com debounce
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
+
   const mountedRef = useRef(true);
   const isFetchingRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -48,10 +61,20 @@ export function useRestaurantList({
     };
   }, []);
 
+  // Aplica debounce no termo search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, debounceMs);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [search, debounceMs]);
+
   const loadFirstPage = useCallback(
     async (isRefreshOperation = false) => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
+      const currentSeq = ++requestSeqRef.current;
 
       if (isRefreshOperation) {
         setIsRefreshing(true);
@@ -61,25 +84,32 @@ export function useRestaurantList({
       setErrorMessage(null);
 
       try {
-        const response = await fetchRestaurants({ page: 1, limit });
-        if (!mountedRef.current) return;
+        const response = await fetchRestaurants({
+          page: 1,
+          limit,
+          search: debouncedSearch.trim() || undefined,
+          cuisine: cuisine?.trim() || undefined,
+          city: city?.trim() || undefined,
+        });
+
+        // Ignora respostas desatualizadas caso uma nova requisição tenha sido disparada
+        if (!mountedRef.current || currentSeq !== requestSeqRef.current) return;
 
         setRestaurants(response.restaurants);
         setPagination(response.pagination);
       } catch (err: any) {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || currentSeq !== requestSeqRef.current) return;
         setErrorMessage(
           err?.message || "Não foi possível conectar ao servidor. Tente novamente."
         );
       } finally {
-        if (mountedRef.current) {
+        if (mountedRef.current && currentSeq === requestSeqRef.current) {
           setIsLoading(false);
           setIsRefreshing(false);
         }
-        isFetchingRef.current = false;
       }
     },
-    [limit]
+    [limit, debouncedSearch, cuisine, city]
   );
 
   const loadMore = useCallback(async () => {
@@ -98,7 +128,14 @@ export function useRestaurantList({
 
     try {
       const nextPage = pagination.page + 1;
-      const response = await fetchRestaurants({ page: nextPage, limit });
+      const response = await fetchRestaurants({
+        page: nextPage,
+        limit,
+        search: debouncedSearch.trim() || undefined,
+        cuisine: cuisine?.trim() || undefined,
+        city: city?.trim() || undefined,
+      });
+
       if (!mountedRef.current) return;
 
       setRestaurants((prev) => {
@@ -118,7 +155,16 @@ export function useRestaurantList({
       }
       isFetchingRef.current = false;
     }
-  }, [isLoading, isLoadingMore, isRefreshing, pagination, limit]);
+  }, [
+    isLoading,
+    isLoadingMore,
+    isRefreshing,
+    pagination,
+    limit,
+    debouncedSearch,
+    cuisine,
+    city,
+  ]);
 
   const refresh = useCallback(async () => {
     await loadFirstPage(true);
@@ -128,11 +174,18 @@ export function useRestaurantList({
     await loadFirstPage(false);
   }, [loadFirstPage]);
 
+  // Dispara busca inicial ou sempre que os filtros/busca debounced mudarem
   useEffect(() => {
     if (autoLoad) {
       loadFirstPage(false);
     }
   }, [autoLoad, loadFirstPage]);
+
+  const isSearching = Boolean(
+    (debouncedSearch && debouncedSearch.trim() !== "") ||
+      (cuisine && cuisine.trim() !== "") ||
+      (city && city.trim() !== "")
+  );
 
   const isEmpty = !isLoading && !errorMessage && restaurants.length === 0;
   const isError = !isLoading && !!errorMessage && restaurants.length === 0;
@@ -146,6 +199,7 @@ export function useRestaurantList({
     isRefreshing,
     isError,
     isEmpty,
+    isSearching,
     errorMessage,
     hasMore,
     refresh,
