@@ -3,10 +3,49 @@ import {
   NearbyRestaurantResponse,
   NearbyRestaurantsQuery,
   RestaurantResponse,
+  UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
 import { prisma } from "../lib/prisma";
 
 const EARTH_RADIUS_METERS = 6_371_000;
+
+function formatRestaurantResponse(restaurant: any): RestaurantResponse {
+  return {
+    id: restaurant.id,
+    name: restaurant.name,
+    address: restaurant.address,
+    cuisineType: restaurant.cuisineType,
+    imageUrl: restaurant.imageUrl,
+    latitude: restaurant.latitude,
+    longitude: restaurant.longitude,
+    ownerId: restaurant.ownerId,
+    phone: restaurant.phone,
+    cnpj: restaurant.cnpj,
+    description: restaurant.description,
+    priceRange: restaurant.priceRange,
+    businessHours: restaurant.businessHours,
+    paymentMethods: restaurant.paymentMethods,
+    socialLinks: restaurant.socialLinks,
+    street: restaurant.street,
+    number: restaurant.number,
+    complement: restaurant.complement,
+    neighborhood: restaurant.neighborhood,
+    city: restaurant.city,
+    state: restaurant.state,
+    postalCode: restaurant.postalCode,
+    photos: restaurant.photos
+      ? restaurant.photos.map((p: any) => ({
+          id: p.id,
+          restaurantId: p.restaurantId,
+          url: p.url,
+          order: p.order,
+          createdAt: p.createdAt,
+        }))
+      : undefined,
+    createdAt: restaurant.createdAt,
+    updatedAt: restaurant.updatedAt,
+  };
+}
 
 /**
  * Fórmula de Haversine — calcula a distância em metros entre dois pontos
@@ -119,21 +158,84 @@ export class RestaurantService {
       },
     });
 
-    return {
-      id: restaurant.id,
-      name: restaurant.name,
-      address: restaurant.address,
-      cuisineType: restaurant.cuisineType,
-      imageUrl: restaurant.imageUrl,
-      latitude: restaurant.latitude,
-      longitude: restaurant.longitude,
-      ownerId: restaurant.ownerId,
-      phone: restaurant.phone,
-      cnpj: restaurant.cnpj,
-      createdAt: restaurant.createdAt,
-      updatedAt: restaurant.updatedAt,
-    };
+    return formatRestaurantResponse(restaurant);
+  }
+
+  /**
+   * Recupera o perfil do restaurante do proprietário autenticado.
+   */
+  async getProfile(ownerId: string): Promise<RestaurantResponse | null> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { ownerId },
+      include: {
+        photos: { orderBy: { order: "asc" } },
+      },
+    });
+
+    if (!restaurant) return null;
+    return formatRestaurantResponse(restaurant);
+  }
+
+  /**
+   * Atualiza as informações cadastrais, de perfil e galeria de fotos do restaurante.
+   */
+  async updateProfile(
+    ownerId: string,
+    data: UpdateRestaurantProfileInput
+  ): Promise<RestaurantResponse> {
+    const restaurant = await prisma.restaurant.findFirst({
+      where: { ownerId },
+    });
+
+    if (!restaurant) {
+      throw new Error("RESTAURANT_NOT_FOUND");
+    }
+
+    if (data.photos !== undefined) {
+      await prisma.restaurantPhoto.deleteMany({
+        where: { restaurantId: restaurant.id },
+      });
+      if (data.photos.length > 0) {
+        await prisma.restaurantPhoto.createMany({
+          data: data.photos.map((url, index) => ({
+            restaurantId: restaurant.id,
+            url,
+            order: index,
+          })),
+        });
+      }
+    }
+
+    const { photos, ...restaurantFields } = data;
+
+    const updated = await prisma.restaurant.update({
+      where: { id: restaurant.id },
+      data: {
+        ...restaurantFields,
+      },
+      include: {
+        photos: { orderBy: { order: "asc" } },
+      },
+    });
+
+    return formatRestaurantResponse(updated);
+  }
+
+  /**
+   * Recupera um restaurante por ID com seus dados completos e galeria de fotos.
+   */
+  async getById(id: string): Promise<RestaurantResponse | null> {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id },
+      include: {
+        photos: { orderBy: { order: "asc" } },
+      },
+    });
+
+    if (!restaurant) return null;
+    return formatRestaurantResponse(restaurant);
   }
 }
 
 export const restaurantService = new RestaurantService();
+
