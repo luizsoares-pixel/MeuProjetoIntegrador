@@ -12,12 +12,14 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { colors, spacing, typography } from "../theme";
+import { SORT_OPTIONS, SortByOption } from "../hooks/useSortPreference";
 
 export interface FilterState {
   priceRange: string[];
   minRating: number | null;
   maxDistance: number | null;
   openNow: boolean;
+  sortBy?: SortByOption;
 }
 
 export interface FilterModalProps {
@@ -106,6 +108,9 @@ function FilterSheetContent({
   const [draftOpenNow, setDraftOpenNow] = useState<boolean>(
     Boolean(filters.openNow)
   );
+  const [draftSortBy, setDraftSortBy] = useState<SortByOption>(
+    filters.sortBy || (userCoords ? "distance" : "rating")
+  );
 
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(
     null
@@ -113,6 +118,12 @@ function FilterSheetContent({
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(
     userCoords
   );
+
+  useEffect(() => {
+    if (filters.sortBy) {
+      setDraftSortBy(filters.sortBy);
+    }
+  }, [filters.sortBy]);
 
   useEffect(() => {
     let isMounted = true;
@@ -166,6 +177,7 @@ function FilterSheetContent({
     setDraftMinRating(null);
     setDraftMaxDistance(null);
     setDraftOpenNow(false);
+    setDraftSortBy(hasLocationPermission ? "distance" : "rating");
     onReset();
   }
 
@@ -176,6 +188,7 @@ function FilterSheetContent({
         minRating: draftMinRating,
         maxDistance: draftMaxDistance,
         openNow: draftOpenNow,
+        sortBy: draftSortBy,
       },
       currentCoords
     );
@@ -217,6 +230,47 @@ function FilterSheetContent({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
+            {/* Seção: Ordenação */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ordenar por</Text>
+              <View style={styles.chipsRow}>
+                {SORT_OPTIONS.map((item) => {
+                  const isSelected = draftSortBy === item.value;
+                  const isOptionDisabled =
+                    item.requiresLocation && isDistanceDisabled;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      style={[
+                        styles.chip,
+                        isSelected ? styles.chipSelected : styles.chipUnselected,
+                        isOptionDisabled && styles.chipDisabled,
+                      ]}
+                      onPress={() => {
+                        if (!isOptionDisabled) {
+                          setDraftSortBy(item.value);
+                        }
+                      }}
+                      disabled={isOptionDisabled}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          isSelected
+                            ? styles.chipTextSelected
+                            : styles.chipTextUnselected,
+                          isOptionDisabled && styles.chipTextDisabled,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Seção 1: Faixa de Preço */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Faixa de Preço</Text>
