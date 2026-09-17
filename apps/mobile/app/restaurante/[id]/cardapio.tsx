@@ -13,7 +13,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MenuItemResponse } from "@menu-digital/contracts";
-import { fetchRestaurantMenu } from "../../../services/api";
+import { fetchRestaurantMenu, getRestaurantProfile } from "../../../services/api";
+import { useAuth } from "../../../hooks/useAuth";
+import { MenuItemFormModal } from "../../../components/MenuItemFormModal";
 import { colors, spacing, typography } from "../../../theme";
 
 type MenuSection = { title: string; data: MenuItemResponse[] };
@@ -27,6 +29,23 @@ export default function RestaurantMenuScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState(0);
+
+  const { session, user } = useAuth();
+  const [isOwner, setIsOwner] = useState(false);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+  useEffect(() => {
+    const token = session?.access_token || (session as any)?.token;
+    if (token && user?.role === "restaurant" && restaurantId) {
+      getRestaurantProfile(token)
+        .then((profile) => {
+          if (profile?.id === restaurantId) {
+            setIsOwner(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [session, user, restaurantId]);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -116,7 +135,18 @@ export default function RestaurantMenuScreen() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.accent.white} />
         </Pressable>
         <Text style={styles.title}>Cardápio</Text>
-        <View style={styles.headerSpacer} />
+        {isOwner ? (
+          <Pressable
+            onPress={() => setIsAddModalVisible(true)}
+            style={styles.addHeaderBtn}
+            accessibilityLabel="Adicionar item"
+          >
+            <MaterialCommunityIcons name="plus" size={16} color={colors.background.primary} />
+            <Text style={styles.addHeaderBtnText}>Novo Item</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       {sections.length === 0 ? (
@@ -124,6 +154,15 @@ export default function RestaurantMenuScreen() {
           <MaterialCommunityIcons name="silverware-fork-knife" size={54} color={colors.accent.goldMuted} />
           <Text style={styles.emptyTitle}>Cardápio em preparação</Text>
           <Text style={styles.mutedText}>Este restaurante ainda não cadastrou itens.</Text>
+          {isOwner ? (
+            <Pressable
+              style={styles.emptyAddBtn}
+              onPress={() => setIsAddModalVisible(true)}
+            >
+              <MaterialCommunityIcons name="plus-circle" size={20} color={colors.background.primary} />
+              <Text style={styles.emptyAddBtnText}>Adicionar Primeiro Item</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         <>
@@ -169,6 +208,28 @@ export default function RestaurantMenuScreen() {
           />
         </>
       )}
+
+      {isOwner && sections.length > 0 ? (
+        <Pressable
+          style={[styles.fabButton, { bottom: insets.bottom + 16 }]}
+          onPress={() => setIsAddModalVisible(true)}
+          accessibilityLabel="Adicionar item ao cardápio"
+        >
+          <MaterialCommunityIcons name="plus" size={22} color={colors.background.primary} />
+          <Text style={styles.fabText}>Adicionar Item</Text>
+        </Pressable>
+      ) : null}
+
+      {restaurantId ? (
+        <MenuItemFormModal
+          visible={isAddModalVisible}
+          restaurantId={restaurantId}
+          onClose={() => setIsAddModalVisible(false)}
+          onSuccess={(newItem) => {
+            setItems((prev) => [...prev, newItem]);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -253,4 +314,51 @@ const styles = StyleSheet.create({
   mutedText: { color: colors.accent.whiteSoft, fontSize: typography.size.sm, textAlign: "center", marginTop: spacing.sm },
   backButton: { marginTop: spacing.xl, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, backgroundColor: colors.accent.gold, borderRadius: 8 },
   backButtonText: { color: colors.background.primary, fontWeight: typography.weight.bold },
+  addHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.accent.gold,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addHeaderBtnText: {
+    color: colors.background.primary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  emptyAddBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: spacing.lg,
+    backgroundColor: colors.accent.gold,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  emptyAddBtnText: {
+    color: colors.background.primary,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  fabButton: {
+    position: "absolute",
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.accent.gold,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    elevation: 6,
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.4)",
+  },
+  fabText: {
+    color: colors.background.primary,
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });

@@ -7,6 +7,7 @@
  */
 
 import type {
+  CreateMenuItemInput,
   CreateRestaurantInput,
   MenuItemResponse,
   PaginatedRestaurantsResponse,
@@ -14,6 +15,7 @@ import type {
   RestaurantResponse,
   RestaurantRouteResponse,
   RouteProfile,
+  UpdateMenuItemInput,
   UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
 import { Platform } from "react-native";
@@ -432,6 +434,111 @@ export async function fetchRestaurantMenu(id: string): Promise<MenuItemResponse[
 
   const data: { items: MenuItemResponse[] } = await response.json();
   return data.items;
+}
+
+/**
+ * Cadastra um novo item no cardápio do restaurante.
+ * POST /restaurants/:id/menu
+ */
+export async function createMenuItem(
+  restaurantId: string,
+  input: CreateMenuItemInput,
+  token: string
+): Promise<MenuItemResponse> {
+  const url = `${API_BASE_URL}/restaurants/${restaurantId}/menu`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao cadastrar item: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.item;
+}
+
+/**
+ * Atualiza um item do cardápio existente.
+ * PATCH /menu-items/:id
+ */
+export async function updateMenuItem(
+  itemId: string,
+  input: UpdateMenuItemInput,
+  token: string
+): Promise<MenuItemResponse> {
+  const url = `${API_BASE_URL}/menu-items/${itemId}`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao atualizar item: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.item;
+}
+
+/**
+ * Exclui um item do cardápio.
+ * DELETE /menu-items/:id
+ */
+export async function deleteMenuItem(
+  itemId: string,
+  token: string
+): Promise<void> {
+  const url = `${API_BASE_URL}/menu-items/${itemId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao remover item: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
 }
 
 export interface FetchRestaurantRouteParams {
