@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { CuisineFilterChips } from "../../components/CuisineFilterChips";
 import { FilterModal, FilterState } from "../../components/FilterModal";
@@ -107,8 +108,8 @@ export default function BuscarTab() {
     (activeFilters.maxDistance !== null ? 1 : 0) +
     (activeFilters.openNow ? 1 : 0);
 
-  const handleCardPress = useCallback((_restaurant: RestaurantResponse) => {
-    // Integração futura com detalhes do cardápio (Sprint #4)
+  const handleCardPress = useCallback((restaurant: RestaurantResponse) => {
+    router.push(`/restaurante/${restaurant.id}`);
   }, []);
 
   const handleClearFilters = useCallback(() => {
