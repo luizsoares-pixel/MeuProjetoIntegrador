@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { colors, spacing, typography } from "../theme";
 import type { NearbyRestaurant } from "../services/api";
 
@@ -14,6 +15,7 @@ interface RestaurantPreviewCardProps {
   restaurant: NearbyRestaurant | null;
   visible: boolean;
   onClose: () => void;
+  onTraceRoute?: (restaurant: NearbyRestaurant) => void;
 }
 
 /** Formata metros para exibição legível: < 1 km → "850 m", ≥ 1 km → "1,2 km" */
@@ -35,6 +37,7 @@ export function RestaurantPreviewCard({
   restaurant,
   visible,
   onClose,
+  onTraceRoute,
 }: RestaurantPreviewCardProps) {
   if (!restaurant) return null;
 
@@ -127,6 +130,45 @@ export function RestaurantPreviewCard({
                 />
               ))}
               <Text style={styles.ratingLabel}>Em breve</Text>
+            </View>
+
+            {/* Ações: Ver Rota e Ver Detalhes */}
+            <View style={styles.actionRow}>
+              {onTraceRoute ? (
+                <Pressable
+                  style={styles.traceRouteButton}
+                  onPress={() => {
+                    onClose();
+                    onTraceRoute(restaurant);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver rota no mapa"
+                >
+                  <MaterialCommunityIcons
+                    name="navigation-variant"
+                    size={16}
+                    color={colors.background.primary}
+                  />
+                  <Text style={styles.traceRouteButtonText}>Ver Rota</Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                style={styles.detailsButton}
+                onPress={() => {
+                  onClose();
+                  router.push(`/restaurante/${restaurant.id}`);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Ver detalhes do restaurante"
+              >
+                <Text style={styles.detailsButtonText}>Detalhes</Text>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={16}
+                  color={colors.accent.gold}
+                />
+              </Pressable>
             </View>
           </View>
         </Pressable>
@@ -228,5 +270,42 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.accent.goldMuted,
     fontStyle: "italic",
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  traceRouteButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.accent.gold,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+  },
+  traceRouteButtonText: {
+    color: colors.background.primary,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.sm,
+  },
+  detailsButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: colors.accent.gold,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+  },
+  detailsButtonText: {
+    color: colors.accent.gold,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.sm,
   },
 });

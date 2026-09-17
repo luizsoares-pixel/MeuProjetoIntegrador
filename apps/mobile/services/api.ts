@@ -15,6 +15,8 @@ import type {
   PaginatedRestaurantsResponse,
   RegisterRestaurantInput,
   RestaurantResponse,
+  RestaurantRouteResponse,
+  RouteProfile,
   UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
 
@@ -365,5 +367,85 @@ export async function fetchRestaurants(
   const data: PaginatedRestaurantsResponse = await response.json();
   return data;
 }
+
+/**
+ * Busca os dados completos de um restaurante por ID.
+ * GET /restaurants/:id
+ */
+export async function fetchRestaurantById(
+  id: string
+): Promise<RestaurantResponse> {
+  const url = `${API_BASE_URL}/restaurants/${id}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao carregar restaurante: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.restaurant;
+}
+
+export interface FetchRestaurantRouteParams {
+  lat: number;
+  lng: number;
+  profile?: RouteProfile;
+}
+
+/**
+ * Calcula a rota e tempo estimado até o restaurante (HU9).
+ * GET /restaurants/:id/route?lat=&lng=&profile=
+ */
+export async function fetchRestaurantRoute(
+  id: string,
+  params: FetchRestaurantRouteParams
+): Promise<RestaurantRouteResponse> {
+  const url = new URL(`${API_BASE_URL}/restaurants/${id}/route`);
+  url.searchParams.set("lat", String(params.lat));
+  url.searchParams.set("lng", String(params.lng));
+  if (params.profile) {
+    url.searchParams.set("profile", params.profile);
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao calcular rota: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data: RestaurantRouteResponse = await response.json();
+  return data;
+}
+
 
 

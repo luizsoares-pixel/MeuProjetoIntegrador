@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import Animated from "react-native-reanimated";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { CuisineFilterChips } from "../../components/CuisineFilterChips";
@@ -110,8 +111,8 @@ export default function HomeTab() {
   const titleAnim = useFadeSlide({ delay: 80, translateY: 12 });
   const descAnim = useFadeSlide({ delay: 160, translateY: 8 });
 
-  const handleCardPress = useCallback((_restaurant: RestaurantResponse) => {
-    // Integração futura com a tela de detalhes do cardápio (Sprint #4)
+  const handleCardPress = useCallback((restaurant: RestaurantResponse) => {
+    router.push(`/restaurante/${restaurant.id}`);
   }, []);
 
   const handleClearFilters = useCallback(() => {

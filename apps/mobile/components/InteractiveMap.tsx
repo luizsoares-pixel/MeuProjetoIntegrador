@@ -6,16 +6,19 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Location from "expo-location";
-import MapView, { Marker, UrlTile } from "react-native-maps";
+import MapView, { Marker, Polyline, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useMapClusters, isCluster } from "../hooks/useMapClusters";
 import { useMockRestaurants } from "../hooks/useMockRestaurants";
+import { useRouteCalculation } from "../hooks/useRouteCalculation";
+import { formatRouteDistance, formatRouteDuration } from "../services/osrm";
 import { ClusterMarker } from "./ClusterMarker";
 import { Loading } from "./Loading";
 import { RestaurantPinMarker } from "./RestaurantPinMarker";
@@ -30,7 +33,6 @@ const DEFAULT_REGION = {
 };
 
 const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
-const TILE_USER_AGENT = "MenuDigital/1.0 (mapa; contato: suporte@menudigital.app)";
 
 /**
  * Distância mínima (em metros) que o usuário precisa se deslocar entre
@@ -81,6 +83,45 @@ export default function InteractiveMap() {
 
   // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
   const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
+
+  // ── Issue #54 (HU9): Cálculo de rota ativa no mapa ─────────────────────────
+  const [activeRouteRestaurant, setActiveRouteRestaurant] =
+    useState<NearbyRestaurant | null>(null);
+
+  const {
+    route: activeRoute,
+    isLoading: isCalculatingActiveRoute,
+    profile: routeProfile,
+    setProfile: setRouteProfile,
+  } = useRouteCalculation({
+    restaurantId: activeRouteRestaurant?.id,
+    restaurantCoords: activeRouteRestaurant
+      ? {
+          latitude: activeRouteRestaurant.latitude,
+          longitude: activeRouteRestaurant.longitude,
+        }
+      : null,
+    userCoords: userLocation,
+    enabled: Boolean(activeRouteRestaurant && userLocation),
+  });
+
+  useEffect(() => {
+    if (activeRoute && userLocation && activeRouteRestaurant) {
+      mapRef.current?.fitToCoordinates(
+        [
+          userLocation,
+          {
+            latitude: activeRouteRestaurant.latitude,
+            longitude: activeRouteRestaurant.longitude,
+          },
+        ],
+        {
+          edgePadding: { top: 120, right: 60, bottom: 240, left: 60 },
+          animated: true,
+        }
+      );
+    }
+  }, [activeRoute, userLocation, activeRouteRestaurant]);
 
   // ── Issue #34 & #35: Controle de dados reais vs. mocks para validação ───────
   // Por padrão em desenvolvimento (__DEV__), consome a API local real.
@@ -309,6 +350,15 @@ export default function InteractiveMap() {
             />
           );
         })}
+
+        {/* Issue #54 (HU9): Traçado da rota ativa */}
+        {activeRoute && activeRoute.polylineCoordinates.length > 0 ? (
+          <Polyline
+            coordinates={activeRoute.polylineCoordinates}
+            strokeColor={colors.accent.gold}
+            strokeWidth={4}
+          />
+        ) : null}
       </MapView>
 
       <View style={styles.topBar}>
@@ -463,9 +513,126 @@ export default function InteractiveMap() {
       {/* Preview ao tocar no pin */}
       <RestaurantPreviewCard
         restaurant={selectedRestaurant}
-        visible={selectedRestaurant !== null}
+        visible={selectedRestaurant !== null && activeRouteRestaurant === null}
         onClose={() => setSelectedRestaurant(null)}
+        onTraceRoute={(restaurant) => {
+          setActiveRouteRestaurant(restaurant);
+          setSelectedRestaurant(null);
+        }}
       />
+
+      {/* Issue #54 (HU9): Card flutuante de rota ativa */}
+      {activeRouteRestaurant ? (
+        <View style={styles.activeRouteCard}>
+          <View style={styles.activeRouteHeader}>
+            <View style={styles.activeRouteTitleContainer}>
+              <Text style={styles.activeRouteEyebrow}>ROTA ATIVA</Text>
+              <Text style={styles.activeRouteName} numberOfLines={1}>
+                {activeRouteRestaurant.name}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setActiveRouteRestaurant(null)}
+              style={styles.activeRouteCloseBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar rota"
+            >
+              <MaterialCommunityIcons name="close" size={18} color={colors.accent.white} />
+            </Pressable>
+          </View>
+
+          {/* Seletor de Modo (Carro vs A pé) */}
+          <View style={styles.routeProfileRow}>
+            <Pressable
+              style={[
+                styles.profileToggleBtn,
+                routeProfile === "driving" && styles.profileToggleBtnActive,
+              ]}
+              onPress={() => setRouteProfile("driving")}
+              accessibilityRole="button"
+              accessibilityLabel="Rota de carro"
+            >
+              <MaterialCommunityIcons
+                name="car"
+                size={16}
+                color={routeProfile === "driving" ? colors.background.primary : colors.accent.goldMuted}
+              />
+              <Text
+                style={[
+                  styles.profileToggleText,
+                  routeProfile === "driving" && styles.profileToggleTextActive,
+                ]}
+              >
+                Carro
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.profileToggleBtn,
+                routeProfile === "walking" && styles.profileToggleBtnActive,
+              ]}
+              onPress={() => setRouteProfile("walking")}
+              accessibilityRole="button"
+              accessibilityLabel="Rota a pé"
+            >
+              <MaterialCommunityIcons
+                name="walk"
+                size={16}
+                color={routeProfile === "walking" ? colors.background.primary : colors.accent.goldMuted}
+              />
+              <Text
+                style={[
+                  styles.profileToggleText,
+                  routeProfile === "walking" && styles.profileToggleTextActive,
+                ]}
+              >
+                A pé
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Informações da Rota (Tempo / Distância / Loading / Fallback) */}
+          {isCalculatingActiveRoute ? (
+            <View style={styles.activeRouteLoading}>
+              <ActivityIndicator size="small" color={colors.accent.gold} />
+              <Text style={styles.activeRouteLoadingText}>Calculando trajeto via OSRM...</Text>
+            </View>
+          ) : activeRoute ? (
+            <View style={styles.activeRouteStatsRow}>
+              <View style={styles.activeRouteStat}>
+                <MaterialCommunityIcons name="clock-outline" size={16} color={colors.accent.gold} />
+                <Text style={styles.activeRouteStatValue}>
+                  {formatRouteDuration(activeRoute.durationInSeconds)}
+                </Text>
+              </View>
+
+              <View style={styles.activeRouteStat}>
+                <MaterialCommunityIcons name="map-marker-distance" size={16} color={colors.accent.gold} />
+                <Text style={styles.activeRouteStatValue}>
+                  {formatRouteDistance(activeRoute.distanceInMeters)}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.activeRouteDetailsBtn}
+                onPress={() => router.push(`/restaurante/${activeRouteRestaurant.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel="Ver página do restaurante"
+              >
+                <Text style={styles.activeRouteDetailsBtnText}>Detalhes</Text>
+                <MaterialCommunityIcons name="chevron-right" size={16} color={colors.background.primary} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {activeRoute?.isFallback ? (
+            <Text style={styles.activeRouteFallbackText}>
+              * Estimativa em linha reta (serviço OSRM indisponível no momento).
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -730,6 +897,128 @@ const styles = StyleSheet.create({
     color: colors.accent.goldMuted,
     fontSize: 13,
     flex: 1,
+  },
+
+  // ── Issue #54 (HU9): Estilos do Card de Rota Ativa no Mapa ───────────────
+  activeRouteCard: {
+    position: "absolute",
+    bottom: 24,
+    left: 16,
+    right: 16,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(47, 0, 0, 0.95)",
+    borderWidth: 1.5,
+    borderColor: colors.accent.gold,
+    elevation: 8,
+    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+    gap: 10,
+  },
+  activeRouteHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  activeRouteTitleContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  activeRouteEyebrow: {
+    color: colors.accent.goldMuted,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+  },
+  activeRouteName: {
+    color: colors.accent.white,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  activeRouteCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  routeProfileRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  profileToggleBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(230, 192, 123, 0.3)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  profileToggleBtnActive: {
+    backgroundColor: colors.accent.gold,
+    borderColor: colors.accent.gold,
+  },
+  profileToggleText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.accent.goldMuted,
+  },
+  profileToggleTextActive: {
+    color: colors.background.primary,
+    fontWeight: "700",
+  },
+  activeRouteLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  activeRouteLoadingText: {
+    color: colors.accent.goldMuted,
+    fontSize: 12,
+  },
+  activeRouteStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(230, 192, 123, 0.2)",
+  },
+  activeRouteStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  activeRouteStatValue: {
+    color: colors.accent.white,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  activeRouteDetailsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.accent.gold,
+  },
+  activeRouteDetailsBtnText: {
+    color: colors.background.primary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  activeRouteFallbackText: {
+    color: colors.accent.goldMuted,
+    fontSize: 10,
+    fontStyle: "italic",
+    marginTop: -2,
   },
 });
 

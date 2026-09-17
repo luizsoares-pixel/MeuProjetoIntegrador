@@ -523,3 +523,47 @@ export function mapAuthErrorMessage(errorMessage?: string | null): string {
 
   return errorMessage;
 }
+
+// ── Route & Travel Time Calculation (Issue #54 / HU9) ─────────────────────────
+
+export const routeProfileEnum = z.enum(["driving", "walking"]);
+export type RouteProfile = z.infer<typeof routeProfileEnum>;
+
+export const routeCoordinateSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+export type RouteCoordinate = z.infer<typeof routeCoordinateSchema>;
+
+export const restaurantRouteQuerySchema = z.object({
+  lat: z
+    .string()
+    .transform((v) => Number(v))
+    .refine((v) => !isNaN(v) && v >= -90 && v <= 90, {
+      message: "O parâmetro 'lat' deve ser um número válido entre -90 e 90.",
+    }),
+  lng: z
+    .string()
+    .transform((v) => Number(v))
+    .refine((v) => !isNaN(v) && v >= -180 && v <= 180, {
+      message: "O parâmetro 'lng' deve ser um número válido entre -180 e 180.",
+    }),
+  profile: routeProfileEnum.optional().default("driving"),
+});
+export type RestaurantRouteQuery = z.infer<typeof restaurantRouteQuerySchema>;
+
+export const routeCalculationResultSchema = z.object({
+  distanceInMeters: z.number().nonnegative(),
+  durationInSeconds: z.number().nonnegative(),
+  polylineCoordinates: z.array(routeCoordinateSchema),
+  profile: routeProfileEnum,
+  isFallback: z.boolean().default(false),
+  fallbackReason: z.string().optional(),
+});
+export type RouteCalculationResult = z.infer<typeof routeCalculationResultSchema>;
+
+export interface RestaurantRouteResponse {
+  restaurantId: string;
+  route: RouteCalculationResult;
+}
+

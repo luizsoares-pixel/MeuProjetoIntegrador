@@ -206,10 +206,11 @@ const PRICE_RANGE_WEIGHTS: Record<string, number> = {
  */
 export function sortRestaurants<
   T extends {
+    id?: string;
     distanceInMeters?: number;
     rating?: number | null;
     priceRange?: string | null;
-    createdAt: Date | string;
+    createdAt?: Date | string;
   },
 >(items: T[], sortBy?: RestaurantSortBy): T[] {
   if (!sortBy) {
@@ -248,8 +249,8 @@ export function sortRestaurants<
     }
 
     // Critério de desempate: mais recente primeiro
-    const timeA = new Date(a.createdAt).getTime();
-    const timeB = new Date(b.createdAt).getTime();
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return timeB - timeA;
   });
 }
@@ -514,7 +515,9 @@ export class RestaurantService {
         },
       });
 
-      let filtered = candidates;
+      let filtered: Array<
+        (typeof candidates)[number] & { distanceInMeters?: number }
+      > = candidates;
 
       if (query.lat !== undefined && query.lng !== undefined) {
         filtered = filtered.map((r) => ({
