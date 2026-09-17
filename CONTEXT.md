@@ -89,5 +89,8 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `estimatedDuration` | Tempo Estimado de Chegada | Duração calculada do trajeto em segundos ou formatada em minutos/horas. |
 | `routePolyline` | Traçado da Rota | Polilinha de coordenadas geográficas renderizada sobre o mapa (`react-native-maps`). |
 | `routeFallback` | Fallback de Rota | Cálculo aproximado por linha reta (Haversine) acionado caso o OSRM esteja indisponível. |
+| `RestaurantDetailsScreen` | Tela de Detalhes do Restaurante | Tela dedicada (HU10) que exibe todas as informações de um restaurante: galeria de fotos, horários, formas de pagamento, redes sociais, contato, rota (HU9) e acesso ao cardápio (HU11). |
+| `photoGallery` | Galeria de Fotos | Carrossel horizontal de imagens do restaurante composto pela foto de capa (`imageUrl`) e fotos adicionais da entidade `RestaurantPhoto`, com indicadores de página. |
+| `contactActions` | Ações de Contato | Botões de acesso rápido ao discador nativo (telefone) e ao WhatsApp do restaurante, acionados via `Linking.openURL`. |
 
 
