@@ -1,5 +1,6 @@
 import {
   createRestaurantSchema,
+  listRestaurantsQuerySchema,
   nearbyRestaurantsSchema,
 } from "@menu-digital/contracts";
 import assert from "node:assert/strict";
@@ -1266,6 +1267,50 @@ describe("Restaurants Layer - Issue #33", () => {
       const anyTimeWednesday = new Date("2026-09-16T15:00:00.000Z");
       assert.strictEqual(isRestaurantOpen(businessHours, anyTimeWednesday), true);
     });
+
+    it("deve validar horários exatos de borda (abertura e fechamento) em turno diurno", () => {
+      const businessHours = {
+        wednesday: [{ open: "11:30", close: "15:00" }],
+      };
+
+      // 11:29 em Brasília (14:29Z) - 1 minuto antes da abertura
+      const oneMinuteBeforeOpen = new Date("2026-09-16T14:29:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, oneMinuteBeforeOpen), false);
+
+      // 11:30 em Brasília (14:30Z) - minuto exato de abertura
+      const exactOpenMinute = new Date("2026-09-16T14:30:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, exactOpenMinute), true);
+
+      // 14:59 em Brasília (17:59Z) - 1 minuto antes do fechamento
+      const oneMinuteBeforeClose = new Date("2026-09-16T17:59:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, oneMinuteBeforeClose), true);
+
+      // 15:00 em Brasília (18:00Z) - minuto exato de fechamento
+      const exactCloseMinute = new Date("2026-09-16T18:00:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, exactCloseMinute), false);
+    });
+
+    it("deve validar horários exatos de borda em turno noturno (overnight shift)", () => {
+      const businessHours = {
+        friday: [{ open: "18:00", close: "02:00" }],
+      };
+
+      // Sexta 17:59 em Brasília (20:59Z) - 1 min antes de abrir
+      const oneMinBeforeOvernightOpen = new Date("2026-09-18T20:59:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, oneMinBeforeOvernightOpen), false);
+
+      // Sexta 18:00 em Brasília (21:00Z) - minuto exato de abertura
+      const exactOvernightOpen = new Date("2026-09-18T21:00:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, exactOvernightOpen), true);
+
+      // Sábado 01:59 em Brasília (04:59Z) - 1 min antes de fechar
+      const oneMinBeforeOvernightClose = new Date("2026-09-19T04:59:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, oneMinBeforeOvernightClose), true);
+
+      // Sábado 02:00 em Brasília (05:00Z) - minuto exato de fechamento
+      const exactOvernightClose = new Date("2026-09-19T05:00:00.000Z");
+      assert.strictEqual(isRestaurantOpen(businessHours, exactOvernightClose), false);
+    });
   });
 
   describe("HU7: RestaurantService.list com Filtros Avançados", () => {
@@ -1455,6 +1500,118 @@ describe("Restaurants Layer - Issue #33", () => {
       assert.strictEqual(result.restaurants.length, 1);
       assert.strictEqual(result.restaurants[0].id, "match-1");
       assert.strictEqual(result.pagination.total, 1);
+    });
+  });
+
+  describe("HU7: Middleware validateQuery com listRestaurantsQuerySchema", () => {
+    it("deve retornar 400 quando maxDistance for informado sem lat e lng", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = { query: { maxDistance: "3000" } } as any;
+      let statusCode = 0;
+      let responseBody: any = null;
+      let nextCalled = false;
+      const res = {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(data: any) {
+          responseBody = data;
+          return this;
+        },
+      } as any;
+
+      await validator(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, false);
+      assert.strictEqual(statusCode, 400);
+      assert.ok(
+        responseBody.details.some((d: any) =>
+          d.message.includes("Os parâmetros 'lat' e 'lng' são obrigatórios")
+        )
+      );
+    });
+
+    it("deve retornar 400 quando maxDistance for informado com lat mas sem lng", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = { query: { maxDistance: "3000", lat: "-15.78" } } as any;
+      let statusCode = 0;
+      const res = {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(_: any) {
+          return this;
+        },
+      } as any;
+
+      await validator(req, res, () => {});
+      assert.strictEqual(statusCode, 400);
+    });
+
+    it("deve popular req.parsedQuery com todos os filtros transformados quando válidos", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = {
+        query: {
+          page: "2",
+          limit: "15",
+          search: "Bistrô",
+          cuisine: "Italiana",
+          city: "Brasília",
+          priceRange: "$,$$",
+          minRating: "4.2",
+          maxDistance: "5000",
+          openNow: "true",
+          lat: "-15.78",
+          lng: "-47.88",
+        },
+      } as any;
+      let nextCalled = false;
+      const res = {} as any;
+
+      await validator(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, true);
+      assert.strictEqual(req.parsedQuery.page, 2);
+      assert.strictEqual(req.parsedQuery.limit, 15);
+      assert.strictEqual(req.parsedQuery.search, "Bistrô");
+      assert.strictEqual(req.parsedQuery.cuisine, "Italiana");
+      assert.strictEqual(req.parsedQuery.city, "Brasília");
+      assert.deepStrictEqual(req.parsedQuery.priceRange, ["$", "$$"]);
+      assert.strictEqual(req.parsedQuery.minRating, 4.2);
+      assert.strictEqual(req.parsedQuery.maxDistance, 5000);
+      assert.strictEqual(req.parsedQuery.openNow, true);
+      assert.strictEqual(req.parsedQuery.lat, -15.78);
+      assert.strictEqual(req.parsedQuery.lng, -47.88);
+    });
+
+    it("deve tratar query params vazios graciosamente sem erro de parsing", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = {
+        query: {
+          priceRange: "",
+          minRating: "",
+          maxDistance: "",
+          openNow: "",
+        },
+      } as any;
+      let nextCalled = false;
+      const res = {} as any;
+
+      await validator(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, true);
+      assert.strictEqual(req.parsedQuery.priceRange, undefined);
+      assert.strictEqual(req.parsedQuery.minRating, undefined);
+      assert.strictEqual(req.parsedQuery.maxDistance, undefined);
+      assert.strictEqual(req.parsedQuery.openNow, undefined);
     });
   });
 });

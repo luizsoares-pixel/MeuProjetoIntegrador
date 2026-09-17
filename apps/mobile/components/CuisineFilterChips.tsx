@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.sm,
   },
   scrollContent: {
-    paddingHorizontal: spacing.none,
+    paddingHorizontal: 0,
     gap: spacing.xs,
     alignItems: "center",
   },
