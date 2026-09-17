@@ -185,14 +185,8 @@ function FilterSheetContent({
   const isDistanceDisabled = hasLocationPermission === false;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={styles.dismissOverlay} onPress={onClose} />
+    <View style={styles.backdrop}>
+      <Pressable style={styles.dismissOverlay} onPress={onClose} />
 
         <View style={styles.sheetContainer}>
           {/* Header */}
@@ -399,9 +393,8 @@ function FilterSheetContent({
           </View>
         </View>
       </View>
-    </Modal>
-  );
-}
+    );
+  }
 
 const styles = StyleSheet.create({
   backdrop: {

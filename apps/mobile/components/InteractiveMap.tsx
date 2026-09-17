@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.soft,
   },
   map: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
   },
   userMarkerContainer: {
     width: 22,
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(47, 0, 0, 0.72)",
