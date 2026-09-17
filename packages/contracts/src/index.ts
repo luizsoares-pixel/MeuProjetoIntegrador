@@ -378,6 +378,37 @@ export interface NearbyRestaurantResponse extends RestaurantResponse {
   distanceInMeters: number;
 }
 
+// ── Digital Menu (HU11) ──────────────────────────────────────────────────────
+
+export const createMenuItemSchema = z.object({
+  category: z.string().trim().min(1, "A categoria é obrigatória.").max(80),
+  name: z.string().trim().min(1, "O nome do item é obrigatório.").max(120),
+  description: z.string().trim().max(500).optional().nullable(),
+  price: z.number().finite().nonnegative("O preço não pode ser negativo."),
+  photoUrl: z.string().url("A URL da foto é inválida.").optional().nullable(),
+  available: z.boolean().optional().default(true),
+});
+export type CreateMenuItemInput = z.infer<typeof createMenuItemSchema>;
+
+export const updateMenuItemSchema = createMenuItemSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  "Informe pelo menos um campo para atualizar."
+);
+export type UpdateMenuItemInput = z.infer<typeof updateMenuItemSchema>;
+
+export interface MenuItemResponse {
+  id: string;
+  restaurantId: string;
+  category: string;
+  name: string;
+  description: string | null;
+  price: number;
+  photoUrl: string | null;
+  available: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({

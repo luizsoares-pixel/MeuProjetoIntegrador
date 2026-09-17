@@ -8,6 +8,7 @@
 
 import type {
   CreateRestaurantInput,
+  MenuItemResponse,
   PaginatedRestaurantsResponse,
   RegisterRestaurantInput,
   RestaurantResponse,
@@ -386,6 +387,28 @@ export async function fetchRestaurantById(
 
   const data = await response.json();
   return data.restaurant;
+}
+
+/** Busca o cardápio completo de um restaurante, incluindo itens indisponíveis. */
+export async function fetchRestaurantMenu(id: string): Promise<MenuItemResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/restaurants/${id}/menu`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    let message = `Erro ao carregar cardápio: ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data.error) message = data.error;
+    } catch {
+      // Mantém a mensagem HTTP quando a API não retorna JSON.
+    }
+    throw new Error(message);
+  }
+
+  const data: { items: MenuItemResponse[] } = await response.json();
+  return data.items;
 }
 
 export interface FetchRestaurantRouteParams {
