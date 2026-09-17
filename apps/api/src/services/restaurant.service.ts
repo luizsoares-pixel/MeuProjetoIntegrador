@@ -317,10 +317,11 @@ export class RestaurantService {
     if (ownerId) {
       await prisma.user.upsert({
         where: { id: ownerId },
-        update: {},
+        update: { role: "restaurant" },
         create: {
           id: ownerId,
           email: `${ownerId}@auth.supabase`,
+          role: "restaurant",
         },
       });
     }

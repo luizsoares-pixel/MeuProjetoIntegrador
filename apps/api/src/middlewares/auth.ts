@@ -107,6 +107,25 @@ export async function authMiddleware(
       role = profile?.role === "restaurant" ? "restaurant" : "user";
     }
 
+    if (role !== "restaurant") {
+      const ownedRestaurant = await prisma.restaurant.findFirst({
+        where: { ownerId: userId },
+        select: { id: true },
+      });
+      if (ownedRestaurant) {
+        role = "restaurant";
+        await prisma.user.upsert({
+          where: { id: userId },
+          update: { role: "restaurant" },
+          create: {
+            id: userId,
+            email: userEmail ?? `${userId}@auth.supabase`,
+            role: "restaurant",
+          },
+        });
+      }
+    }
+
     request.user = {
       id: userId,
       email: userEmail,

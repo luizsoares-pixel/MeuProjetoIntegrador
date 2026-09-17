@@ -36,7 +36,7 @@ export default function RestaurantMenuScreen() {
 
   useEffect(() => {
     const token = session?.access_token || (session as any)?.token;
-    if (token && user?.role === "restaurant" && restaurantId) {
+    if (token && restaurantId) {
       getRestaurantProfile(token)
         .then((profile) => {
           if (profile?.id === restaurantId) {
@@ -45,7 +45,7 @@ export default function RestaurantMenuScreen() {
         })
         .catch(() => {});
     }
-  }, [session, user, restaurantId]);
+  }, [session, restaurantId]);
 
   useEffect(() => {
     if (!restaurantId) return;

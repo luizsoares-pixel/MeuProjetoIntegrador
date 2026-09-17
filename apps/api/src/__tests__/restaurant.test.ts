@@ -1145,6 +1145,10 @@ describe("Restaurants Layer - Issue #33", () => {
     it("deve combinar simultaneamente search, cuisine e city na cláusula where", async () => {
       let findManyWhere: any = null;
 
+      (prisma as any).$queryRaw = async () => {
+        throw new Error("UNACCENT_NOT_SUPPORTED");
+      };
+
       (prisma as any).restaurant = {
         findMany: async (args: any) => {
           findManyWhere = args.where;
@@ -1173,6 +1177,8 @@ describe("Restaurants Layer - Issue #33", () => {
         contains: "São Paulo",
         mode: "insensitive",
       });
+
+      delete (prisma as any).$queryRaw;
     });
 
     it("deve retornar estado vazio com metadados corretos quando busca não encontrar registros", async () => {
