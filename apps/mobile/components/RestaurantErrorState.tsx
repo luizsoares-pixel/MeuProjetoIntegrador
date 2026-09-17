@@ -3,14 +3,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { Button } from "./Button";
 import { colors, spacing, typography } from "../theme";
+import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../constants/network";
 
 interface RestaurantErrorStateProps {
-  message?: string | null;
   onRetry: () => void;
 }
 
 export function RestaurantErrorState({
-  message,
   onRetry,
 }: RestaurantErrorStateProps) {
   return (
@@ -25,8 +24,7 @@ export function RestaurantErrorState({
 
       <Text style={styles.title}>Falha ao carregar restaurantes</Text>
       <Text style={styles.description}>
-        {message ||
-          "Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente."}
+        {FRIENDLY_NETWORK_ERROR_MESSAGE}
       </Text>
 
       <View style={styles.buttonWrapper}>

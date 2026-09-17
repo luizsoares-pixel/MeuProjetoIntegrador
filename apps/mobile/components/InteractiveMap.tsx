@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Pressable,
   StyleSheet,
@@ -23,6 +22,7 @@ import { ClusterMarker } from "./ClusterMarker";
 import { Loading } from "./Loading";
 import { RestaurantPinMarker } from "./RestaurantPinMarker";
 import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
+import { RestaurantErrorState } from "./RestaurantErrorState";
 import type { NearbyRestaurant } from "../services/api";
 
 const DEFAULT_REGION = {
@@ -32,7 +32,7 @@ const DEFAULT_REGION = {
   longitudeDelta: 0.08,
 };
 
-const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 /**
  * Distância mínima (em metros) que o usuário precisa se deslocar entre
@@ -134,7 +134,6 @@ export default function InteractiveMap() {
     isLoading: isLoadingRestaurants,
     isError: isRestaurantError,
     isEmpty: isRestaurantEmpty,
-    errorMessage: restaurantErrorMessage,
     refetch: refetchRestaurants,
   } = useNearbyRestaurants({
     lat: userLocation?.latitude ?? null,
@@ -147,8 +146,8 @@ export default function InteractiveMap() {
 
   // ── Issue #35: Clustering de pins ───────────────────────────────────────────
   const mockRestaurants = useMockRestaurants(
-    userLocation?.latitude ?? null,
-    userLocation?.longitude ?? null,
+    userLocation?.latitude ?? DEFAULT_REGION.latitude,
+    userLocation?.longitude ?? DEFAULT_REGION.longitude,
     80
   );
   const allRestaurants = useMocks ? mockRestaurants : restaurants;
@@ -253,13 +252,9 @@ export default function InteractiveMap() {
       setLocationState("granted");
       setLocationReady(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown";
+      console.warn("Não foi possível obter a localização:", error);
       setLocationState("unavailable");
       setLocationReady(true);
-      Alert.alert(
-        "Localização indisponível",
-        `Não foi possível acessar sua localização no momento. ${message}`,
-      );
     }
   }, []);
 
@@ -299,6 +294,7 @@ export default function InteractiveMap() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
+        mapType="standard"
         showsUserLocation={locationEnabled}
         showsMyLocationButton={false}
         showsCompass={false}
@@ -463,7 +459,7 @@ export default function InteractiveMap() {
       ) : null}
 
       {/* Issue #37: Banners padronizados de estado dos restaurantes */}
-      {mapReady && !isLoading ? (
+      {!isLoading || isRestaurantError ? (
         <>
           {isLoadingRestaurants ? (
             <View style={styles.restaurantLoadingBanner}>
@@ -475,23 +471,8 @@ export default function InteractiveMap() {
           ) : null}
 
           {isRestaurantError && !isLoadingRestaurants ? (
-            <View style={styles.restaurantErrorBanner}>
-              <MaterialCommunityIcons
-                name="wifi-off"
-                size={18}
-                color={colors.accent.white}
-              />
-              <Text style={styles.restaurantErrorText} numberOfLines={2}>
-                {restaurantErrorMessage ?? "Não foi possível carregar os restaurantes."}
-              </Text>
-              <Pressable
-                onPress={refetchRestaurants}
-                style={styles.retryButton}
-                accessibilityRole="button"
-                accessibilityLabel="Tentar novamente"
-              >
-                <Text style={styles.retryButtonText}>Tentar novamente</Text>
-              </Pressable>
+            <View style={styles.restaurantErrorOverlay}>
+              <RestaurantErrorState onRetry={refetchRestaurants} />
             </View>
           ) : null}
 
@@ -849,34 +830,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
   },
-  restaurantErrorBanner: {
+  restaurantErrorOverlay: {
     position: "absolute",
     bottom: 88,
     left: 16,
     right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    maxHeight: 330,
     borderRadius: 12,
-    backgroundColor: colors.accent.red,
-  },
-  restaurantErrorText: {
-    color: colors.accent.white,
-    fontSize: 12,
-    flex: 1,
-  },
-  retryButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.accent.white,
-  },
-  retryButtonText: {
-    color: colors.accent.red,
-    fontSize: 11,
-    fontWeight: "700",
+    backgroundColor: "rgba(47, 0, 0, 0.92)",
   },
   restaurantEmptyBanner: {
     position: "absolute",

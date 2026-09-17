@@ -83,7 +83,6 @@ export default function HomeTab() {
     isError,
     isEmpty,
     isSearching,
-    errorMessage,
     hasMore,
     refresh,
     loadMore,
@@ -253,10 +252,7 @@ export default function HomeTab() {
 
     if (isError) {
       return (
-        <RestaurantErrorState
-          message={errorMessage}
-          onRetry={retry}
-        />
+        <RestaurantErrorState onRetry={retry} />
       );
     }
 
@@ -281,7 +277,6 @@ export default function HomeTab() {
     isSearching,
     searchText,
     selectedCuisine,
-    errorMessage,
     retry,
     handleClearFilters,
     refresh,

@@ -30,6 +30,8 @@ import {
 } from "../../services/osrm";
 import { useRouteCalculation } from "../../hooks/useRouteCalculation";
 import { colors, spacing, typography } from "../../theme";
+import { RestaurantErrorState } from "../../components/RestaurantErrorState";
+import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../../constants/network";
 
 // ── Importação condicional do react-native-maps para não quebrar a versão Web ──
 let MapView: any = null;
@@ -104,6 +106,7 @@ export default function RestaurantDetailsScreen() {
   const [isLoadingRestaurant, setIsLoadingRestaurant] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string | null>(null);
   const [is404, setIs404] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   const [userCoords, setUserCoords] = useState<{
@@ -135,9 +138,8 @@ export default function RestaurantDetailsScreen() {
             setIs404(true);
             setRestaurantError("Restaurante não encontrado.");
           } else {
-            setRestaurantError(
-              msg || "Não foi possível carregar os detalhes do restaurante."
-            );
+            console.warn("Erro ao carregar detalhes do restaurante:", err);
+            setRestaurantError(FRIENDLY_NETWORK_ERROR_MESSAGE);
           }
         }
       } finally {
@@ -149,7 +151,11 @@ export default function RestaurantDetailsScreen() {
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, loadAttempt]);
+
+  const retryLoadRestaurant = useCallback(() => {
+    setLoadAttempt((attempt) => attempt + 1);
+  }, []);
 
   // ── Geolocalização do usuário para cálculo de rota (HU9) ──────────────────
   const checkUserLocation = useCallback(async () => {
@@ -325,20 +331,7 @@ export default function RestaurantDetailsScreen() {
   }
 
   if (restaurantError || !restaurant) {
-    return (
-      <View style={[styles.centerContainer, { paddingTop: insets.top }]}>
-        <MaterialCommunityIcons
-          name="alert-circle-outline"
-          size={56}
-          color={colors.accent.redSoft}
-        />
-        <Text style={styles.errorTitle}>Ops! Algo deu errado</Text>
-        <Text style={styles.errorMessage}>{restaurantError}</Text>
-        <TouchableOpacity style={styles.backButtonCenter} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Voltar</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return <RestaurantErrorState onRetry={retryLoadRestaurant} />;
   }
 
   const currentDay = getBusinessHoursCurrentDay();

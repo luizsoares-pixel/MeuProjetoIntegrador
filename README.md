@@ -99,6 +99,19 @@ npm run build:contracts
 npm run dev
 ```
 
+### Configurar a URL da API no Mobile
+Copie `apps/mobile/.env.example` para `apps/mobile/.env` e configure `EXPO_PUBLIC_API_URL` de acordo com o dispositivo:
+
+```env
+# Emulador Android acessando a API no mesmo computador
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3333
+
+# Celular físico na mesma rede do backend: use o IP local da sua máquina
+# EXPO_PUBLIC_API_URL=http://192.168.0.10:3333
+```
+
+Para testes fora da rede local, use a URL de um túnel, como ngrok, ou de um backend de staging. Reinicie o Expo depois de alterar o arquivo `.env`.
+
 ### 4. Bateria Completa de Verificação (CI Local)
 ```powershell
 # Executa compilação dos contratos, linter da API, testes unitários e linter mobile

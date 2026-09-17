@@ -3,6 +3,7 @@ import {
   fetchNearbyRestaurants,
   NearbyRestaurant,
 } from "../services/api";
+import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../constants/network";
 
 type NearbyRestaurantsState =
   | { status: "idle" }
@@ -80,12 +81,9 @@ export function useNearbyRestaurants({
       } catch (error) {
         if (cancelled || !mountedRef.current) return;
 
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Erro desconhecido ao buscar restaurantes.";
+        console.warn("Erro ao buscar restaurantes próximos:", error);
 
-        setState({ status: "error", message });
+        setState({ status: "error", message: FRIENDLY_NETWORK_ERROR_MESSAGE });
       }
     }
 

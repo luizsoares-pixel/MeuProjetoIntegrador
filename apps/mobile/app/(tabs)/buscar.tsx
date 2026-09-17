@@ -83,7 +83,6 @@ export default function BuscarTab() {
     isError,
     isEmpty,
     isSearching,
-    errorMessage,
     hasMore,
     refresh,
     loadMore,
@@ -264,10 +263,7 @@ export default function BuscarTab() {
 
     if (isError) {
       return (
-        <RestaurantErrorState
-          message={errorMessage}
-          onRetry={retry}
-        />
+        <RestaurantErrorState onRetry={retry} />
       );
     }
 
@@ -294,7 +290,6 @@ export default function BuscarTab() {
     searchText,
     selectedCuisine,
     cityText,
-    errorMessage,
     retry,
     handleClearFilters,
     refresh,
