@@ -33,22 +33,7 @@ import { colors, spacing, typography } from "../../theme";
 import { RestaurantErrorState } from "../../components/RestaurantErrorState";
 import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../../constants/network";
 
-// ── Importação condicional do react-native-maps para não quebrar a versão Web ──
-let MapView: any = null;
-let Marker: any = null;
-let Polyline: any = null;
-let UrlTile: any = null;
-
-if (Platform.OS !== "web") {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const Maps = require("react-native-maps");
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  Polyline = Maps.Polyline;
-  UrlTile = Maps.UrlTile;
-}
-
-const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
+import { LeafletMap } from "../../components/LeafletMap";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -825,101 +810,32 @@ export default function RestaurantDetailsScreen() {
               ) : null}
 
               {/* Mini Mapa com Polyline e Localização do Restaurante */}
-              {Platform.OS !== "web" && MapView && route ? (
+              {Platform.OS !== "web" ? (
                 <View style={styles.mapContainer}>
-                  <MapView
+                  <LeafletMap
                     style={styles.miniMap}
-                    initialRegion={{
-                      latitude: (userCoords.latitude + restaurant.latitude) / 2,
-                      longitude: (userCoords.longitude + restaurant.longitude) / 2,
-                      latitudeDelta:
-                        Math.max(
-                          Math.abs(userCoords.latitude - restaurant.latitude) * 1.5,
-                          0.02
-                        ),
-                      longitudeDelta:
-                        Math.max(
-                          Math.abs(userCoords.longitude - restaurant.longitude) * 1.5,
-                          0.02
-                        ),
+                    initialCenter={{
+                      latitude: userCoords
+                        ? (userCoords.latitude + restaurant.latitude) / 2
+                        : restaurant.latitude,
+                      longitude: userCoords
+                        ? (userCoords.longitude + restaurant.longitude) / 2
+                        : restaurant.longitude,
                     }}
-                    showsCompass={false}
-                    showsScale={false}
-                    rotateEnabled={false}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
-                  >
-                    <UrlTile urlTemplate={TILE_URL} maximumZ={19} flipY={false} />
-
-                    {/* Marcador do Usuário */}
-                    <Marker coordinate={userCoords} title="Você está aqui">
-                      <View style={styles.userPin}>
-                        <View style={styles.userPinInner} />
-                      </View>
-                    </Marker>
-
-                    {/* Marcador do Restaurante */}
-                    <Marker
-                      coordinate={{
+                    initialZoom={route ? 13 : 15}
+                    interactive={false}
+                    userLocation={userCoords}
+                    restaurants={[
+                      {
+                        id: restaurant.id,
+                        name: restaurant.name,
                         latitude: restaurant.latitude,
                         longitude: restaurant.longitude,
-                      }}
-                      title={restaurant.name}
-                    >
-                      <View style={styles.restaurantPin}>
-                        <MaterialCommunityIcons
-                          name="silverware-fork-knife"
-                          size={16}
-                          color={colors.background.primary}
-                        />
-                      </View>
-                    </Marker>
-
-                    {/* Polyline da rota */}
-                    {route.polylineCoordinates.length > 0 ? (
-                      <Polyline
-                        coordinates={route.polylineCoordinates}
-                        strokeColor={colors.accent.gold}
-                        strokeWidth={4}
-                        lineDashPattern={route.isFallback ? [8, 6] : undefined}
-                      />
-                    ) : null}
-                  </MapView>
-                </View>
-              ) : Platform.OS !== "web" && MapView && !route ? (
-                // Mapa simples com apenas o marcador do restaurante (sem rota)
-                <View style={styles.mapContainer}>
-                  <MapView
-                    style={styles.miniMap}
-                    initialRegion={{
-                      latitude: restaurant.latitude,
-                      longitude: restaurant.longitude,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    }}
-                    showsCompass={false}
-                    showsScale={false}
-                    rotateEnabled={false}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
-                  >
-                    <UrlTile urlTemplate={TILE_URL} maximumZ={19} flipY={false} />
-                    <Marker
-                      coordinate={{
-                        latitude: restaurant.latitude,
-                        longitude: restaurant.longitude,
-                      }}
-                      title={restaurant.name}
-                    >
-                      <View style={styles.restaurantPin}>
-                        <MaterialCommunityIcons
-                          name="silverware-fork-knife"
-                          size={16}
-                          color={colors.background.primary}
-                        />
-                      </View>
-                    </Marker>
-                  </MapView>
+                        cuisine: restaurant.cuisine,
+                      },
+                    ]}
+                    routeCoordinates={route?.polylineCoordinates}
+                  />
                 </View>
               ) : null}
 

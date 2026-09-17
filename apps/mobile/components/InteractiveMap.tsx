@@ -11,16 +11,13 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Location from "expo-location";
-import MapView, { Marker, Polyline, UrlTile } from "react-native-maps";
 import { colors } from "../theme";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
-import { useMapClusters, isCluster } from "../hooks/useMapClusters";
 import { useMockRestaurants } from "../hooks/useMockRestaurants";
 import { useRouteCalculation } from "../hooks/useRouteCalculation";
 import { formatRouteDistance, formatRouteDuration } from "../services/osrm";
-import { ClusterMarker } from "./ClusterMarker";
+import { LeafletMap, type LeafletMapRef } from "./LeafletMap";
 import { Loading } from "./Loading";
-import { RestaurantPinMarker } from "./RestaurantPinMarker";
 import { RestaurantPreviewCard } from "./RestaurantPreviewCard";
 import { RestaurantErrorState } from "./RestaurantErrorState";
 import type { NearbyRestaurant } from "../services/api";
@@ -31,8 +28,6 @@ const DEFAULT_REGION = {
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
-
-const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 
 /**
  * Distância mínima (em metros) que o usuário precisa se deslocar entre
@@ -48,8 +43,10 @@ const MIN_LOCATION_UPDATE_METERS = 100;
  * Mesma implementação do backend (restaurant.service.ts) — mantém consistência.
  */
 function haversineDistance(
-  lat1: number, lng1: number,
-  lat2: number, lng2: number,
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
 ): number {
   const R = 6_371_000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -64,8 +61,7 @@ function haversineDistance(
 type LocationState = "loading" | "granted" | "denied" | "gps-off" | "unavailable";
 
 export default function InteractiveMap() {
-  const mapRef = useRef<MapView>(null);
-  const [region, setRegion] = useState(DEFAULT_REGION);
+  const mapRef = useRef<LeafletMapRef>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -79,10 +75,14 @@ export default function InteractiveMap() {
   const locationEnabled = locationState === "granted" && !!userLocation;
   const isLoading = !locationReady || (!tilesReady && !mapError) || (!mapReady && !mapError);
   const showLocationFallback =
-    locationReady && (locationState === "denied" || locationState === "gps-off" || locationState === "unavailable");
+    locationReady &&
+    (locationState === "denied" ||
+      locationState === "gps-off" ||
+      locationState === "unavailable");
 
   // ── Issue #34: Restaurantes próximos ────────────────────────────────────────
-  const [selectedRestaurant, setSelectedRestaurant] = useState<NearbyRestaurant | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<NearbyRestaurant | null>(null);
 
   // ── Issue #54 (HU9): Cálculo de rota ativa no mapa ─────────────────────────
   const [activeRouteRestaurant, setActiveRouteRestaurant] =
@@ -105,27 +105,7 @@ export default function InteractiveMap() {
     enabled: Boolean(activeRouteRestaurant && userLocation),
   });
 
-  useEffect(() => {
-    if (activeRoute && userLocation && activeRouteRestaurant) {
-      mapRef.current?.fitToCoordinates(
-        [
-          userLocation,
-          {
-            latitude: activeRouteRestaurant.latitude,
-            longitude: activeRouteRestaurant.longitude,
-          },
-        ],
-        {
-          edgePadding: { top: 120, right: 60, bottom: 240, left: 60 },
-          animated: true,
-        }
-      );
-    }
-  }, [activeRoute, userLocation, activeRouteRestaurant]);
-
   // ── Issue #34 & #35: Controle de dados reais vs. mocks para validação ───────
-  // Por padrão em desenvolvimento (__DEV__), consome a API local real.
-  // Mocks de estresse (80 pontos) só são ativados sob demanda via flag explícita no .env.
   const useMocks =
     __DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true";
 
@@ -142,43 +122,15 @@ export default function InteractiveMap() {
     lat: targetLat,
     lng: targetLng,
     radius: 10000,
-    // Ativa busca de restaurantes reais se não estiver em modo de mocks de estresse
     enabled: !useMocks,
   });
-  // ────────────────────────────────────────────────────────────────────────────
 
-  // ── Issue #35: Clustering de pins ───────────────────────────────────────────
   const mockRestaurants = useMockRestaurants(
     userLocation?.latitude ?? DEFAULT_REGION.latitude,
     userLocation?.longitude ?? DEFAULT_REGION.longitude,
     80
   );
   const allRestaurants = useMocks ? mockRestaurants : restaurants;
-
-  const { clusters, expandCluster } = useMapClusters(allRestaurants, region);
-
-  /**
-   * Ao tocar num cluster, anima o mapa para o zoom de expansão calculado
-   * pelo supercluster — revela os pins individuais daquela região.
-   * Converte nível de zoom tile → latitudeDelta (inverso de regionToZoom).
-   */
-  function handleClusterPress(
-    clusterId: number,
-    clusterCoordinate: { latitude: number; longitude: number }
-  ) {
-    const expansionZoom = expandCluster(clusterId);
-    const delta = 360 / Math.pow(2, expansionZoom);
-    mapRef.current?.animateToRegion(
-      {
-        latitude:        clusterCoordinate.latitude,
-        longitude:       clusterCoordinate.longitude,
-        latitudeDelta:   delta,
-        longitudeDelta:  delta,
-      },
-      400
-    );
-  }
-  // ────────────────────────────────────────────────────────────────────────────
 
   const openLocationSettings = useCallback(async () => {
     const canOpen = await Linking.canOpenURL("app-settings:");
@@ -192,14 +144,7 @@ export default function InteractiveMap() {
 
   const centerOnUser = useCallback(() => {
     if (!userLocation) return;
-
-    const nextRegion = {
-      ...DEFAULT_REGION,
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-    };
-
-    mapRef.current?.animateToRegion(nextRegion, 500);
+    mapRef.current?.centerOn(userLocation.latitude, userLocation.longitude, 15);
   }, [userLocation]);
 
   const loadLocation = useCallback(async () => {
@@ -227,10 +172,6 @@ export default function InteractiveMap() {
           longitude: cached.coords.longitude,
         };
         setUserLocation(cachedCoord);
-        setRegion((currentRegion) => ({
-          ...currentRegion,
-          ...cachedCoord,
-        }));
         setLocationState("granted");
         setLocationReady(true);
       }
@@ -257,30 +198,21 @@ export default function InteractiveMap() {
         longitude: currentLocation.coords.longitude,
       };
 
-      // Evita chamadas redundantes à API quando o GPS retorna coordenadas
-      // praticamente idênticas entre focagens (ruído de precisão < 100 m).
-      // Na primeira carga (userLocationRef.current === null) sempre prossegue.
       setUserLocation((prevLocation) => {
         if (prevLocation !== null) {
           const moved = haversineDistance(
             prevLocation.latitude,
             prevLocation.longitude,
             nextUserLocation.latitude,
-            nextUserLocation.longitude,
+            nextUserLocation.longitude
           );
           if (moved < MIN_LOCATION_UPDATE_METERS) {
-            // Sem deslocamento significativo: mantém a localização anterior
-            // e não dispara nova requisição de restaurantes.
             return prevLocation;
           }
         }
         return nextUserLocation;
       });
 
-      setRegion((currentRegion) => ({
-        ...currentRegion,
-        ...nextUserLocation,
-      }));
       setLocationState("granted");
       setLocationReady(true);
     } catch (error) {
@@ -290,112 +222,68 @@ export default function InteractiveMap() {
     }
   }, []);
 
-
   useEffect(() => {
     loadLocation();
     refetchRestaurants();
   }, [loadLocation, refetchRestaurants]);
 
   useEffect(() => {
-    setTilesReady(true);
-  }, []);
-
-  useEffect(() => {
     if (mapReady) return;
-
     const timeout = setTimeout(() => {
-      // Se onMapReady demorar, destrava o overlay para não bloquear a interface
       setMapReady(true);
-    }, 3000);
+      setTilesReady(true);
+    }, 3500);
     return () => clearTimeout(timeout);
   }, [mapReady]);
 
   useEffect(() => {
     if (mapReady && locationEnabled && userLocation) {
-      mapRef.current?.animateToRegion(
-        {
-          ...DEFAULT_REGION,
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-        },
-        700,
-      );
+      mapRef.current?.centerOn(userLocation.latitude, userLocation.longitude, 14);
     }
   }, [mapReady, locationEnabled, userLocation]);
 
   return (
     <View style={styles.container}>
-      <MapView
+      <LeafletMap
         ref={mapRef}
         style={styles.map}
-        initialRegion={region}
-        showsUserLocation={locationEnabled}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        showsScale={false}
-        rotateEnabled={false}
-        onMapReady={() => setMapReady(true)}
-        onRegionChangeComplete={(newRegion) => setRegion(newRegion)}
-        accessibilityLabel="Mapa de restaurantes próximos"
-      >
-        <UrlTile
-          urlTemplate={TILE_URL}
-          maximumZ={19}
-          flipY={false}
-          zIndex={1}
-        />
-
-        {userLocation ? (
-          <Marker coordinate={userLocation} tracksViewChanges={false}>
-            <View style={styles.userMarkerContainer}>
-              <View style={styles.userMarkerOuterRing}>
-                <View style={styles.userMarkerInnerDot} />
-              </View>
-            </View>
-          </Marker>
-        ) : null}
-
-        {/* Issue #35: Clusterização de pins próximos */}
-        {clusters.map((cluster) => {
-          const [longitude, latitude] = cluster.geometry.coordinates;
-          const coordinate = { latitude, longitude };
-
-          if (isCluster(cluster)) {
-            return (
-              <ClusterMarker
-                key={`cluster-${cluster.id}`}
-                id={cluster.id}
-                coordinate={coordinate}
-                count={cluster.properties.point_count}
-                onPress={() => handleClusterPress(cluster.id, coordinate)}
-              />
-            );
+        initialCenter={{
+          latitude: DEFAULT_REGION.latitude,
+          longitude: DEFAULT_REGION.longitude,
+        }}
+        initialZoom={13}
+        userLocation={userLocation}
+        restaurants={allRestaurants}
+        routeCoordinates={activeRoute?.polylineCoordinates}
+        interactive={true}
+        onMarkerSelect={(id) => {
+          const rest = allRestaurants.find((r) => r.id === id);
+          if (rest) {
+            setSelectedRestaurant(rest);
           }
-
-          const restaurant = cluster.properties.restaurant;
-          return (
-            <RestaurantPinMarker
-              key={restaurant.id}
-              restaurant={restaurant}
-              onPress={setSelectedRestaurant}
-            />
-          );
-        })}
-
-        {/* Issue #54 (HU9): Traçado da rota ativa */}
-        {activeRoute && activeRoute.polylineCoordinates.length > 0 ? (
-          <Polyline
-            coordinates={activeRoute.polylineCoordinates}
-            strokeColor={colors.accent.gold}
-            strokeWidth={4}
-          />
-        ) : null}
-      </MapView>
+        }}
+        onMapTap={() => {
+          if (!activeRouteRestaurant) {
+            setSelectedRestaurant(null);
+          }
+        }}
+        onReady={() => {
+          setMapReady(true);
+          setTilesReady(true);
+        }}
+        onError={() => {
+          setMapError(true);
+        }}
+      />
 
       <View style={styles.topBar}>
         <View style={styles.titleRow}>
           <View style={styles.titleIcon}>
-            <MaterialCommunityIcons name="map-marker-radius" size={22} color={colors.accent.gold} />
+            <MaterialCommunityIcons
+              name="map-marker-radius"
+              size={22}
+              color={colors.accent.gold}
+            />
           </View>
           <View>
             <Text style={styles.eyebrow}>EXPLORAR</Text>
@@ -403,8 +291,12 @@ export default function InteractiveMap() {
           </View>
         </View>
         <View style={styles.statusPill}>
-          <View style={[styles.statusDot, locationEnabled && styles.statusDotActive]} />
-          <Text style={styles.statusLabel}>{locationEnabled ? "Sua região" : "Região padrão"}</Text>
+          <View
+            style={[styles.statusDot, locationEnabled && styles.statusDotActive]}
+          />
+          <Text style={styles.statusLabel}>
+            {locationEnabled ? "Sua região" : "Região padrão"}
+          </Text>
         </View>
       </View>
 
@@ -439,20 +331,26 @@ export default function InteractiveMap() {
           <MaterialCommunityIcons
             name="crosshairs-gps"
             size={24}
-            color={locationEnabled ? colors.background.primary : colors.accent.whiteLight}
+            color={
+              locationEnabled
+                ? colors.background.primary
+                : colors.accent.whiteLight
+            }
           />
         </Pressable>
       </View>
 
       <View style={styles.attribution}>
-        <Text style={styles.attributionText}>© OpenStreetMap contributors</Text>
+        <Text style={styles.attributionText}>© OpenStreetMap & CARTO</Text>
       </View>
 
       {isLoading ? (
         <View style={styles.loadingOverlay}>
           <Loading size="large" color={colors.accent.gold} />
           <Text style={styles.statusText}>
-            {!locationReady ? "Obtendo sua localização..." : "Carregando mapa..."}
+            {!locationReady
+              ? "Obtendo sua localização..."
+              : "Carregando mapa..."}
           </Text>
         </View>
       ) : null}
@@ -553,7 +451,11 @@ export default function InteractiveMap() {
               accessibilityRole="button"
               accessibilityLabel="Fechar rota"
             >
-              <MaterialCommunityIcons name="close" size={18} color={colors.accent.white} />
+              <MaterialCommunityIcons
+                name="close"
+                size={18}
+                color={colors.accent.white}
+              />
             </Pressable>
           </View>
 
@@ -571,7 +473,11 @@ export default function InteractiveMap() {
               <MaterialCommunityIcons
                 name="car"
                 size={16}
-                color={routeProfile === "driving" ? colors.background.primary : colors.accent.goldMuted}
+                color={
+                  routeProfile === "driving"
+                    ? colors.background.primary
+                    : colors.accent.goldMuted
+                }
               />
               <Text
                 style={[
@@ -595,7 +501,11 @@ export default function InteractiveMap() {
               <MaterialCommunityIcons
                 name="walk"
                 size={16}
-                color={routeProfile === "walking" ? colors.background.primary : colors.accent.goldMuted}
+                color={
+                  routeProfile === "walking"
+                    ? colors.background.primary
+                    : colors.accent.goldMuted
+                }
               />
               <Text
                 style={[
@@ -612,19 +522,29 @@ export default function InteractiveMap() {
           {isCalculatingActiveRoute ? (
             <View style={styles.activeRouteLoading}>
               <ActivityIndicator size="small" color={colors.accent.gold} />
-              <Text style={styles.activeRouteLoadingText}>Calculando trajeto via OSRM...</Text>
+              <Text style={styles.activeRouteLoadingText}>
+                Calculando trajeto via OSRM...
+              </Text>
             </View>
           ) : activeRoute ? (
             <View style={styles.activeRouteStatsRow}>
               <View style={styles.activeRouteStat}>
-                <MaterialCommunityIcons name="clock-outline" size={16} color={colors.accent.gold} />
+                <MaterialCommunityIcons
+                  name="clock-outline"
+                  size={16}
+                  color={colors.accent.gold}
+                />
                 <Text style={styles.activeRouteStatValue}>
                   {formatRouteDuration(activeRoute.durationInSeconds)}
                 </Text>
               </View>
 
               <View style={styles.activeRouteStat}>
-                <MaterialCommunityIcons name="map-marker-distance" size={16} color={colors.accent.gold} />
+                <MaterialCommunityIcons
+                  name="map-marker-distance"
+                  size={16}
+                  color={colors.accent.gold}
+                />
                 <Text style={styles.activeRouteStatValue}>
                   {formatRouteDistance(activeRoute.distanceInMeters)}
                 </Text>
@@ -632,12 +552,18 @@ export default function InteractiveMap() {
 
               <TouchableOpacity
                 style={styles.activeRouteDetailsBtn}
-                onPress={() => router.push(`/restaurante/${activeRouteRestaurant.id}`)}
+                onPress={() =>
+                  router.push(`/restaurante/${activeRouteRestaurant.id}`)
+                }
                 accessibilityRole="button"
                 accessibilityLabel="Ver página do restaurante"
               >
                 <Text style={styles.activeRouteDetailsBtnText}>Detalhes</Text>
-                <MaterialCommunityIcons name="chevron-right" size={16} color={colors.background.primary} />
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={16}
+                  color={colors.background.primary}
+                />
               </TouchableOpacity>
             </View>
           ) : null}
@@ -660,30 +586,6 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
-  },
-  userMarkerContainer: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  userMarkerOuterRing: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(33, 150, 243, 0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(33, 150, 243, 0.75)",
-  },
-  userMarkerInnerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.accent.gold,
-    borderWidth: 2,
-    borderColor: colors.accent.white,
   },
   topBar: {
     position: "absolute",
@@ -775,6 +677,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
     backgroundColor: "rgba(255, 255, 255, 0.78)",
+    borderRadius: 4,
   },
   attributionText: {
     color: colors.accent.textDark,
@@ -1017,4 +920,3 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 });
-
