@@ -2,6 +2,7 @@ import {
   createRestaurantSchema,
   listRestaurantsQuerySchema,
   nearbyRestaurantsSchema,
+  restaurantRouteQuerySchema,
   updateRestaurantProfileSchema,
 } from "@menu-digital/contracts";
 import { Router } from "express";
@@ -61,6 +62,16 @@ restaurantRouter.post(
   validateRequest(createRestaurantSchema),
   (req, res, next) => {
     restaurantController.create(req, res, next);
+  }
+);
+
+// GET /restaurants/:id/route?lat=&lng=&profile=
+// Calcula a rota e tempo estimado entre a localização informada e o restaurante (HU9).
+restaurantRouter.get(
+  "/:id/route",
+  validateQuery(restaurantRouteQuerySchema),
+  (req, res, next) => {
+    restaurantController.getRoute(req, res, next);
   }
 );
 

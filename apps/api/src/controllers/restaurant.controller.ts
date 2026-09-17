@@ -3,8 +3,10 @@ import {
   CreateRestaurantInput,
   ListRestaurantsQuery,
   NearbyRestaurantsQuery,
+  RestaurantRouteQuery,
 } from "@menu-digital/contracts";
 import { restaurantService } from "../services/restaurant.service";
+import { routeService } from "../services/route.service";
 
 export class RestaurantController {
   /**
@@ -123,6 +125,28 @@ export class RestaurantController {
       }
 
       return response.status(200).json({ restaurant });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  /**
+   * GET /restaurants/:id/route?lat=&lng=&profile=
+   * Calcula a rota e tempo estimado entre a posição do usuário e o restaurante (HU9).
+   */
+  async getRoute(request: Request, response: Response, next: NextFunction) {
+    try {
+      const id = String(request.params.id);
+      const query = (request as any).parsedQuery as RestaurantRouteQuery;
+      const result = await routeService.calculateRestaurantRoute(id, query);
+
+      if (!result) {
+        return response
+          .status(404)
+          .json({ error: "Restaurante não encontrado." });
+      }
+
+      return response.status(200).json(result);
     } catch (error) {
       return next(error);
     }
