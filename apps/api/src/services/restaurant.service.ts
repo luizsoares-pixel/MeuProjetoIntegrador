@@ -514,7 +514,9 @@ export class RestaurantService {
         },
       });
 
-      let filtered = candidates;
+      let filtered: Array<
+        (typeof candidates)[number] & { distanceInMeters?: number }
+      > = candidates;
 
       if (query.lat !== undefined && query.lng !== undefined) {
         filtered = filtered.map((r) => ({
