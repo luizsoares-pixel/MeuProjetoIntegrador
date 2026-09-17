@@ -16,9 +16,32 @@ import type {
   RouteProfile,
   UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
 
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
+
+  // No navegador web, 10.0.2.2 não é roteável; usa localhost se não houver outra URL explícita
+  if (Platform.OS === "web") {
+    if (envUrl && !envUrl.includes("10.0.2.2")) {
+      return envUrl.replace(/\/$/, "");
+    }
+    return "http://localhost:3333";
+  }
+
+  // Em celular físico via Expo Go, extrai dinamicamente o IP da máquina de desenvolvimento
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const hostIp = hostUri.split(":")[0];
+    if (hostIp && hostIp !== "localhost" && hostIp !== "127.0.0.1") {
+      // Se a env aponta para o alias de emulador (10.0.2.2) mas o app roda em celular físico:
+      if (!envUrl || envUrl.includes("10.0.2.2") || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+        return `http://${hostIp}:3333`;
+      }
+    }
+  }
+
   if (!envUrl) {
     throw new Error("EXPO_PUBLIC_API_URL não está configurada.");
   }

@@ -216,9 +216,38 @@ export default function InteractiveMap() {
         return;
       }
 
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+      // 1. Tenta recuperar a última posição conhecida instantaneamente
+      const cached = await Location.getLastKnownPositionAsync({});
+      if (cached) {
+        const cachedCoord = {
+          latitude: cached.coords.latitude,
+          longitude: cached.coords.longitude,
+        };
+        setUserLocation(cachedCoord);
+        setRegion((currentRegion) => ({
+          ...currentRegion,
+          ...cachedCoord,
+        }));
+        setLocationState("granted");
+        setLocationReady(true);
+      }
+
+      // 2. Busca posição atual com precisão balanceada e timeout de 4 segundos
+      const currentPositionPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
       });
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 4000)
+      );
+
+      const currentLocation =
+        (await Promise.race([currentPositionPromise, timeoutPromise])) || cached;
+
+      if (!currentLocation) {
+        setLocationState("granted");
+        setLocationReady(true);
+        return;
+      }
 
       const nextUserLocation = {
         latitude: currentLocation.coords.latitude,
