@@ -1711,7 +1711,7 @@ describe("Restaurants Layer - Issue #33", () => {
         { id: "near", distanceInMeters: 300, createdAt: new Date() },
         { id: "mid", distanceInMeters: 1200, createdAt: new Date() },
       ];
-      const result = sortRestaurants(list as any, "distance");
+      const result = sortRestaurants<any>(list as any, "distance");
       assert.deepStrictEqual(
         result.map((r) => r.id),
         ["near", "mid", "far"]
@@ -1725,7 +1725,7 @@ describe("Restaurants Layer - Issue #33", () => {
         { id: "top", rating: 4.9, createdAt: new Date() },
         { id: "low", rating: 2.1, createdAt: new Date() },
       ];
-      const result = sortRestaurants(list as any, "rating");
+      const result = sortRestaurants<any>(list as any, "rating");
       assert.deepStrictEqual(
         result.map((r) => r.id),
         ["top", "medium", "low", "unrated"]
@@ -1739,7 +1739,7 @@ describe("Restaurants Layer - Issue #33", () => {
         { id: "cheap", priceRange: "$", createdAt: new Date() },
         { id: "moderate", priceRange: "$$", createdAt: new Date() },
       ];
-      const result = sortRestaurants(list as any, "priceAsc");
+      const result = sortRestaurants<any>(list as any, "priceAsc");
       assert.deepStrictEqual(
         result.map((r) => r.id),
         ["cheap", "moderate", "expensive", "unpriced"]
@@ -1753,7 +1753,7 @@ describe("Restaurants Layer - Issue #33", () => {
         { id: "unpriced", priceRange: null, createdAt: new Date() },
         { id: "moderate", priceRange: "$$", createdAt: new Date() },
       ];
-      const result = sortRestaurants(list as any, "priceDesc");
+      const result = sortRestaurants<any>(list as any, "priceDesc");
       assert.deepStrictEqual(
         result.map((r) => r.id),
         ["expensive", "moderate", "cheap", "unpriced"]
@@ -1771,7 +1771,7 @@ describe("Restaurants Layer - Issue #33", () => {
         rating: 4.0,
         createdAt: new Date("2026-01-02T10:00:00Z"),
       };
-      const result = sortRestaurants([older, newer] as any, "rating");
+      const result = sortRestaurants<any>([older, newer] as any, "rating");
       assert.strictEqual(result[0].id, "newer");
       assert.strictEqual(result[1].id, "older");
     });

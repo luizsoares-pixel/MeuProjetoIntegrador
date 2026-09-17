@@ -13,7 +13,8 @@
     "lint:api": "npm run lint -w apps/api",
     "test:api": "npm run test -w apps/api",
     "lint:mobile": "npm run lint -w apps/mobile",
-    "verify": "npm run build:contracts && npm run lint:api && npm run test:api && npm run lint:mobile"
+    "verify": "npm run build:contracts && npm run lint:api && npm run test:api && npm run lint:mobile",
+    "ai:verify": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-ai-toolchain.ps1"
   },
   "devDependencies": {
     "@prisma/engines": "^7.10.0",
