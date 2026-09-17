@@ -48,7 +48,7 @@ if (Platform.OS !== "web") {
   UrlTile = Maps.UrlTile;
 }
 
-const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────

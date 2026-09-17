@@ -26,13 +26,13 @@ import { RestaurantErrorState } from "./RestaurantErrorState";
 import type { NearbyRestaurant } from "../services/api";
 
 const DEFAULT_REGION = {
-  latitude: -23.55052,
-  longitude: -46.633308,
+  latitude: -15.835,
+  longitude: -48.048,
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
 
-const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_URL = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 
 /**
  * Distância mínima (em metros) que o usuário precisa se deslocar entre
@@ -129,6 +129,9 @@ export default function InteractiveMap() {
   const useMocks =
     __DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true";
 
+  const targetLat = userLocation?.latitude ?? DEFAULT_REGION.latitude;
+  const targetLng = userLocation?.longitude ?? DEFAULT_REGION.longitude;
+
   const {
     restaurants,
     isLoading: isLoadingRestaurants,
@@ -136,11 +139,11 @@ export default function InteractiveMap() {
     isEmpty: isRestaurantEmpty,
     refetch: refetchRestaurants,
   } = useNearbyRestaurants({
-    lat: userLocation?.latitude ?? null,
-    lng: userLocation?.longitude ?? null,
-    radius: 5000,
-    // Se estiver usando mocks de estresse, desativa requisições HTTP redundantes
-    enabled: locationState === "granted" && !useMocks,
+    lat: targetLat,
+    lng: targetLng,
+    radius: 10000,
+    // Ativa busca de restaurantes reais se não estiver em modo de mocks de estresse
+    enabled: !useMocks,
   });
   // ────────────────────────────────────────────────────────────────────────────
 
@@ -300,7 +303,10 @@ export default function InteractiveMap() {
   useEffect(() => {
     if (mapReady) return;
 
-    const timeout = setTimeout(() => setMapError(true), 15000);
+    const timeout = setTimeout(() => {
+      // Se onMapReady demorar, destrava o overlay para não bloquear a interface
+      setMapReady(true);
+    }, 3000);
     return () => clearTimeout(timeout);
   }, [mapReady]);
 
@@ -323,7 +329,6 @@ export default function InteractiveMap() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
-        mapType="standard"
         showsUserLocation={locationEnabled}
         showsMyLocationButton={false}
         showsCompass={false}
@@ -337,6 +342,7 @@ export default function InteractiveMap() {
           urlTemplate={TILE_URL}
           maximumZ={19}
           flipY={false}
+          zIndex={1}
         />
 
         {userLocation ? (
