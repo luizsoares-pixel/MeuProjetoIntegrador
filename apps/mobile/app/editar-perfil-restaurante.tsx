@@ -7,6 +7,7 @@ import {
   updateRestaurantProfileSchema,
 } from "@menu-digital/contracts";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -75,6 +76,7 @@ export default function EditarPerfilRestaurante() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileNotFound, setProfileNotFound] = useState(false);
   const [isLocatingGps, setIsLocatingGps] = useState(false);
+  const [isPickingPhoto, setIsPickingPhoto] = useState(false);
 
   // Estado para adicionar fotos adicionais
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
@@ -219,12 +221,71 @@ export default function EditarPerfilRestaurante() {
     }
   }
 
+  async function handleAddPhotoFromSource(source: "camera" | "library") {
+    try {
+      setIsPickingPhoto(true);
+
+      const permissionResult =
+        source === "camera"
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        setModalTitle("Permissão necessária");
+        setModalMessage(
+          source === "camera"
+            ? "Permita o acesso à câmera para tirar uma foto do restaurante."
+            : "Permita o acesso às fotos para selecionar uma imagem do restaurante."
+        );
+        setModalIsSuccess(false);
+        setModalVisible(true);
+        return;
+      }
+
+      const pickerResult =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+              allowsEditing: true,
+              cameraType: ImagePicker.CameraType.back,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+              allowsEditing: true,
+            });
+
+      if (pickerResult.canceled || !pickerResult.assets?.length) {
+        return;
+      }
+
+      const selectedUri = pickerResult.assets[0].uri;
+      if (!selectedUri) {
+        return;
+      }
+
+      setPhotosList((previous) => [...previous, selectedUri]);
+      setModalTitle("Foto adicionada");
+      setModalMessage("A imagem foi incluída na galeria do restaurante.");
+      setModalIsSuccess(true);
+      setModalVisible(true);
+    } catch {
+      setModalTitle("Erro ao carregar imagem");
+      setModalMessage("Não foi possível acessar a foto selecionada.");
+      setModalIsSuccess(false);
+      setModalVisible(true);
+    } finally {
+      setIsPickingPhoto(false);
+    }
+  }
+
   function handleAddPhoto() {
     const trimmed = newPhotoUrl.trim();
     if (!trimmed) return;
-    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("file://") && !trimmed.startsWith("content://")) {
       setModalTitle("URL inválida");
-      setModalMessage("A URL da foto deve começar com http:// ou https://");
+      setModalMessage("A URL da foto deve começar com http://, https://, file:// ou content://");
       setModalIsSuccess(false);
       setModalVisible(true);
       return;
@@ -830,6 +891,25 @@ export default function EditarPerfilRestaurante() {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.photoActionsRow}>
+              <TouchableOpacity
+                style={[styles.photoActionButton, isPickingPhoto && styles.photoActionButtonDisabled]}
+                onPress={() => handleAddPhotoFromSource("camera")}
+                disabled={isPickingPhoto}
+              >
+                <MaterialCommunityIcons name="camera" size={18} color={colors.background.primary} />
+                <Text style={styles.photoActionText}>Tirar foto</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.photoActionButton, isPickingPhoto && styles.photoActionButtonDisabled]}
+                onPress={() => handleAddPhotoFromSource("library")}
+                disabled={isPickingPhoto}
+              >
+                <MaterialCommunityIcons name="image-multiple" size={18} color={colors.background.primary} />
+                <Text style={styles.photoActionText}>Galeria</Text>
+              </TouchableOpacity>
+            </View>
+
             {photosList.length > 0 ? (
               <View style={styles.photoListContainer}>
                 {photosList.map((url, index) => (
@@ -1182,6 +1262,30 @@ const styles = StyleSheet.create({
     color: colors.background.primary,
     fontSize: typography.size.xs,
     fontWeight: typography.weight.bold,
+  },
+  photoActionsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  photoActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.accent.gold,
+    borderRadius: 10,
+    paddingVertical: spacing.sm,
+  },
+  photoActionButtonDisabled: {
+    opacity: 0.6,
+  },
+  photoActionText: {
+    color: colors.background.primary,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.sm,
   },
   photoListContainer: {
     gap: 4,
