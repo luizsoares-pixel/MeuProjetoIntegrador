@@ -1923,3 +1923,255 @@ describe("Restaurants Layer - Issue #33", () => {
   });
 });
 
+// ── Suite: GET /restaurants/:id — HU10 (Issue #55) ────────────────────────────
+
+describe("Restaurant Details — Issue #55 (HU10)", () => {
+  /**
+   * Restaurante completo com todos os campos ampliados.
+   */
+  const fullRestaurant = {
+    id: "rest-full-001",
+    name: "Restaurante Completo",
+    address: "Av. das Nações, 1000",
+    street: "Av. das Nações",
+    number: "1000",
+    complement: "Bloco A",
+    neighborhood: "Asa Norte",
+    city: "Brasília",
+    state: "DF",
+    postalCode: "70750-900",
+    cuisineType: "Brasileira",
+    imageUrl: "https://example.com/cover.jpg",
+    latitude: -15.7772,
+    longitude: -47.9292,
+    phone: "(61) 99999-1234",
+    cnpj: "12345678000100",
+    description: "O melhor restaurante da cidade.",
+    priceRange: "$$",
+    rating: 4.7,
+    businessHours: {
+      monday: [{ open: "11:00", close: "15:00" }, { open: "18:00", close: "23:00" }],
+      tuesday: [{ open: "11:00", close: "23:00" }],
+      wednesday: [{ open: "11:00", close: "23:00" }],
+      thursday: [{ open: "11:00", close: "23:00" }],
+      friday: [{ open: "11:00", close: "00:00" }],
+      saturday: [{ open: "10:00", close: "00:00" }],
+      sunday: [{ open: "10:00", close: "16:00" }],
+    },
+    paymentMethods: ["PIX", "CREDIT_CARD", "DEBIT_CARD", "CASH", "MEAL_VOUCHER"],
+    socialLinks: {
+      instagram: "@restaurante_completo",
+      facebook: "https://facebook.com/restaurante_completo",
+      website: "https://restaurante-completo.com.br",
+    },
+    photos: [
+      { id: "p1", restaurantId: "rest-full-001", url: "https://example.com/photo1.jpg", order: 0, createdAt: new Date() },
+      { id: "p2", restaurantId: "rest-full-001", url: "https://example.com/photo2.jpg", order: 1, createdAt: new Date() },
+    ],
+    ownerId: "owner-001",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-06-01T00:00:00Z"),
+  };
+
+  /**
+   * Restaurante mínimo: apenas campos obrigatórios, campos opcionais ausentes.
+   */
+  const minimalRestaurant = {
+    id: "rest-minimal-002",
+    name: "Restaurante Mínimo",
+    address: "Rua Genérica, 1",
+    latitude: -15.0,
+    longitude: -47.0,
+    imageUrl: null,
+    phone: null,
+    cnpj: null,
+    description: null,
+    priceRange: null,
+    rating: null,
+    businessHours: null,
+    paymentMethods: [],
+    socialLinks: null,
+    street: null,
+    number: null,
+    complement: null,
+    neighborhood: null,
+    city: null,
+    state: null,
+    postalCode: null,
+    photos: [],
+    cuisineType: null,
+    ownerId: null,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+  };
+
+  describe("RestaurantService.getById — retorna dados completos", () => {
+    it("deve retornar restaurante com todos os campos ampliados (telefone, descrição, horário, pagamento, redes, fotos)", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async ({ where }: any) => {
+          if (where.id === fullRestaurant.id) return fullRestaurant;
+          return null;
+        },
+      };
+
+      const result = await restaurantService.getById(fullRestaurant.id);
+
+      assert.ok(result, "Resultado não deve ser null");
+      assert.strictEqual(result!.id, fullRestaurant.id);
+      assert.strictEqual(result!.name, "Restaurante Completo");
+      assert.strictEqual(result!.phone, "(61) 99999-1234");
+      assert.strictEqual(result!.description, "O melhor restaurante da cidade.");
+      assert.strictEqual(result!.priceRange, "$$");
+      assert.strictEqual(result!.rating, 4.7);
+      assert.ok(result!.businessHours, "businessHours deve estar presente");
+      assert.ok((result!.businessHours as any).monday, "monday deve existir em businessHours");
+      assert.strictEqual(result!.paymentMethods?.length, 5);
+      assert.ok(result!.socialLinks?.instagram, "instagram deve estar presente");
+      assert.ok(result!.socialLinks?.website, "website deve estar presente");
+      assert.strictEqual(result!.photos?.length, 2);
+      assert.strictEqual(result!.photos![0].url, "https://example.com/photo1.jpg");
+      // Endereço estruturado
+      assert.strictEqual(result!.street, "Av. das Nações");
+      assert.strictEqual(result!.number, "1000");
+      assert.strictEqual(result!.neighborhood, "Asa Norte");
+      assert.strictEqual(result!.city, "Brasília");
+      assert.strictEqual(result!.state, "DF");
+      assert.strictEqual(result!.postalCode, "70750-900");
+    });
+
+    it("deve retornar restaurante com campos opcionais nulos sem crash", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async ({ where }: any) => {
+          if (where.id === minimalRestaurant.id) return minimalRestaurant;
+          return null;
+        },
+      };
+
+      const result = await restaurantService.getById(minimalRestaurant.id);
+
+      assert.ok(result, "Resultado não deve ser null para restaurante mínimo");
+      assert.strictEqual(result!.id, minimalRestaurant.id);
+      assert.strictEqual(result!.phone, null);
+      assert.strictEqual(result!.description, null);
+      assert.strictEqual(result!.priceRange, null);
+      assert.strictEqual(result!.rating, null);
+      assert.strictEqual(result!.businessHours, null);
+      assert.deepStrictEqual(result!.paymentMethods, []);
+      assert.strictEqual(result!.socialLinks, null);
+      assert.strictEqual(result!.imageUrl, null);
+      // Fotos devem ser array vazio ou undefined (não crash)
+      const photos = result!.photos;
+      assert.ok(
+        photos === undefined || (Array.isArray(photos) && photos.length === 0),
+        "photos deve ser array vazio ou undefined"
+      );
+    });
+
+    it("deve retornar null para id inexistente", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async () => null,
+      };
+
+      const result = await restaurantService.getById("id-que-nao-existe-99999");
+      assert.strictEqual(result, null);
+    });
+  });
+
+  describe("RestaurantController.getById — resposta HTTP para HU10", () => {
+    it("deve retornar 200 com todos os campos do restaurante completo", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async ({ where }: any) => {
+          if (where.id === fullRestaurant.id) return fullRestaurant;
+          return null;
+        },
+      };
+
+      const req: any = { params: { id: fullRestaurant.id } };
+      let statusCode = 0;
+      let responseBody: any = null;
+      const res: any = {
+        status: (code: number) => {
+          statusCode = code;
+          return res;
+        },
+        json: (body: any) => {
+          responseBody = body;
+          return res;
+        },
+      };
+      const next = (err: any) => { throw err; };
+
+      await restaurantController.getById(req, res, next);
+
+      assert.strictEqual(statusCode, 200);
+      assert.ok(responseBody?.restaurant, "Resposta deve conter 'restaurant'");
+      assert.strictEqual(responseBody.restaurant.id, fullRestaurant.id);
+      assert.ok(responseBody.restaurant.photos, "Fotos devem estar presentes na resposta");
+      assert.ok(responseBody.restaurant.paymentMethods, "paymentMethods deve estar presente");
+    });
+
+    it("deve retornar 404 quando o restaurante não existe", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async () => null,
+      };
+
+      const req: any = { params: { id: "inexistente-000" } };
+      let statusCode = 0;
+      let responseBody: any = null;
+      const res: any = {
+        status: (code: number) => {
+          statusCode = code;
+          return res;
+        },
+        json: (body: any) => {
+          responseBody = body;
+          return res;
+        },
+      };
+      const next = (err: any) => { throw err; };
+
+      await restaurantController.getById(req, res, next);
+
+      assert.strictEqual(statusCode, 404, "HTTP status deve ser 404");
+      assert.ok(responseBody?.error, "Resposta deve conter campo 'error'");
+      assert.match(
+        responseBody.error,
+        /não encontrado/i,
+        "Mensagem deve indicar que não foi encontrado"
+      );
+    });
+
+    it("deve retornar 200 para restaurante mínimo (campos opcionais nulos) sem crash", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async ({ where }: any) => {
+          if (where.id === minimalRestaurant.id) return minimalRestaurant;
+          return null;
+        },
+      };
+
+      const req: any = { params: { id: minimalRestaurant.id } };
+      let statusCode = 0;
+      let responseBody: any = null;
+      const res: any = {
+        status: (code: number) => {
+          statusCode = code;
+          return res;
+        },
+        json: (body: any) => {
+          responseBody = body;
+          return res;
+        },
+      };
+      const next = (err: any) => { throw err; };
+
+      await restaurantController.getById(req, res, next);
+
+      assert.strictEqual(statusCode, 200);
+      assert.ok(responseBody?.restaurant, "Resposta deve conter 'restaurant'");
+      // Não deve lançar erro mesmo com campos nulos
+      assert.strictEqual(responseBody.restaurant.phone, null);
+      assert.strictEqual(responseBody.restaurant.description, null);
+      assert.strictEqual(responseBody.restaurant.priceRange, null);
+    });
+  });
+});
