@@ -29,11 +29,22 @@ Ele utiliza o conceito de **Divulgação Progressiva (Progressive Disclosure)**:
 │   ├── ceub-academic-guidelines.md
 │   ├── contracts-monorepo.md
 │   └── expo-mobile.md
-└── skills/                 # Procedimentos operacionais e rotinas
-    ├── grill-with-docs/
-    │   └── SKILL.md
-    └── verify-monorepo/
-        └── SKILL.md
+└── skills/                 # Procedimentos operacionais e rotinas (Superpowers + Matt Pocock + ECC)
+    ├── backend-patterns-ecc/         # Padrões arquiteturais Express 5 e Prisma (ECC)
+    ├── code-review-matt/             # Revisão em 2 eixos: Padrões + Especificação (Matt Pocock)
+    ├── domain-modeling-matt/         # Vocabulário ubíquo em CONTEXT.md e ADRs (Matt Pocock)
+    ├── finishing-a-development-branch/ # Checklist e finalização de branch segura (Superpowers)
+    ├── frontend-patterns-ecc/        # Padrões React Native, SafeArea e tokens (ECC)
+    ├── grill-with-docs/              # Entrevista iterativa de requisitos (Matt Pocock)
+    ├── security-review-ecc/          # Checklist e auditoria de segurança (ECC)
+    ├── subagent-driven-development/  # Execução autônoma por subagentes (Superpowers)
+    ├── systematic-debugging/         # Investigação de causa raiz antes de fixes (Superpowers)
+    ├── tdd-workflow-ecc/             # Workflow TDD com cobertura 80%+ (ECC)
+    ├── test-driven-development/      # Princípios estritos de TDD (Superpowers)
+    ├── verification-before-completion/ # Exigência de evidências reais (Superpowers)
+    ├── verify-monorepo/              # Validação de testes, build e linter do monorepo
+    ├── wayfinder-matt/               # Decomposição de demandas em marcos (Matt Pocock)
+    └── writing-plans/                # Planos atômicos pré-implementação (Superpowers)
 ```
 
 ---
