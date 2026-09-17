@@ -1,5 +1,6 @@
 import {
   createRestaurantSchema,
+  createMenuItemSchema,
   listRestaurantsQuerySchema,
   nearbyRestaurantsSchema,
   restaurantRouteQuerySchema,
@@ -7,6 +8,7 @@ import {
 } from "@menu-digital/contracts";
 import { Router } from "express";
 import { restaurantController } from "../controllers/restaurant.controller";
+import { menuController } from "../controllers/menu.controller";
 import { authMiddleware } from "../middlewares/auth";
 import { validateQuery } from "../middleware/validateQuery";
 import { validateRequest } from "../middleware/validateRequest";
@@ -63,6 +65,19 @@ restaurantRouter.post(
   (req, res, next) => {
     restaurantController.create(req, res, next);
   }
+);
+
+// GET /restaurants/:id/menu
+restaurantRouter.get("/:id/menu", (req, res, next) => {
+  menuController.list(req, res, next);
+});
+
+// POST /restaurants/:id/menu — somente o owner restaurant pode cadastrar itens.
+restaurantRouter.post(
+  "/:id/menu",
+  authMiddleware,
+  validateRequest(createMenuItemSchema),
+  (req, res, next) => menuController.create(req, res, next)
 );
 
 // GET /restaurants/:id/route?lat=&lng=&profile=

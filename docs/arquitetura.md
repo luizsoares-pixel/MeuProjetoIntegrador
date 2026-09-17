@@ -37,6 +37,14 @@ Todas as decisões arquiteturais da solução são documentadas formalmente em [
 * **[ADR 0002](adr/0002-expo-router-v6-e-reanimated.md)**: Roteamento Baseado em Arquivos com Expo Router v6 e Animações com Reanimated.
 * **[ADR 0003](adr/0003-contratos-compartilhados-zod-monorepo.md)**: Desenvolvimento Contract-First com Zod em Monorepo Compartilhado.
 * **[ADR 0004](adr/0004-arquitetura-mapas-geolocalizacao-hibrida.md)**: Arquitetura de Mapas, Geolocalização Híbrida e Agrupamento Espacial.
+* **[ADR 0005](adr/0005-ampliacao-perfil-restaurante.md)**: Ampliação do Perfil do Restaurante.
+* **[ADR 0006](adr/0006-listagem-paginada-restaurantes-home.md)**: Listagem Paginada de Restaurantes na Home.
+* **[ADR 0007](adr/0007-busca-textual-filtros-restaurantes.md)**: Busca Textual e Filtros de Restaurantes.
+* **[ADR 0008](adr/0008-filtros-avancados-preco-avaliacao-distancia-horario.md)**: Filtros Avançados de Preço, Avaliação, Distância e Horário.
+* **[ADR 0009](adr/0009-ordenacao-resultados-restaurantes.md)**: Ordenação de Resultados de Restaurantes.
+* **[ADR 0010](adr/0010-calculo-rota-tempo-estimado-osrm.md)**: Cálculo de Rota e Tempo Estimado com OSRM.
+* **[ADR 0011](adr/0011-tela-detalhes-restaurante-hu10.md)**: Tela de Detalhes do Restaurante (HU10).
+* **[ADR 0012](adr/0012-cardapio-digital-categorias-hu11.md)**: Cardápio Digital por Categorias e Fotos (HU11).
 
 Para detalhes sobre a governança técnica e os agentes que auxiliam na manutenção dessa arquitetura, consulte o **[Guia de Desenvolvimento com IA](desenvolvimento-com-ia.md)**.
 

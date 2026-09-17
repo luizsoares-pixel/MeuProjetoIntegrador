@@ -69,9 +69,27 @@ model Restaurant {
   state          String?           @db.VarChar(2)
   postalCode     String?           @map("postal_code")
   photos         RestaurantPhoto[]
+  menuItems      MenuItem[]
   owner          User?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("restaurants")
+}
+
+model MenuItem {
+  id           String     @id @default(uuid()) @db.Uuid
+  restaurantId String     @map("restaurant_id") @db.Uuid
+  category     String
+  name         String
+  description  String?    @db.Text
+  price        Decimal    @db.Decimal(10, 2)
+  photoUrl     String?    @map("photo_url")
+  available    Boolean    @default(true)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([restaurantId, category])
+  @@map("menu_items")
 }

@@ -1,18 +1,22 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  MenuItemResponse,
   PaymentMethod,
   PriceRange,
   UpdateRestaurantProfileInput,
   updateRestaurantProfileSchema,
 } from "@menu-digital/contracts";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,8 +31,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { CustomModal } from "../components/CustomModal";
 import { Input } from "../components/Input";
+import { MenuItemFormModal } from "../components/MenuItemFormModal";
 import { useAuth } from "../hooks/useAuth";
-import { getRestaurantProfile, updateRestaurantProfile } from "../services/api";
+import {
+  deleteMenuItem,
+  fetchRestaurantMenu,
+  getRestaurantProfile,
+  updateMenuItem,
+  updateRestaurantProfile,
+} from "../services/api";
 import { colors, spacing, typography } from "../theme";
 
 const CUISINE_PRESETS = [
@@ -75,10 +86,17 @@ export default function EditarPerfilRestaurante() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileNotFound, setProfileNotFound] = useState(false);
   const [isLocatingGps, setIsLocatingGps] = useState(false);
+  const [isPickingPhoto, setIsPickingPhoto] = useState(false);
 
   // Estado para adicionar fotos adicionais
   const [newPhotoUrl, setNewPhotoUrl] = useState("");
   const [photosList, setPhotosList] = useState<string[]>([]);
+
+  // Estado do Cardápio do Restaurante
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItemResponse[]>([]);
+  const [isMenuModalVisible, setIsMenuModalVisible] = useState(false);
+  const [editingMenuItem, setEditingMenuItem] = useState<MenuItemResponse | null>(null);
 
   // Horários de funcionamento simplificados (open/close por dia)
   const [dailyHours, setDailyHours] = useState<
@@ -146,6 +164,11 @@ export default function EditarPerfilRestaurante() {
       try {
         const restaurant = await getRestaurantProfile(session.access_token);
         if (restaurant) {
+          setRestaurantId(restaurant.id);
+          fetchRestaurantMenu(restaurant.id)
+            .then((items) => setMenuItems(items))
+            .catch((err) => console.warn("Erro ao carregar cardapio:", err));
+
           reset({
             name: restaurant.name || "",
             phone: restaurant.phone || "",
@@ -219,12 +242,71 @@ export default function EditarPerfilRestaurante() {
     }
   }
 
+  async function handleAddPhotoFromSource(source: "camera" | "library") {
+    try {
+      setIsPickingPhoto(true);
+
+      const permissionResult =
+        source === "camera"
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        setModalTitle("Permissão necessária");
+        setModalMessage(
+          source === "camera"
+            ? "Permita o acesso à câmera para tirar uma foto do restaurante."
+            : "Permita o acesso às fotos para selecionar uma imagem do restaurante."
+        );
+        setModalIsSuccess(false);
+        setModalVisible(true);
+        return;
+      }
+
+      const pickerResult =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+              allowsEditing: true,
+              cameraType: ImagePicker.CameraType.back,
+            })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              quality: 0.8,
+              allowsEditing: true,
+            });
+
+      if (pickerResult.canceled || !pickerResult.assets?.length) {
+        return;
+      }
+
+      const selectedUri = pickerResult.assets[0].uri;
+      if (!selectedUri) {
+        return;
+      }
+
+      setPhotosList((previous) => [...previous, selectedUri]);
+      setModalTitle("Foto adicionada");
+      setModalMessage("A imagem foi incluída na galeria do restaurante.");
+      setModalIsSuccess(true);
+      setModalVisible(true);
+    } catch {
+      setModalTitle("Erro ao carregar imagem");
+      setModalMessage("Não foi possível acessar a foto selecionada.");
+      setModalIsSuccess(false);
+      setModalVisible(true);
+    } finally {
+      setIsPickingPhoto(false);
+    }
+  }
+
   function handleAddPhoto() {
     const trimmed = newPhotoUrl.trim();
     if (!trimmed) return;
-    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("file://") && !trimmed.startsWith("content://")) {
       setModalTitle("URL inválida");
-      setModalMessage("A URL da foto deve começar com http:// ou https://");
+      setModalMessage("A URL da foto deve começar com http://, https://, file:// ou content://");
       setModalIsSuccess(false);
       setModalVisible(true);
       return;
@@ -235,6 +317,53 @@ export default function EditarPerfilRestaurante() {
 
   function handleRemovePhoto(indexToRemove: number) {
     setPhotosList(photosList.filter((_, idx) => idx !== indexToRemove));
+  }
+
+  async function handleToggleItemAvailability(item: MenuItemResponse) {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) return;
+    try {
+      const updated = await updateMenuItem(
+        item.id,
+        { available: !item.available },
+        token
+      );
+      setMenuItems((prev) =>
+        prev.map((i) => (i.id === item.id ? updated : i))
+      );
+    } catch (err: any) {
+      Alert.alert(
+        "Erro",
+        err?.message || "Não foi possível alterar a disponibilidade."
+      );
+    }
+  }
+
+  async function handleDeleteMenuItem(itemId: string) {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) return;
+    Alert.alert(
+      "Excluir item",
+      "Tem certeza de que deseja remover este item do cardápio?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMenuItem(itemId, token);
+              setMenuItems((prev) => prev.filter((i) => i.id !== itemId));
+            } catch (err: any) {
+              Alert.alert(
+                "Erro",
+                err?.message || "Não foi possível remover o item."
+              );
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function handleCaptureGps() {
@@ -830,6 +959,25 @@ export default function EditarPerfilRestaurante() {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.photoActionsRow}>
+              <TouchableOpacity
+                style={[styles.photoActionButton, isPickingPhoto && styles.photoActionButtonDisabled]}
+                onPress={() => handleAddPhotoFromSource("camera")}
+                disabled={isPickingPhoto}
+              >
+                <MaterialCommunityIcons name="camera" size={18} color={colors.background.primary} />
+                <Text style={styles.photoActionText}>Tirar foto</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.photoActionButton, isPickingPhoto && styles.photoActionButtonDisabled]}
+                onPress={() => handleAddPhotoFromSource("library")}
+                disabled={isPickingPhoto}
+              >
+                <MaterialCommunityIcons name="image-multiple" size={18} color={colors.background.primary} />
+                <Text style={styles.photoActionText}>Galeria</Text>
+              </TouchableOpacity>
+            </View>
+
             {photosList.length > 0 ? (
               <View style={styles.photoListContainer}>
                 {photosList.map((url, index) => (
@@ -845,6 +993,108 @@ export default function EditarPerfilRestaurante() {
               </View>
             ) : (
               <Text style={styles.emptyPhotosText}>Nenhuma foto adicional adicionada.</Text>
+            )}
+
+            {/* SEÇÃO 7: CARDÁPIO DO RESTAURANTE */}
+            <Text style={[styles.sectionHeader, { marginTop: spacing.md }]}>
+              CARDÁPIO DO RESTAURANTE
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              Cadastre e gerencie os itens e pratos do seu cardápio com foto, preço e categoria.
+            </Text>
+
+            <View style={styles.menuHeaderActions}>
+              <TouchableOpacity
+                style={styles.addMenuItemBtn}
+                onPress={() => {
+                  setEditingMenuItem(null);
+                  setIsMenuModalVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="plus-circle" size={20} color={colors.background.primary} />
+                <Text style={styles.addMenuItemBtnText}>Adicionar Item ao Cardápio</Text>
+              </TouchableOpacity>
+
+              {restaurantId ? (
+                <TouchableOpacity
+                  style={styles.viewPublicMenuBtn}
+                  onPress={() => router.push(`/restaurante/${restaurantId}/cardapio` as any)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="eye-outline" size={18} color={colors.accent.gold} />
+                  <Text style={styles.viewPublicMenuBtnText}>Ver Cardápio</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {menuItems.length > 0 ? (
+              <View style={styles.menuItemsList}>
+                {menuItems.map((item) => (
+                  <View key={item.id} style={styles.menuItemCard}>
+                    {item.photoUrl ? (
+                      <Image source={{ uri: item.photoUrl }} style={styles.menuItemThumb} contentFit="cover" />
+                    ) : (
+                      <View style={styles.menuItemPlaceholder}>
+                        <MaterialCommunityIcons name="silverware-fork-knife" size={20} color={colors.accent.goldMuted} />
+                      </View>
+                    )}
+                    <View style={styles.menuItemInfo}>
+                      <View style={styles.menuItemTopRow}>
+                        <Text style={styles.menuItemCategory}>{item.category.toUpperCase()}</Text>
+                        <Pressable
+                          style={[
+                            styles.itemAvailabilityPill,
+                            item.available ? styles.itemAvailPillGreen : styles.itemAvailPillRed,
+                          ]}
+                          onPress={() => handleToggleItemAvailability(item)}
+                        >
+                          <Text
+                            style={[
+                              styles.itemAvailPillText,
+                              item.available ? styles.itemAvailPillTextGreen : styles.itemAvailPillTextRed,
+                            ]}
+                          >
+                            {item.available ? "DISPONÍVEL" : "ESGOTADO"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                      <Text style={styles.menuItemName} numberOfLines={1}>{item.name}</Text>
+                      {item.description ? (
+                        <Text style={styles.menuItemDesc} numberOfLines={2}>{item.description}</Text>
+                      ) : null}
+                      <Text style={styles.menuItemPrice}>
+                        R$ {Number(item.price).toFixed(2).replace(".", ",")}
+                      </Text>
+                    </View>
+                    <View style={styles.menuItemActions}>
+                      <TouchableOpacity
+                        style={styles.itemActionBtn}
+                        onPress={() => {
+                          setEditingMenuItem(item);
+                          setIsMenuModalVisible(true);
+                        }}
+                      >
+                        <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.gold} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.itemActionBtn}
+                        onPress={() => handleDeleteMenuItem(item.id)}
+                      >
+                        <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.accent.redSoft} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyMenuCard}>
+                <MaterialCommunityIcons name="silverware-clean" size={32} color={colors.accent.goldMuted} />
+                <Text style={styles.emptyMenuTitle}>Nenhum item cadastrado no cardápio</Text>
+                <Text style={styles.emptyMenuSubtitle}>
+                  Toque no botão acima para adicionar seu primeiro prato ou bebida com foto e preço!
+                </Text>
+              </View>
             )}
 
             {/* Botão de Salvar */}
@@ -874,6 +1124,27 @@ export default function EditarPerfilRestaurante() {
         }}
         onClose={() => setModalVisible(false)}
       />
+
+      {restaurantId ? (
+        <MenuItemFormModal
+          visible={isMenuModalVisible}
+          restaurantId={restaurantId}
+          initialItem={editingMenuItem}
+          onClose={() => {
+            setIsMenuModalVisible(false);
+            setEditingMenuItem(null);
+          }}
+          onSuccess={(savedItem) => {
+            if (editingMenuItem) {
+              setMenuItems((prev) =>
+                prev.map((it) => (it.id === savedItem.id ? savedItem : it))
+              );
+            } else {
+              setMenuItems((prev) => [savedItem, ...prev]);
+            }
+          }}
+        />
+      ) : null}
     </LinearGradient>
   );
 }
@@ -1183,6 +1454,30 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     fontWeight: typography.weight.bold,
   },
+  photoActionsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  photoActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.accent.gold,
+    borderRadius: 10,
+    paddingVertical: spacing.sm,
+  },
+  photoActionButtonDisabled: {
+    opacity: 0.6,
+  },
+  photoActionText: {
+    color: colors.background.primary,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.sm,
+  },
   photoListContainer: {
     gap: 4,
     marginTop: 4,
@@ -1209,5 +1504,162 @@ const styles = StyleSheet.create({
   },
   submitContainer: {
     marginTop: spacing.lg,
+  },
+
+  // ── Seção de Cardápio ──────────────────────────────────────
+  sectionSubtitle: {
+    color: colors.accent.whiteLight,
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: spacing.sm,
+  },
+  menuHeaderActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: spacing.sm,
+  },
+  addMenuItemBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.accent.gold,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  addMenuItemBtnText: {
+    color: colors.background.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  viewPublicMenuBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.accent.gold,
+    backgroundColor: "rgba(230, 192, 123, 0.1)",
+  },
+  viewPublicMenuBtnText: {
+    color: colors.accent.gold,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  menuItemsList: {
+    gap: 10,
+    marginBottom: spacing.md,
+  },
+  menuItemCard: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+    padding: 10,
+    gap: 10,
+    alignItems: "center",
+  },
+  menuItemThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: "#000",
+  },
+  menuItemPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: "rgba(230, 192, 123, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuItemInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  menuItemTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  menuItemCategory: {
+    color: colors.accent.goldMuted,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  itemAvailabilityPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  itemAvailPillGreen: {
+    backgroundColor: "rgba(76, 175, 80, 0.2)",
+  },
+  itemAvailPillRed: {
+    backgroundColor: "rgba(239, 83, 80, 0.2)",
+  },
+  itemAvailPillText: {
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  itemAvailPillTextGreen: {
+    color: "#81C784",
+  },
+  itemAvailPillTextRed: {
+    color: "#E57373",
+  },
+  menuItemName: {
+    color: colors.accent.white,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  menuItemDesc: {
+    color: colors.accent.whiteLight,
+    fontSize: 11,
+  },
+  menuItemPrice: {
+    color: colors.accent.gold,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  menuItemActions: {
+    flexDirection: "column",
+    gap: 6,
+  },
+  itemActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyMenuCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(230, 192, 123, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    gap: 6,
+    marginBottom: spacing.md,
+  },
+  emptyMenuTitle: {
+    color: colors.accent.white,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  emptyMenuSubtitle: {
+    color: colors.accent.goldMuted,
+    fontSize: 12,
+    textAlign: "center",
   },
 });

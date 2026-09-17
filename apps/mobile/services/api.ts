@@ -7,17 +7,43 @@
  */
 
 import type {
+  CreateMenuItemInput,
   CreateRestaurantInput,
+  MenuItemResponse,
   PaginatedRestaurantsResponse,
   RegisterRestaurantInput,
   RestaurantResponse,
   RestaurantRouteResponse,
   RouteProfile,
+  UpdateMenuItemInput,
   UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
 
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
+
+  // No navegador web, 10.0.2.2 não é roteável; usa localhost se não houver outra URL explícita
+  if (Platform.OS === "web") {
+    if (envUrl && !envUrl.includes("10.0.2.2")) {
+      return envUrl.replace(/\/$/, "");
+    }
+    return "http://localhost:3333";
+  }
+
+  // Em celular físico via Expo Go, extrai dinamicamente o IP da máquina de desenvolvimento
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const hostIp = hostUri.split(":")[0];
+    if (hostIp && hostIp !== "localhost" && hostIp !== "127.0.0.1") {
+      // Se a env aponta para o alias de emulador (10.0.2.2) mas o app roda em celular físico:
+      if (!envUrl || envUrl.includes("10.0.2.2") || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+        return `http://${hostIp}:3333`;
+      }
+    }
+  }
+
   if (!envUrl) {
     throw new Error("EXPO_PUBLIC_API_URL não está configurada.");
   }
@@ -386,6 +412,133 @@ export async function fetchRestaurantById(
 
   const data = await response.json();
   return data.restaurant;
+}
+
+/** Busca o cardápio completo de um restaurante, incluindo itens indisponíveis. */
+export async function fetchRestaurantMenu(id: string): Promise<MenuItemResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/restaurants/${id}/menu`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    let message = `Erro ao carregar cardápio: ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data.error) message = data.error;
+    } catch {
+      // Mantém a mensagem HTTP quando a API não retorna JSON.
+    }
+    throw new Error(message);
+  }
+
+  const data: { items: MenuItemResponse[] } = await response.json();
+  return data.items;
+}
+
+/**
+ * Cadastra um novo item no cardápio do restaurante.
+ * POST /restaurants/:id/menu
+ */
+export async function createMenuItem(
+  restaurantId: string,
+  input: CreateMenuItemInput,
+  token: string
+): Promise<MenuItemResponse> {
+  const url = `${API_BASE_URL}/restaurants/${restaurantId}/menu`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao cadastrar item: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.item;
+}
+
+/**
+ * Atualiza um item do cardápio existente.
+ * PATCH /menu-items/:id
+ */
+export async function updateMenuItem(
+  itemId: string,
+  input: UpdateMenuItemInput,
+  token: string
+): Promise<MenuItemResponse> {
+  const url = `${API_BASE_URL}/menu-items/${itemId}`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao atualizar item: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  return data.item;
+}
+
+/**
+ * Exclui um item do cardápio.
+ * DELETE /menu-items/:id
+ */
+export async function deleteMenuItem(
+  itemId: string,
+  token: string
+): Promise<void> {
+  const url = `${API_BASE_URL}/menu-items/${itemId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao remover item: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro ao parsear JSON
+    }
+    throw new Error(errorMessage);
+  }
 }
 
 export interface FetchRestaurantRouteParams {
