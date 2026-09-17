@@ -9,6 +9,7 @@ import {
   priceRangeEnum,
   registerRestaurantSchema,
   restaurantPhotoSchema,
+  restaurantSortByEnum,
   socialLinksSchema,
   timeShiftSchema,
   updateRestaurantProfileSchema,
@@ -307,6 +308,69 @@ describe("Restaurant Contracts Schema", () => {
     expect(parsed.openNow).toBe(true);
     expect(parsed.lat).toBe(-15.78);
     expect(parsed.lng).toBe(-47.88);
+  });
+
+  it("should validate restaurantSortByEnum values", () => {
+    expect(restaurantSortByEnum.parse("distance")).toBe("distance");
+    expect(restaurantSortByEnum.parse("rating")).toBe("rating");
+    expect(restaurantSortByEnum.parse("priceAsc")).toBe("priceAsc");
+    expect(restaurantSortByEnum.parse("priceDesc")).toBe("priceDesc");
+    expect(() => restaurantSortByEnum.parse("invalidSort")).toThrow();
+  });
+
+  it("should parse listRestaurantsQuerySchema with valid sortBy options", () => {
+    const byRating = listRestaurantsQuerySchema.parse({ sortBy: "rating" });
+    expect(byRating.sortBy).toBe("rating");
+
+    const byPriceAsc = listRestaurantsQuerySchema.parse({ sortBy: "priceAsc" });
+    expect(byPriceAsc.sortBy).toBe("priceAsc");
+
+    const byPriceDesc = listRestaurantsQuerySchema.parse({ sortBy: "priceDesc" });
+    expect(byPriceDesc.sortBy).toBe("priceDesc");
+
+    const byDistance = listRestaurantsQuerySchema.parse({
+      sortBy: "distance",
+      lat: "-15.78",
+      lng: "-47.88",
+    });
+    expect(byDistance.sortBy).toBe("distance");
+    expect(byDistance.lat).toBe(-15.78);
+    expect(byDistance.lng).toBe(-47.88);
+  });
+
+  it("should reject invalid sortBy in listRestaurantsQuerySchema", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ sortBy: "unknownOrder" })
+    ).toThrow();
+  });
+
+  it("should reject sortBy=distance when lat or lng are missing", () => {
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ sortBy: "distance" })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ sortBy: "distance", lat: "-15.78" })
+    ).toThrow();
+    expect(() =>
+      listRestaurantsQuerySchema.parse({ sortBy: "distance", lng: "-47.88" })
+    ).toThrow();
+  });
+
+  it("should parse sortBy together with all filters and pagination", () => {
+    const parsed = listRestaurantsQuerySchema.parse({
+      page: "1",
+      limit: "10",
+      sortBy: "distance",
+      lat: "-15.79",
+      lng: "-47.89",
+      priceRange: "$$",
+      minRating: "4.5",
+      openNow: "true",
+    });
+    expect(parsed.sortBy).toBe("distance");
+    expect(parsed.priceRange).toEqual(["$$"]);
+    expect(parsed.minRating).toBe(4.5);
+    expect(parsed.openNow).toBe(true);
   });
 });
 

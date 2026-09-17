@@ -30,6 +30,14 @@ export type NearbyRestaurantsQuery = z.infer<typeof nearbyRestaurantsSchema>;
 
 // ── Restaurant Listing & Pagination (Issue #50) ──────────────────────────────
 
+export const restaurantSortByEnum = z.enum([
+  "distance",
+  "rating",
+  "priceAsc",
+  "priceDesc",
+]);
+export type RestaurantSortBy = z.infer<typeof restaurantSortByEnum>;
+
 export const listRestaurantsQuerySchema = z
   .object({
     page: z
@@ -105,6 +113,20 @@ export const listRestaurantsQuerySchema = z
         if (typeof v === "boolean") return v;
         return v === "true";
       }),
+    sortBy: z
+      .string()
+      .optional()
+      .transform((v) => (v !== undefined && v.trim() !== "" ? v.trim() : undefined))
+      .refine(
+        (v) =>
+          v === undefined ||
+          ["distance", "rating", "priceAsc", "priceDesc"].includes(v),
+        {
+          message:
+            "O parâmetro 'sortBy' deve ser um dos seguintes valores: distance, rating, priceAsc, priceDesc.",
+        }
+      )
+      .transform((v) => v as RestaurantSortBy | undefined),
     lat: z
       .string()
       .optional()
@@ -130,6 +152,18 @@ export const listRestaurantsQuerySchema = z
         message:
           "Os parâmetros 'lat' e 'lng' são obrigatórios quando 'maxDistance' for informado.",
         path: ["maxDistance"],
+      });
+    }
+
+    if (
+      data.sortBy === "distance" &&
+      (data.lat === undefined || data.lng === undefined)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Os parâmetros 'lat' e 'lng' são obrigatórios quando 'sortBy=distance' for informado.",
+        path: ["sortBy"],
       });
     }
   });
