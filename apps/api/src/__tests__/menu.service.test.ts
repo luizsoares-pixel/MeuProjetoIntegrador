@@ -94,4 +94,55 @@ describe("MenuService", () => {
     assert.equal(result.length, 2);
     assert.equal(result[1].available, false);
   });
+
+  it("permite exclusao de item pelo owner com role restaurant", async () => {
+    let deletedId: string | null = null;
+    (prisma as any).menuItem = {
+      findUnique: async () => ({
+        ...menuItem(),
+        restaurant: { ownerId },
+      }),
+      delete: async ({ where }: { where: { id: string } }) => {
+        deletedId = where.id;
+        return menuItem();
+      },
+    };
+
+    await new MenuService().delete(itemId, { id: ownerId, role: "restaurant" });
+    assert.equal(deletedId, itemId);
+  });
+
+  it("nega exclusao quando outro usuario tenta deletar o item", async () => {
+    (prisma as any).menuItem = {
+      findUnique: async () => ({
+        ...menuItem(),
+        restaurant: { ownerId },
+      }),
+    };
+
+    await assert.rejects(
+      () =>
+        new MenuService().delete(itemId, {
+          id: "44444444-4444-4444-4444-444444444444",
+          role: "restaurant",
+        }),
+      (error: Error) => error.message === "MENU_ITEM_FORBIDDEN"
+    );
+  });
+
+  it("lanca MENU_ITEM_NOT_FOUND ao tentar atualizar item inexistente", async () => {
+    (prisma as any).menuItem = {
+      findUnique: async () => null,
+    };
+
+    await assert.rejects(
+      () =>
+        new MenuService().update(
+          "inexistente",
+          { available: false },
+          { id: ownerId, role: "restaurant" }
+        ),
+      (error: Error) => error.message === "MENU_ITEM_NOT_FOUND"
+    );
+  });
 });

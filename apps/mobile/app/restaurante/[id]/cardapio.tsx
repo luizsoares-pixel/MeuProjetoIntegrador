@@ -56,14 +56,35 @@ export default function RestaurantMenuScreen() {
     return Array.from(grouped, ([title, data]) => ({ title, data }));
   }, [items]);
 
+  const sectionsRef = useRef(sections);
+  sectionsRef.current = sections;
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 30 }).current;
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ section?: { title: string } }> }) => {
+      const activeItem = viewableItems.find((viewable) => viewable.section);
+      if (activeItem?.section) {
+        const index = sectionsRef.current.findIndex(
+          (entry) => entry.title === activeItem.section?.title
+        );
+        if (index >= 0) setActiveCategory(index);
+      }
+    }
+  ).current;
+
   const scrollToCategory = (index: number) => {
     setActiveCategory(index);
-    listRef.current?.scrollToLocation({
-      sectionIndex: index,
-      itemIndex: 0,
-      viewPosition: 0,
-      animated: true,
-    });
+    try {
+      listRef.current?.scrollToLocation({
+        sectionIndex: index,
+        itemIndex: 0,
+        viewPosition: 0,
+        animated: true,
+      });
+    } catch {
+      // Fallback gracioso caso a seção ainda não esteja montada no layout
+    }
   };
 
   if (isLoading) {
@@ -105,16 +126,8 @@ export default function RestaurantMenuScreen() {
           <Text style={styles.mutedText}>Este restaurante ainda não cadastrou itens.</Text>
         </View>
       ) : (
-        <SectionList
-          ref={listRef}
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          stickySectionHeadersEnabled
-          initialNumToRender={6}
-          maxToRenderPerBatch={5}
-          windowSize={7}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={
+        <>
+          <View style={styles.categoryBarContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBar}>
               {sections.map((section, index) => (
                 <Pressable
@@ -128,22 +141,33 @@ export default function RestaurantMenuScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-          }
-          renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-            </View>
-          )}
-          renderItem={({ item }) => <MenuItemCard item={item} />}
-          onViewableItemsChanged={({ viewableItems }) => {
-            const section = viewableItems.find((viewable) => viewable.section);
-            if (section?.section) {
-              const index = sections.findIndex((entry) => entry.title === section.section.title);
-              if (index >= 0) setActiveCategory(index);
-            }
-          }}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 30 }}
-        />
+          </View>
+          <SectionList
+            ref={listRef}
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            stickySectionHeadersEnabled
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            contentContainerStyle={styles.listContent}
+            renderSectionHeader={({ section }) => (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+              </View>
+            )}
+            renderItem={({ item }) => <MenuItemCard item={item} />}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            onScrollToIndexFailed={(info) => {
+              listRef.current?.scrollToLocation({
+                sectionIndex: info.index,
+                itemIndex: 0,
+                animated: false,
+              });
+            }}
+          />
+        </>
       )}
     </View>
   );
@@ -203,6 +227,11 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 32 },
   title: { flex: 1, textAlign: "center", color: colors.accent.white, fontSize: typography.size.lg, fontWeight: typography.weight.bold },
   listContent: { paddingBottom: spacing.xxxl },
+  categoryBarContainer: {
+    backgroundColor: colors.background.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent.goldTint,
+  },
   categoryBar: { flexDirection: "row", padding: spacing.sm, gap: spacing.xs, backgroundColor: colors.background.secondary },
   categoryTab: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1, borderColor: colors.accent.goldTint },
   categoryTabActive: { backgroundColor: colors.accent.gold },
