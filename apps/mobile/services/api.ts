@@ -286,13 +286,14 @@ export interface FetchRestaurantsParams {
   minRating?: number;
   maxDistance?: number;
   openNow?: boolean;
+  sortBy?: string;
   lat?: number;
   lng?: number;
 }
 
 /**
- * Busca a listagem paginada de restaurantes com suporte a busca e filtros avançados (HU5, HU6 & HU7).
- * GET /restaurants?page=&limit=&search=&cuisine=&city=&priceRange=&minRating=&maxDistance=&openNow=&lat=&lng=
+ * Busca a listagem paginada de restaurantes com suporte a busca, filtros avançados e ordenação (HU5, HU6, HU7 & HU8).
+ * GET /restaurants?page=&limit=&search=&cuisine=&city=&priceRange=&minRating=&maxDistance=&openNow=&sortBy=&lat=&lng=
  */
 export async function fetchRestaurants(
   params?: FetchRestaurantsParams
@@ -329,6 +330,9 @@ export async function fetchRestaurants(
   }
   if (params?.openNow !== undefined) {
     url.searchParams.set("openNow", String(params.openNow));
+  }
+  if (params?.sortBy && params.sortBy.trim() !== "") {
+    url.searchParams.set("sortBy", params.sortBy.trim());
   }
   if (params?.lat !== undefined) {
     url.searchParams.set("lat", String(params.lat));

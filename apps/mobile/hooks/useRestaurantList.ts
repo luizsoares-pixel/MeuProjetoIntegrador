@@ -11,6 +11,7 @@ interface UseRestaurantListOptions {
   minRating?: number | null;
   maxDistance?: number | null;
   openNow?: boolean | null;
+  sortBy?: string | null;
   lat?: number | null;
   lng?: number | null;
   autoLoad?: boolean;
@@ -48,6 +49,7 @@ export function useRestaurantList({
   minRating = null,
   maxDistance = null,
   openNow = null,
+  sortBy = null,
   lat = null,
   lng = null,
   autoLoad = true,
@@ -107,6 +109,7 @@ export function useRestaurantList({
           minRating: minRating ?? undefined,
           maxDistance: maxDistance ?? undefined,
           openNow: openNow ?? undefined,
+          sortBy: sortBy?.trim() || undefined,
           lat: lat ?? undefined,
           lng: lng ?? undefined,
         });
@@ -137,6 +140,7 @@ export function useRestaurantList({
       minRating,
       maxDistance,
       openNow,
+      sortBy,
       lat,
       lng,
     ]
@@ -168,6 +172,7 @@ export function useRestaurantList({
         minRating: minRating ?? undefined,
         maxDistance: maxDistance ?? undefined,
         openNow: openNow ?? undefined,
+        sortBy: sortBy?.trim() || undefined,
         lat: lat ?? undefined,
         lng: lng ?? undefined,
       });
@@ -204,6 +209,7 @@ export function useRestaurantList({
     minRating,
     maxDistance,
     openNow,
+    sortBy,
     lat,
     lng,
   ]);

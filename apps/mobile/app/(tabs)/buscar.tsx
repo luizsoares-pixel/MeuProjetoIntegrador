@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { CuisineFilterChips } from "../../components/CuisineFilterChips";
@@ -21,7 +22,9 @@ import { RestaurantEmptyState } from "../../components/RestaurantEmptyState";
 import { RestaurantErrorState } from "../../components/RestaurantErrorState";
 import { SearchBar } from "../../components/SearchBar";
 import { SearchEmptyState } from "../../components/SearchEmptyState";
+import { SortSelectorChips } from "../../components/SortSelectorChips";
 import { useRestaurantList } from "../../hooks/useRestaurantList";
+import { useSortPreference } from "../../hooks/useSortPreference";
 import { colors, spacing, typography } from "../../theme";
 
 export default function BuscarTab() {
@@ -40,6 +43,36 @@ export default function BuscarTab() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
     null
   );
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status === "granted") {
+          const loc =
+            (await Location.getLastKnownPositionAsync({})) ||
+            (await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            }));
+          if (loc && isMounted) {
+            setUserCoords({
+              lat: loc.coords.latitude,
+              lng: loc.coords.longitude,
+            });
+          }
+        }
+      } catch {
+        // Silently continue
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const hasLocation = Boolean(userCoords);
+  const { sortBy, setSortBy } = useSortPreference(hasLocation);
 
   const {
     restaurants,
@@ -63,6 +96,7 @@ export default function BuscarTab() {
     minRating: activeFilters.minRating,
     maxDistance: activeFilters.maxDistance,
     openNow: activeFilters.openNow,
+    sortBy,
     lat: userCoords?.lat ?? null,
     lng: userCoords?.lng ?? null,
   });
@@ -169,6 +203,30 @@ export default function BuscarTab() {
           onSelectCuisine={setSelectedCuisine}
         />
 
+        {/* Chips de Ordenação (HU8) */}
+        <SortSelectorChips
+          selectedSort={sortBy}
+          onSelectSort={setSortBy}
+          hasLocation={hasLocation}
+          onRequestLocation={async () => {
+            try {
+              const res = await Location.requestForegroundPermissionsAsync();
+              if (res.status === "granted") {
+                const pos = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced,
+                });
+                setUserCoords({
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                });
+                setSortBy("distance");
+              }
+            } catch {
+              // Ignore
+            }
+          }}
+        />
+
         {!isLoading && !isError && !isEmpty && (
           <View style={styles.resultsHeader}>
             <Text style={styles.resultsTitle}>Restaurantes encontrados</Text>
@@ -188,6 +246,9 @@ export default function BuscarTab() {
     isError,
     isEmpty,
     restaurants.length,
+    sortBy,
+    setSortBy,
+    hasLocation,
   ]);
 
   const renderEmpty = useCallback(() => {
@@ -304,9 +365,15 @@ export default function BuscarTab() {
       <FilterModal
         visible={filterModalVisible}
         onClose={() => setFilterModalVisible(false)}
-        filters={activeFilters}
+        filters={{
+          ...activeFilters,
+          sortBy,
+        }}
         onApply={(newFilters, coords) => {
           setActiveFilters(newFilters);
+          if (newFilters.sortBy) {
+            setSortBy(newFilters.sortBy);
+          }
           if (coords) setUserCoords(coords);
         }}
         onReset={() => {
@@ -316,6 +383,7 @@ export default function BuscarTab() {
             maxDistance: null,
             openNow: false,
           });
+          setSortBy(hasLocation ? "distance" : "rating");
         }}
         userCoords={userCoords}
       />

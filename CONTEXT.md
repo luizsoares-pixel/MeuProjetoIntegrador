@@ -79,5 +79,10 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `openNow` | Aberto Agora | Filtro booleano que verifica se o estabelecimento está operando no momento da requisição (horário de Brasília). |
 | `FilterModal` | Modal de Filtros | Painel modal/bottom-sheet no mobile para configuração dos filtros combinados de preço, avaliação, distância e horário. |
 | `activeFiltersBadge` | Badge de Filtros Ativos | Indicador numérico no botão de filtros sinalizando a quantidade de restrições ativas. |
+| `sortBy` | Critério de Ordenação | Parâmetro de query que define o ordenamento dos resultados (`distance`, `rating`, `priceAsc`, `priceDesc`). |
+| `distanceSort` | Ordenação por Distância | Ordenação por proximidade geográfica crescente, exigindo coordenadas do usuário. |
+| `ratingSort` | Ordenação por Avaliação | Ordenação decrescente pela nota de avaliação média do restaurante. |
+| `priceSort` | Ordenação por Preço | Ordenação pela faixa de preço crescente (`priceAsc`: `$` a `$$$`) ou decrescente (`priceDesc`: `$$$` a `$`). |
+| `sortSelector` | Seletor de Ordenação | Interface de seleção de ordenação com persistência de preferência entre navegação de telas. |
 
 

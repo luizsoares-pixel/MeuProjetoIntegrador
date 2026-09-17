@@ -5,6 +5,7 @@ import {
   NearbyRestaurantsQuery,
   PaginatedRestaurantsResponse,
   RestaurantResponse,
+  RestaurantSortBy,
   UpdateRestaurantProfileInput,
 } from "@menu-digital/contracts";
 import { prisma } from "../lib/prisma";
@@ -188,6 +189,69 @@ export function isRestaurantOpen(
   }
 
   return false;
+}
+
+const PRICE_RANGE_WEIGHTS: Record<string, number> = {
+  $: 1,
+  CHEAP: 1,
+  $$: 2,
+  MODERATE: 2,
+  $$$: 3,
+  EXPENSIVE: 3,
+};
+
+/**
+ * Ordena a lista de restaurantes em memória pelo critério informado (HU8).
+ * Suporta distance, rating, priceAsc e priceDesc com desempate em createdAt decrescente.
+ */
+export function sortRestaurants<
+  T extends {
+    distanceInMeters?: number;
+    rating?: number | null;
+    priceRange?: string | null;
+    createdAt: Date | string;
+  },
+>(items: T[], sortBy?: RestaurantSortBy): T[] {
+  if (!sortBy) {
+    return items;
+  }
+
+  return [...items].sort((a, b) => {
+    if (sortBy === "distance") {
+      const distA = a.distanceInMeters !== undefined ? a.distanceInMeters : Infinity;
+      const distB = b.distanceInMeters !== undefined ? b.distanceInMeters : Infinity;
+      if (distA !== distB) return distA - distB;
+    } else if (sortBy === "rating") {
+      const ratingA = a.rating !== null && a.rating !== undefined ? a.rating : -1;
+      const ratingB = b.rating !== null && b.rating !== undefined ? b.rating : -1;
+      if (ratingA !== ratingB) return ratingB - ratingA;
+    } else if (sortBy === "priceAsc") {
+      const weightA =
+        a.priceRange && PRICE_RANGE_WEIGHTS[a.priceRange] !== undefined
+          ? PRICE_RANGE_WEIGHTS[a.priceRange]
+          : 999;
+      const weightB =
+        b.priceRange && PRICE_RANGE_WEIGHTS[b.priceRange] !== undefined
+          ? PRICE_RANGE_WEIGHTS[b.priceRange]
+          : 999;
+      if (weightA !== weightB) return weightA - weightB;
+    } else if (sortBy === "priceDesc") {
+      const weightA =
+        a.priceRange && PRICE_RANGE_WEIGHTS[a.priceRange] !== undefined
+          ? PRICE_RANGE_WEIGHTS[a.priceRange]
+          : -1;
+      const weightB =
+        b.priceRange && PRICE_RANGE_WEIGHTS[b.priceRange] !== undefined
+          ? PRICE_RANGE_WEIGHTS[b.priceRange]
+          : -1;
+      if (weightA !== weightB) return weightB - weightA;
+    }
+
+    // Critério de desempate: mais recente primeiro
+    const timeA = new Date(a.createdAt).getTime();
+    const timeB = new Date(b.createdAt).getTime();
+    return timeB - timeA;
+  });
 }
 
 export class RestaurantService {
@@ -436,7 +500,10 @@ export class RestaurantService {
       };
     }
 
-    const needsInMemoryFiltering = query.openNow === true || hasDistanceFilter;
+    const needsInMemoryFiltering =
+      query.openNow === true ||
+      hasDistanceFilter ||
+      query.sortBy === "distance";
 
     if (needsInMemoryFiltering) {
       const candidates = await prisma.restaurant.findMany({
@@ -449,19 +516,7 @@ export class RestaurantService {
 
       let filtered = candidates;
 
-      if (hasDistanceFilter) {
-        filtered = filtered
-          .map((r) => ({
-            ...r,
-            distanceInMeters: haversineDistance(
-              query.lat!,
-              query.lng!,
-              r.latitude,
-              r.longitude
-            ),
-          }))
-          .filter((r) => (r.distanceInMeters ?? Infinity) <= query.maxDistance!);
-      } else if (query.lat !== undefined && query.lng !== undefined) {
+      if (query.lat !== undefined && query.lng !== undefined) {
         filtered = filtered.map((r) => ({
           ...r,
           distanceInMeters: haversineDistance(
@@ -473,8 +528,18 @@ export class RestaurantService {
         }));
       }
 
+      if (hasDistanceFilter) {
+        filtered = filtered.filter(
+          (r) => (r.distanceInMeters ?? Infinity) <= query.maxDistance!
+        );
+      }
+
       if (query.openNow === true) {
         filtered = filtered.filter((r) => isRestaurantOpen(r.businessHours));
+      }
+
+      if (query.sortBy) {
+        filtered = sortRestaurants(filtered, query.sortBy);
       }
 
       const total = filtered.length;
@@ -494,12 +559,21 @@ export class RestaurantService {
       };
     }
 
+    let orderBy: any = { createdAt: "desc" };
+    if (query.sortBy === "rating") {
+      orderBy = [{ rating: "desc" }, { createdAt: "desc" }];
+    } else if (query.sortBy === "priceAsc") {
+      orderBy = [{ priceRange: "asc" }, { createdAt: "desc" }];
+    } else if (query.sortBy === "priceDesc") {
+      orderBy = [{ priceRange: "desc" }, { createdAt: "desc" }];
+    }
+
     const [restaurants, total] = await Promise.all([
       prisma.restaurant.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         include: {
           photos: { orderBy: { order: "asc" } },
         },

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import type { RestaurantResponse } from "@menu-digital/contracts";
@@ -21,7 +22,9 @@ import { RestaurantEmptyState } from "../../components/RestaurantEmptyState";
 import { RestaurantErrorState } from "../../components/RestaurantErrorState";
 import { SearchBar } from "../../components/SearchBar";
 import { SearchEmptyState } from "../../components/SearchEmptyState";
+import { SortSelectorChips } from "../../components/SortSelectorChips";
 import { useRestaurantList } from "../../hooks/useRestaurantList";
+import { useSortPreference } from "../../hooks/useSortPreference";
 import { useFadeSlide } from "../../hooks/useFadeSlide";
 import { colors, spacing, typography } from "../../theme";
 
@@ -40,6 +43,36 @@ export default function HomeTab() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
     null
   );
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status === "granted") {
+          const loc =
+            (await Location.getLastKnownPositionAsync({})) ||
+            (await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            }));
+          if (loc && isMounted) {
+            setUserCoords({
+              lat: loc.coords.latitude,
+              lng: loc.coords.longitude,
+            });
+          }
+        }
+      } catch {
+        // Silently continue
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const hasLocation = Boolean(userCoords);
+  const { sortBy, setSortBy } = useSortPreference(hasLocation);
 
   const {
     restaurants,
@@ -62,6 +95,7 @@ export default function HomeTab() {
     minRating: activeFilters.minRating,
     maxDistance: activeFilters.maxDistance,
     openNow: activeFilters.openNow,
+    sortBy,
     lat: userCoords?.lat ?? null,
     lng: userCoords?.lng ?? null,
   });
@@ -152,6 +186,30 @@ export default function HomeTab() {
           onSelectCuisine={setSelectedCuisine}
         />
 
+        {/* Chips de Ordenação (HU8) */}
+        <SortSelectorChips
+          selectedSort={sortBy}
+          onSelectSort={setSortBy}
+          hasLocation={hasLocation}
+          onRequestLocation={async () => {
+            try {
+              const res = await Location.requestForegroundPermissionsAsync();
+              if (res.status === "granted") {
+                const pos = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced,
+                });
+                setUserCoords({
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                });
+                setSortBy("distance");
+              }
+            } catch {
+              // Ignore
+            }
+          }}
+        />
+
         {!isLoading && !isError && !isEmpty && (
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
@@ -176,6 +234,9 @@ export default function HomeTab() {
     isError,
     isEmpty,
     restaurants.length,
+    sortBy,
+    setSortBy,
+    hasLocation,
   ]);
 
   const renderEmpty = useCallback(() => {
@@ -293,9 +354,15 @@ export default function HomeTab() {
       <FilterModal
         visible={filterModalVisible}
         onClose={() => setFilterModalVisible(false)}
-        filters={activeFilters}
+        filters={{
+          ...activeFilters,
+          sortBy,
+        }}
         onApply={(newFilters, coords) => {
           setActiveFilters(newFilters);
+          if (newFilters.sortBy) {
+            setSortBy(newFilters.sortBy);
+          }
           if (coords) setUserCoords(coords);
         }}
         onReset={() => {
@@ -305,6 +372,7 @@ export default function HomeTab() {
             maxDistance: null,
             openNow: false,
           });
+          setSortBy(hasLocation ? "distance" : "rating");
         }}
         userCoords={userCoords}
       />

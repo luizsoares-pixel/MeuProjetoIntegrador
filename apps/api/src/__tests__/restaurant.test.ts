@@ -13,6 +13,7 @@ import {
   RestaurantService,
   isRestaurantOpen,
   getBrasiliaDateParts,
+  sortRestaurants,
 } from "../services/restaurant.service";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1612,6 +1613,312 @@ describe("Restaurants Layer - Issue #33", () => {
       assert.strictEqual(req.parsedQuery.minRating, undefined);
       assert.strictEqual(req.parsedQuery.maxDistance, undefined);
       assert.strictEqual(req.parsedQuery.openNow, undefined);
+    });
+
+    it("deve retornar 400 amigável quando sortBy=distance for informado sem lat e lng", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = { query: { sortBy: "distance" } } as any;
+      let statusCode = 0;
+      let responseBody: any = null;
+      let nextCalled = false;
+      const res = {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(data: any) {
+          responseBody = data;
+          return this;
+        },
+      } as any;
+
+      await validator(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, false);
+      assert.strictEqual(statusCode, 400);
+      assert.ok(
+        responseBody.details.some((d: any) =>
+          d.message.includes("Os parâmetros 'lat' e 'lng' são obrigatórios")
+        )
+      );
+    });
+
+    it("deve aceitar sortBy=distance quando lat e lng forem informados", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = {
+        query: { sortBy: "distance", lat: "-15.78", lng: "-47.88" },
+      } as any;
+      let nextCalled = false;
+      const res = {} as any;
+
+      await validator(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, true);
+      assert.strictEqual(req.parsedQuery.sortBy, "distance");
+      assert.strictEqual(req.parsedQuery.lat, -15.78);
+      assert.strictEqual(req.parsedQuery.lng, -47.88);
+    });
+
+    it("deve aceitar sortBy=rating, priceAsc e priceDesc sem exigir coordenadas", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      for (const sort of ["rating", "priceAsc", "priceDesc"] as const) {
+        const req = { query: { sortBy: sort } } as any;
+        let nextCalled = false;
+        await validator(req, {} as any, () => {
+          nextCalled = true;
+        });
+        assert.strictEqual(nextCalled, true);
+        assert.strictEqual(req.parsedQuery.sortBy, sort);
+      }
+    });
+
+    it("deve rejeitar valor inválido de sortBy com 400", async () => {
+      const validator = validateQuery(listRestaurantsQuerySchema);
+      const req = { query: { sortBy: "invalidSortOption" } } as any;
+      let statusCode = 0;
+      const res = {
+        status(code: number) {
+          statusCode = code;
+          return this;
+        },
+        json(_: any) {
+          return this;
+        },
+      } as any;
+
+      await validator(req, res, () => {});
+      assert.strictEqual(statusCode, 400);
+    });
+  });
+
+  describe("HU8: Ordenação Pura (sortRestaurants)", () => {
+    it("deve retornar a mesma lista quando sortBy não for fornecido", () => {
+      const list = [
+        { id: "1", createdAt: new Date("2026-01-01") },
+        { id: "2", createdAt: new Date("2026-01-02") },
+      ];
+      const result = sortRestaurants(list as any);
+      assert.strictEqual(result, list);
+    });
+
+    it("deve ordenar por distance de forma crescente", () => {
+      const list = [
+        { id: "far", distanceInMeters: 5000, createdAt: new Date() },
+        { id: "near", distanceInMeters: 300, createdAt: new Date() },
+        { id: "mid", distanceInMeters: 1200, createdAt: new Date() },
+      ];
+      const result = sortRestaurants(list as any, "distance");
+      assert.deepStrictEqual(
+        result.map((r) => r.id),
+        ["near", "mid", "far"]
+      );
+    });
+
+    it("deve ordenar por rating decrescente com restaurantes sem avaliação no final", () => {
+      const list = [
+        { id: "medium", rating: 3.5, createdAt: new Date() },
+        { id: "unrated", rating: null, createdAt: new Date() },
+        { id: "top", rating: 4.9, createdAt: new Date() },
+        { id: "low", rating: 2.1, createdAt: new Date() },
+      ];
+      const result = sortRestaurants(list as any, "rating");
+      assert.deepStrictEqual(
+        result.map((r) => r.id),
+        ["top", "medium", "low", "unrated"]
+      );
+    });
+
+    it("deve ordenar por priceAsc ($ < $$ < $$$) com nulos no fim", () => {
+      const list = [
+        { id: "expensive", priceRange: "$$$", createdAt: new Date() },
+        { id: "unpriced", priceRange: null, createdAt: new Date() },
+        { id: "cheap", priceRange: "$", createdAt: new Date() },
+        { id: "moderate", priceRange: "$$", createdAt: new Date() },
+      ];
+      const result = sortRestaurants(list as any, "priceAsc");
+      assert.deepStrictEqual(
+        result.map((r) => r.id),
+        ["cheap", "moderate", "expensive", "unpriced"]
+      );
+    });
+
+    it("deve ordenar por priceDesc ($$$ > $$ > $) com nulos no fim", () => {
+      const list = [
+        { id: "cheap", priceRange: "$", createdAt: new Date() },
+        { id: "expensive", priceRange: "$$$", createdAt: new Date() },
+        { id: "unpriced", priceRange: null, createdAt: new Date() },
+        { id: "moderate", priceRange: "$$", createdAt: new Date() },
+      ];
+      const result = sortRestaurants(list as any, "priceDesc");
+      assert.deepStrictEqual(
+        result.map((r) => r.id),
+        ["expensive", "moderate", "cheap", "unpriced"]
+      );
+    });
+
+    it("deve usar data de criação decrescente como critério de desempate", () => {
+      const older = {
+        id: "older",
+        rating: 4.0,
+        createdAt: new Date("2026-01-01T10:00:00Z"),
+      };
+      const newer = {
+        id: "newer",
+        rating: 4.0,
+        createdAt: new Date("2026-01-02T10:00:00Z"),
+      };
+      const result = sortRestaurants([older, newer] as any, "rating");
+      assert.strictEqual(result[0].id, "newer");
+      assert.strictEqual(result[1].id, "older");
+    });
+  });
+
+  describe("HU8: RestaurantService.list com Ordenação", () => {
+    it("deve ordenar por distance quando sortBy=distance e lat/lng forem fornecidos", async () => {
+      const userLat = -15.7942;
+      const userLng = -47.8822;
+
+      const restFar = {
+        id: "rest-far",
+        name: "Longe",
+        address: "Rua B",
+        latitude: -15.89,
+        longitude: -47.95,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const restNear = {
+        id: "rest-near",
+        name: "Perto",
+        address: "Rua A",
+        latitude: -15.798,
+        longitude: -47.882,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async () => [restFar, restNear],
+        count: async () => 2,
+      };
+
+      const result = await restaurantService.list({
+        page: 1,
+        limit: 10,
+        sortBy: "distance",
+        lat: userLat,
+        lng: userLng,
+      });
+
+      assert.strictEqual(result.restaurants.length, 2);
+      assert.strictEqual(result.restaurants[0].id, "rest-near");
+      assert.strictEqual(result.restaurants[1].id, "rest-far");
+      assert.ok(
+        result.restaurants[0].distanceInMeters! <
+          result.restaurants[1].distanceInMeters!
+      );
+    });
+
+    it("deve delegar ordenação por rating para o Prisma quando filtros em memória não estiverem ativos", async () => {
+      let capturedOrderBy: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          capturedOrderBy = args.orderBy;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, sortBy: "rating" });
+      assert.deepStrictEqual(capturedOrderBy, [
+        { rating: "desc" },
+        { createdAt: "desc" },
+      ]);
+    });
+
+    it("deve delegar ordenação por priceAsc e priceDesc para o Prisma", async () => {
+      let capturedOrderBy: any = null;
+
+      (prisma as any).restaurant = {
+        findMany: async (args: any) => {
+          capturedOrderBy = args.orderBy;
+          return [];
+        },
+        count: async () => 0,
+      };
+
+      await restaurantService.list({ page: 1, limit: 10, sortBy: "priceAsc" });
+      assert.deepStrictEqual(capturedOrderBy, [
+        { priceRange: "asc" },
+        { createdAt: "desc" },
+      ]);
+
+      await restaurantService.list({ page: 1, limit: 10, sortBy: "priceDesc" });
+      assert.deepStrictEqual(capturedOrderBy, [
+        { priceRange: "desc" },
+        { createdAt: "desc" },
+      ]);
+    });
+
+    it("deve combinar sortBy=distance com openNow=true e outros filtros simultaneamente", async () => {
+      const now = new Date();
+      const { dayOfWeek } = getBrasiliaDateParts(now);
+
+      const openNear = {
+        id: "open-near",
+        name: "Aberto e Perto",
+        cuisineType: "Japonesa",
+        latitude: -15.795,
+        longitude: -47.883,
+        businessHours: { [dayOfWeek]: [{ open: "00:00", close: "00:00" }] },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const openFar = {
+        id: "open-far",
+        name: "Aberto e Longe",
+        cuisineType: "Japonesa",
+        latitude: -15.89,
+        longitude: -47.95,
+        businessHours: { [dayOfWeek]: [{ open: "00:00", close: "00:00" }] },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const closedNear = {
+        id: "closed-near",
+        name: "Fechado e Perto",
+        cuisineType: "Japonesa",
+        latitude: -15.796,
+        longitude: -47.884,
+        businessHours: { [dayOfWeek]: [{ open: "03:00", close: "04:00" }] },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (prisma as any).restaurant = {
+        findMany: async () => [openFar, closedNear, openNear],
+        count: async () => 3,
+      };
+
+      const result = await restaurantService.list({
+        page: 1,
+        limit: 10,
+        cuisine: "Japonesa",
+        openNow: true,
+        sortBy: "distance",
+        lat: -15.794,
+        lng: -47.882,
+      });
+
+      // Apenas os abertos (openNear e openFar), ordenados por proximidade: openNear primeiro
+      assert.strictEqual(result.restaurants.length, 2);
+      assert.strictEqual(result.restaurants[0].id, "open-near");
+      assert.strictEqual(result.restaurants[1].id, "open-far");
     });
   });
 });
