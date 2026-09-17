@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PaginationMeta, RestaurantResponse } from "@menu-digital/contracts";
 import { fetchRestaurants } from "../services/api";
+import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../constants/network";
 
 interface UseRestaurantListOptions {
   limit?: number;
@@ -119,11 +120,17 @@ export function useRestaurantList({
 
         setRestaurants(response.restaurants);
         setPagination(response.pagination);
-      } catch (err: any) {
+      } catch (error) {
         if (!mountedRef.current || currentSeq !== requestSeqRef.current) return;
-        setErrorMessage(
-          err?.message || "Não foi possível conectar ao servidor. Tente novamente."
-        );
+
+        if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_RESTAURANTS === "true") {
+          setRestaurants([]);
+          setPagination(null);
+          return;
+        }
+
+        console.warn("Erro ao carregar restaurantes:", error);
+        setErrorMessage(FRIENDLY_NETWORK_ERROR_MESSAGE);
       } finally {
         if (mountedRef.current && currentSeq === requestSeqRef.current) {
           setIsLoading(false);
@@ -187,9 +194,9 @@ export function useRestaurantList({
         return [...prev, ...newUnique];
       });
       setPagination(response.pagination);
-    } catch (err: any) {
+    } catch (error) {
       if (!mountedRef.current) return;
-      console.warn("Erro ao carregar mais restaurantes:", err?.message);
+      console.warn("Erro ao carregar mais restaurantes:", error);
     } finally {
       if (mountedRef.current) {
         setIsLoadingMore(false);
