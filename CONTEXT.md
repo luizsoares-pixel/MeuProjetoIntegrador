@@ -84,5 +84,10 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `ratingSort` | Ordenação por Avaliação | Ordenação decrescente pela nota de avaliação média do restaurante. |
 | `priceSort` | Ordenação por Preço | Ordenação pela faixa de preço crescente (`priceAsc`: `$` a `$$$`) ou decrescente (`priceDesc`: `$$$` a `$`). |
 | `sortSelector` | Seletor de Ordenação | Interface de seleção de ordenação com persistência de preferência entre navegação de telas. |
+| `osrmRoute` | Rota OSRM | Cálculo de trajeto viário e tempo estimado via API pública Open Source Routing Machine. |
+| `routeProfile` | Modalidade de Deslocamento | Perfil de mobilidade para o trajeto (`driving` para veículo automotor ou `walking` para pedestre). |
+| `estimatedDuration` | Tempo Estimado de Chegada | Duração calculada do trajeto em segundos ou formatada em minutos/horas. |
+| `routePolyline` | Traçado da Rota | Polilinha de coordenadas geográficas renderizada sobre o mapa (`react-native-maps`). |
+| `routeFallback` | Fallback de Rota | Cálculo aproximado por linha reta (Haversine) acionado caso o OSRM esteja indisponível. |
 
 
