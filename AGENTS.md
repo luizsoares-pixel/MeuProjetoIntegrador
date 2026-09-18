@@ -37,6 +37,9 @@ Este repositório possui uma infraestrutura de engenharia e agentes orientada po
 * **`backend-patterns-ecc`**: Padrões em camadas para Express 5 e Prisma ORM (Controller -> Service -> Data Access).
 * **`frontend-patterns-ecc`**: Padrões de engenharia para React Native, SafeAreaContext, temas e componentes desacoplados.
 
+### 🎨 4. `nextlevelbuilder/ui-ux-pro-max-skill` (https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+* **`ui-ux-pro-max`**: Design intelligence com banco de dados pesquisável de 79 estilos UI, 192 paletas de cores, 74 font pairings, 119 diretrizes UX e padrões específicos para `react-native`. Use **antes** de qualquer trabalho visual no `apps/mobile`.
+
 > **Zero Setup Externo**: Todas as skills e regras estão versionadas no Git dentro de `.agents/`. Ao clonar o repositório (`git clone`), todo o fluxo de engenharia e agentes já está imediatamente disponível para qualquer máquina e desenvolvedor.
 
 ---
@@ -80,4 +83,11 @@ npm run lint:mobile
 
 # Validar a integridade das skills e toolchain de IA:
 npm run ai:verify
+
+# Design intelligence (ui-ux-pro-max-skill) — buscar dados de UI/UX:
+npm run design:search -- "dark luxury restaurant" --domain style
+npm run design:search -- "restaurant food service" --domain color
+npm run design:search -- "<query>" --domain ux
+npm run design:search -- "<query>" --stack react-native
+npm run design:system -- "Menu Digital" -p "Menu Digital"
 ```

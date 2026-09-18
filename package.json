@@ -14,7 +14,9 @@
     "test:api": "npm run test -w apps/api",
     "lint:mobile": "npm run lint -w apps/mobile",
     "verify": "npm run build:contracts && npm run lint:api && npm run test:api && npm run lint:mobile",
-    "ai:verify": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-ai-toolchain.ps1"
+    "ai:verify": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-ai-toolchain.ps1",
+    "design:search": "python .agents/skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py",
+    "design:system": "python .agents/skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py --design-system"
   },
   "devDependencies": {
     "@prisma/engines": "^7.10.0",
