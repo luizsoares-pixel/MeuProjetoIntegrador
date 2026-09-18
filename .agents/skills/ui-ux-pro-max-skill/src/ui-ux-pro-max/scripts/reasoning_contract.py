@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Closed, non-executable grammar for design-system decision rules."""
 
 import json
