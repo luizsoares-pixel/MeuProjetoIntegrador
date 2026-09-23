@@ -5,7 +5,7 @@
 **Disciplina / Período:** Projeto Integrador II (2026/2) — Grupo 2  
 **Identificador do Repositório:** `CAMPUSCEUB/ADS20262Grupo2MenuDigital`  
 **Data da Emissão:** 23 de Setembro de 2026  
-**Status do Projeto:** Sprints 01 a 04 Concluídas | Sprint 05 em Andamento | 147 Testes Automatizados (100% Passando)
+**Status do Projeto:** Sprints 01 a 04 Concluídas | Sprint 05 em Andamento | 152 Testes Automatizados (100% Passando)
 
 ---
 
@@ -22,8 +22,8 @@ O **Menu Digital** foi concebido e implementado para solucionar essa dor por mei
 
 ### 1.2 Métricas de Qualidade e Governança do Projeto
 * **Arquitetura de Código:** Monorepo gerenciado via npm workspaces com separação estrita de responsabilidades (`apps/api`, `apps/mobile`, `packages/contracts`).
-* **Qualidade de Testes:** **147 testes automatizados** distribuídos em **53 suítes** no backend e contratos, executando em tempo recorde (~3.1 segundos) com 100% de sucesso (`pass: 147, fail: 0`).
-* **Decisões Documentadas:** **12 Architecture Decision Records (ADRs)** formais aprovadas e versionadas no repositório.
+* **Qualidade de Testes:** **152 testes automatizados** distribuídos em **56 suítes** no backend e contratos, executando em tempo recorde (~3.1 segundos) com 100% de sucesso (`pass: 152, fail: 0`).
+* **Decisões Documentadas:** **14 Architecture Decision Records (ADRs)** formais aprovadas e versionadas no repositório.
 * **Governança de Agentes:** Toolchain proprietária de IA integrada aos padrões abertos da indústria (`obra/superpowers`, `mattpocock/skills` e `affaan-m/ECC`), operando sob ciclo TDD estrito e auditoria contínua de segurança.
 
 ---
@@ -149,6 +149,24 @@ A rota entre o usuário e o restaurante é calculada consumindo a API pública d
 
 ### 4.4 Resolução Dinâmica de Host para Ambientes de Rede Local
 Para permitir testes reais em dispositivos físicos (Android/iOS via Expo Go) sem forçar o desenvolvedor a alterar manualmente variáveis de ambiente `.env` toda vez que muda de rede Wi-Fi, o serviço `api.ts` inspeciona dinamicamente `Constants.expoConfig?.hostUri`. Caso detecte conexão de aparelho físico com o Metro Bundler, roteia as chamadas para a porta 3333 do IP LAN da máquina de desenvolvimento automaticamente.
+
+### 4.5 Pipeline de Upload de Imagens com Presigned URLs (ADR 0013)
+O tráfego de mídia pesada representa um dos principais riscos de degradação em backends Node.js baseados em event loop. Para prevenir estouro de memória e concorrência com requisições transacionais:
+1. O backend Express **não processa binários multipart/form-data**.
+2. A rota autenticada `POST /upload/presigned-url` valida o tamanho (até 10MB) e formato (`jpeg`, `png`, `webp`) via Zod, delegando ao `supabaseAdmin` a geração de uma URL de upload pré-assinada temporária com expiração segura.
+3. O cliente móvel executa um `PUT` binário direto via `useImagePicker` contra o bucket do Supabase Storage.
+4. Somente a URL pública definitiva com CDN é associada às entidades do banco relacional, garantindo escalabilidade ilimitada a custo zero de computação no servidor.
+
+### 4.6 Desacoplamento Nativo de Mapas no Android sem Google SDK (Issue #47)
+Para contornar a exigência estrutural de API keys do Google Maps no Android (que gerava o erro visual repetido "API key required" sobreposto às tiles do OpenStreetMap):
+1. A infraestrutura Android migrou para o driver nativo `react-native-maps-osmdroid`, que consome OSMDroid nativamente em Java/Kotlin sem invocar bibliotecas do Google Play Services.
+2. No iOS, mantém-se o `PROVIDER_DEFAULT` (Apple Maps nativo via MapKit), livre de qualquer exigência de credencial proprietária.
+3. Isso preserva a experiência limpa de visualização cartográfica 100% gratuita e em conformidade estrita com o ambiente acadêmico.
+
+### 4.7 Ergonomia Móvel, Acessibilidade Assistiva e Safe Area (ADR 0014)
+1. **Governança de Safe Area:** A raiz da aplicação foi unificada com `<SafeAreaProvider>`, eliminando margens fixas de 20px e garantindo adaptação natural a telas modernas com entalhes de câmera e Dynamic Island.
+2. **Formulários Resilientes ao Teclado:** Os fluxos de autenticação combinam `<KeyboardAvoidingView>` com `<ScrollView keyboardShouldPersistTaps="handled">`, permitindo dispensa do teclado com um toque e clique imediato de submissão sem double-tap.
+3. **Acessibilidade e Métricas HIG / WCAG:** Adoção de áreas mínimas de toque de 44x44pt (`hitSlop`), contraste de cor de alto padrão (WCAG AAA 7:1 com dourado institucional `#E5A93C`) e supressão auditiva declarativa de ícones decorativos (`accessible={false}`, `aria-hidden={true}`) para navegação limpa no TalkBack e VoiceOver.
 
 ---
 
@@ -324,12 +342,24 @@ O desenvolvimento foi orientado por requisitos funcionais institucionais e hist�
 * Identificação visual de pratos esgotados com tag "ESGOTADO" e redução de opacidade.
 * Controle de acesso estrito: Donos de restaurantes autenticados (`assertOwner`) contam com botões e modal nativo para criar, editar disponibilidade/preço e excluir pratos em tempo real.
 
-### Módulo 7: Avaliações, Distribuição de Estrelas e Favoritos
-* Envio de avaliações de 1 a 5 estrelas com comentários e upload de fotos para estabelecimentos ou itens individuais do cardápio.
-* Cálculo atômico e atualização da média de avaliação e contadores no banco de dados.
-* Componente `RatingDistribution` com barra proporcional de notas de 1 a 5.
+### Módulo 7: Avaliações, Distribuição de Estrelas e Favoritos (HU12 | Sprint 05)
+* Envio de avaliações de 1 a 5 estrelas com comentários e fotos para estabelecimentos ou pratos individuais.
+* Cálculo atômico e atualização da média de avaliação e contadores no banco de dados relacional.
+* Componente `RatingDistribution` com barra proporcional de notas de 1 a 5 estrelas.
 * Réplicas oficiais do restaurante a avaliações de clientes.
 * Sistema de favoritos com alternância instantânea (`toggle`) para restaurantes e pratos com sincronização em `FavoritesContext`.
+
+### Módulo 8: Pipeline de Upload com Presigned URLs em Nuvem (ADR 0013 | Issue #46 | Sprint 05)
+* Desacoplamento arquitetural completo entre tráfego binário de imagens e servidor backend Express.
+* Geração de URLs pré-assinadas temporárias seguras com expiração pelo endpoint autenticado `POST /upload/presigned-url`.
+* Upload binário direto (`PUT`) do aplicativo cliente para o bucket do Supabase Storage via hook `useImagePicker`.
+* Validação rigorosa de metadados via Zod (`jpeg`, `png`, `webp` até 10MB) e persistência somente de URLs públicas definitivas com CDN.
+
+### Módulo 9: Refinamento Estrutural de UI/UX, Acessibilidade e Safe Area (ADR 0014 | Issue #76 | Sprint 05)
+* **Ergonomia de Teclado:** Adoção de `<KeyboardAvoidingView>` com `<ScrollView keyboardShouldPersistTaps="handled">` no fluxo de autenticação, dispensando o teclado sem necessidade de clique duplo de submissão.
+* **Governança de Safe Area:** Layout raiz unificado com `<SafeAreaProvider>`, eliminando margens fixas de 20px e prevenindo quebras em Notch e Dynamic Island.
+* **Acessibilidade Assistiva (WCAG 2.5.8 & HIG):** Áreas de toque mínimas de 44x44pt com `hitSlop`, contraste de texto AAA 7:1 (`colors.accent.gold`) e supressão auditiva declarativa de ícones decorativos no TalkBack e VoiceOver.
+* **Separação de Telas:** Home como vitrine de descoberta rápida (carrosséis temáticos) e Buscar como motor de exploração profunda (feed vertical paginado com filtros avançados).
 
 ---
 
@@ -351,6 +381,8 @@ Todas as escolhas técnicas de alto impacto foram documentadas e aprovadas atrav
 | **[ADR 0010](adr/0010-calculo-rota-tempo-estimado-osrm.md)** | Cálculo de Rota e Tempo Estimado via OSRM (HU9) | Aceito | Oferece traçado viário e tempo estimado de deslocamento sem custos de licença comercial, com fallback automático para Haversine em caso de instabilidade. |
 | **[ADR 0011](adr/0011-tela-detalhes-restaurante-hu10.md)** | Tela de Detalhes do Restaurante (HU10) | Aceito | Unifica carrossel de fotos, horários com destaque do dia da semana, discador e WhatsApp nativos, mapa com rota e botão de cardápio em rota única e coesa. |
 | **[ADR 0012](adr/0012-cardapio-digital-categorias-hu11.md)** | Cardápio Digital por Categorias e Fotos (HU11) | Aceito | Modela entidade de cardápio, protege mutações via regra de posse `assertOwner`, implementa SectionList com abas sticky sincronizadas e cache inteligente de fotos. |
+| **[ADR 0013](adr/0013-pipeline-upload-imagens-presigned-urls-supabase.md)** | Pipeline de Upload de Imagens com Presigned URLs no Supabase Storage | Aceito | Desacopla o tráfego pesado de mídia do backend Express através de URLs pré-assinadas com upload binário direto ao Supabase Storage. |
+| **[ADR 0014](adr/0014-refinamento-ui-ux-acessibilidade-arquitetura-telas.md)** | Refinamento Estrutural de UI/UX, Acessibilidade e Separação de Telas | Aceito | Corrige ergonomia de formulários com KeyboardAvoidingView, Safe Area Provider raiz, acessibilidade TalkBack/VoiceOver e separa descoberta da busca profunda. |
 
 ---
 
@@ -386,7 +418,7 @@ O desenvolvimento deste repositório adotou um framework inovador e disciplinado
 | **Sprint 02** | Geolocalização & Mapa | Captura de coordenadas GPS (HU1), marcadores no mapa (HU2), clustering de estabelecimentos com Supercluster (HU3) e cadastro inicial de restaurante (HU4). | Issues #31 a #37, ADR 0004 e ADR 0005. |
 | **Sprint 03** | Descoberta, Filtros & Ordenação | Feed paginado na Home (HU5), busca unaccent por nome/culinária/cidade (HU6), filtros avançados de preço/avaliação/horário (HU7) e ordenação por distância/preço/nota (HU8). | Issues #48 a #53, PRs #60 a #66, ADRs 0006 a 0009. |
 | **Sprint 04** | Roteamento, Detalhes & Toolchain de IA | Rota viária com motor OSRM e fallback Haversine (HU9), tela completa de detalhes do estabelecimento com horários e contatos nativos (HU10) e consolidação da toolchain de IA. | Issues #54, #55 e #70, PRs #67 a #69, ADRs 0010 e 0011. |
-| **Sprint 05 (Atual)** | Cardápio Digital, Avaliações & Favoritos | Cardápio categorizado com abas sticky e fotos em alta resolução (HU11), controle de posse `assertOwner`, sistema de avaliações com réplicas e persistência de favoritos. | Issue #56, PRs #74 e #75, ADR 0012, 147 testes verdes. |
+| **Sprint 05 (Atual)** | Cardápio Digital, Avaliações, Uploads em Nuvem & Refinamento UI/UX | Cardápio categorizado com abas sticky (HU11), controle de posse `assertOwner`, sistema de avaliações e favoritos persistentes, pipeline de upload com Presigned URLs (Supabase Storage), remoção do watermark do mapa Android (OSM) e refinamento global de UI/UX, acessibilidade (WCAG AAA / HIG) e Safe Area. | Issues #46, #47, #56 e #76, PRs #74, #75, #88 e #89, ADRs 0012, 0013 e 0014, 152 testes verdes. |
 
 ---
 
@@ -396,20 +428,22 @@ O desenvolvimento deste repositório adotou um framework inovador e disciplinado
 1. **Type-Safety Ponta a Ponta Sem Custo de Runtime:** O uso de Zod em `@menu-digital/contracts` como única fonte de verdade cria uma barreira impenetrável contra falhas de contrato. Qualquer alteração em um campo de resposta da API quebra a compilação do mobile no CI antes mesmo de chegar aos desenvolvedores.
 2. **Resiliência a Falhas de Serviços Externos:** O sistema não assume que a internet ou provedores terceiros (OSRM, Supabase) estarão disponíveis 100% do tempo. O uso de transações compensatórias para mitigar *Dual-Write* e o fallback gracioso para Haversine demonstram maturidade de produto comercial.
 3. **Performance Visual e Eficiência de Recursos:** O clustering com Supercluster e a estratégia de SectionList com `useRef` garantem que o app móvel permaneça a 60 FPS estáveis mesmo ao carregar dezenas de restaurantes e pratos.
-4. **Bateria de Testes Ágil e Robusta:** 147 testes unitários e de integração rodando em 3.1 segundos permitem ciclos contínuos de refatoração sem medo de regressão.
+4. **Bateria de Testes Ágil e Robusta:** 152 testes unitários e de integração em 56 suítes rodando em ~3.1 segundos permitem ciclos contínuos de refatoração sem medo de regressão.
 
 ### 10.2 Débitos Técnicos Mapeados e Recomendações Estratégicas
-Como olhar sênior, é fundamental registrar os pontos de evolução técnica para preparar a plataforma para escala de produção real:
+Como olhar sênior, é fundamental registrar o status e os pontos de evolução técnica para preparar a plataforma para escala de produção real:
 
-1. **Pipeline de Upload de Imagens para Object Storage (Supabase Storage / S3 / R2):**
-   - *Cenário Atual:* O `expo-image-picker` obtém URIs locais do aparelho (`file://` ou `ph://`).
-   - *Recomendação:* Implementar um endpoint autenticado `POST /upload` ou geração de URLs pré-assinadas (*Presigned URLs*) para que as fotos sejam enviadas diretamente a um bucket com CDN e compressão WebP em segundo plano antes da gravação da URL definitiva no banco de dados.
+1. **Pipeline de Upload de Imagens para Object Storage (Supabase Storage) [CONCLUÍDO / RESOLVIDO NA SPRINT 05 — ADR 0013 / PR #88]:**
+   - *Status:* Implementado com sucesso. O backend Express agora orquestra URLs pré-assinadas temporárias (`POST /upload/presigned-url`) e o aplicativo móvel realiza o upload direto via PUT binário para o bucket do Supabase Storage com fallback automático e suíte de testes dedicada.
 2. **Self-Hosting do Motor OSRM em Container Dedicado:**
-   - *Cenário Atual:* Consumo do servidor de demonstração público `router.project-osrm.org`.
+   - *Cenário Atual:* Consumo do servidor de demonstração público `router.project-osrm.org` com fallback para fórmula Haversine.
    - *Recomendação:* Para operação comercial, hospedar uma instância própria do `osrm-backend` em container Docker (ex: Fly.io, Railway ou VPS local) com o extrato rodoviário do OpenStreetMap focado na região de operação (ex: Brasil / Distrito Federal), eliminando qualquer risco de rate limit.
 3. **Camada de Cache do Cliente Móvel (TanStack Query / React Query):**
    - *Cenário Atual:* Consumo HTTP direto via `fetch` nativo com estados locais em hooks e contextos.
    - *Recomendação:* Adoção de React Query para gerenciar cache automático de listagens, revalidação em segundo plano (*stale-while-revalidate*) e mutações otimistas nos botões de favoritar e avaliar.
+4. **Autonomia Offline e Persistência Segura (WatermelonDB / MMKV):**
+   - *Cenário Atual:* Favoritos persistidos via API e Contexto local em memória.
+   - *Recomendação:* Para suporte pleno a cenários sem conexão à internet dentro de praças de alimentação com sinal degradado, implementar sincronização em segundo plano via banco local off-line first.
 
 ---
 

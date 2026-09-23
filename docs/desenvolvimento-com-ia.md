@@ -39,7 +39,7 @@ Nossa infraestrutura agentica integra conceitos e técnicas consagradas de três
 
 ### 🛡️ [affaan-m/ECC](https://github.com/affaan-m/ECC) — Conhecimento Técnico da Stack e Segurança
 * **Autor**: Affaan Mustafa.
-* **Papel no projeto**: Fonte das regras técnicas especializadas para a nossa stack monorepo (Expo SDK 54, React Native 0.81, Express 5, Prisma ORM 6.19 e Zod Contracts) e das práticas de auditoria do **AgentShield** (proteção contra vazamento de variáveis de ambiente sensíveis e injeções).
+* **Papel no projeto**: Fonte das regras técnicas especializadas para a nossa stack monorepo (Expo SDK 57, React Native 0.86, Express 5, Prisma ORM 6.19 e Zod Contracts) e das práticas de auditoria do **AgentShield** (proteção contra vazamento de variáveis de ambiente sensíveis e injeções).
 
 ---
 
@@ -92,8 +92,12 @@ Com a aprovação, o agente aplicará o ciclo Red/Green TDD:
 * Refatoração preservando a integridade das tipagens estritas do TypeScript.
 
 ### Etapa 4: Auditoria e Verificação (DoD)
-Antes de considerar o trabalho concluído, a skill `verify-monorepo` deve ser executada:
+Antes de considerar o trabalho concluído, a verificação unificada do monorepo deve ser executada:
 ```bash
+# Execução unificada de todos os linters, compilação de contratos e 152 testes:
+npm run verify
+
+# Ou individualmente por workspace:
 npm run build -w packages/contracts
 npm run lint -w apps/api
 npm run test -w apps/api
