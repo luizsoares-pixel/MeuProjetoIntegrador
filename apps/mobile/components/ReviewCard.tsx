@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -15,8 +16,11 @@ import { StarRating } from "./StarRating";
 
 interface ReviewCardProps {
   review: ReviewResponse;
+  currentUserId?: string;
   isOwner?: boolean;
   onReply?: (reviewId: string) => void;
+  onEdit?: (review: ReviewResponse) => void;
+  onReport?: (reviewId: string) => void;
 }
 
 function formatDate(dateValue: string | Date | undefined): string {
@@ -33,13 +37,38 @@ function formatDate(dateValue: string | Date | undefined): string {
   }
 }
 
-export function ReviewCard({ review, isOwner = false, onReply }: ReviewCardProps) {
+export function ReviewCard({
+  review,
+  currentUserId,
+  isOwner = false,
+  onReply,
+  onEdit,
+  onReport,
+}: ReviewCardProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   // Formata nome do autor
   const authorName = review.userEmail
     ? review.userEmail.split("@")[0]
     : "Cliente";
+
+  const isMyReview = Boolean(currentUserId && review.userId === currentUserId);
+
+  const handleReportPress = () => {
+    if (!onReport) return;
+
+    Alert.alert(
+      "Denunciar avaliação",
+      "Selecione o motivo da denúncia para análise:",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Conteúdo ofensivo ou inadequado",
+          onPress: () => onReport(review.id),
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.card}>
@@ -52,11 +81,56 @@ export function ReviewCard({ review, isOwner = false, onReply }: ReviewCardProps
         </View>
 
         <View style={styles.authorInfo}>
-          <Text style={styles.authorName}>{authorName}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.authorName}>{authorName}</Text>
+            {isMyReview ? (
+              <View style={styles.myBadge}>
+                <Text style={styles.myBadgeText}>Sua avaliação</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.dateText}>{formatDate(review.createdAt)}</Text>
         </View>
 
-        <StarRating rating={review.rating} size={15} />
+        <View style={styles.headerActions}>
+          <StarRating rating={review.rating} size={15} />
+
+          {/* Botão de Denúncia (avaliações de terceiros) com hitSlop 44x44pt */}
+          {!isMyReview && onReport ? (
+            <TouchableOpacity
+              onPress={handleReportPress}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.actionIconButton}
+              accessibilityRole="button"
+              accessibilityLabel="Denunciar esta avaliação"
+            >
+              <MaterialCommunityIcons
+                name="flag-outline"
+                size={16}
+                color={colors.accent.whiteLight}
+                accessible={false}
+              />
+            </TouchableOpacity>
+          ) : null}
+
+          {/* Botão de Editar (avaliação própria) */}
+          {isMyReview && onEdit ? (
+            <TouchableOpacity
+              onPress={() => onEdit(review)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.actionIconButton}
+              accessibilityRole="button"
+              accessibilityLabel="Editar minha avaliação"
+            >
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={16}
+                color={colors.accent.gold}
+                accessible={false}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       {/* ── Comentário ──────────────────────────────────────────────── */}
@@ -95,6 +169,7 @@ export function ReviewCard({ review, isOwner = false, onReply }: ReviewCardProps
               name="store"
               size={16}
               color={colors.accent.gold}
+              accessible={false}
             />
             <Text style={styles.replyTitle}>Resposta do restaurante</Text>
             {review.repliedAt ? (
@@ -116,6 +191,7 @@ export function ReviewCard({ review, isOwner = false, onReply }: ReviewCardProps
             name="reply"
             size={16}
             color={colors.accent.gold}
+            accessible={false}
           />
           <Text style={styles.replyButtonText}>Responder avaliação</Text>
         </TouchableOpacity>
@@ -142,6 +218,7 @@ export function ReviewCard({ review, isOwner = false, onReply }: ReviewCardProps
               name="close"
               size={28}
               color={colors.accent.white}
+              accessible={false}
             />
           </TouchableOpacity>
 
@@ -173,10 +250,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background.tertiary,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(212, 175, 55, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.sm,
@@ -184,22 +261,52 @@ const styles = StyleSheet.create({
     borderColor: colors.accent.goldTint,
   },
   avatarText: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
   },
   authorInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   authorName: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
   },
+  myBadge: {
+    backgroundColor: "rgba(212, 175, 55, 0.2)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.accent.goldTint,
+  },
+  myBadgeText: {
+    color: colors.accent.gold,
+    fontSize: 10,
+    fontWeight: typography.weight.semibold,
+  },
   dateText: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteLight,
+    marginTop: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionIconButton: {
+    padding: 6,
+    borderRadius: 4,
   },
   commentText: {
-    ...typography.body,
+    fontSize: typography.size.sm,
     color: colors.accent.white,
     lineHeight: 20,
     marginBottom: spacing.sm,
@@ -235,20 +342,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   replyTitle: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
     marginLeft: 6,
     flex: 1,
   },
   replyDate: {
-    ...typography.caption,
-    color: colors.accent.whiteLight,
     fontSize: 11,
+    color: colors.accent.whiteLight,
   },
   replyBody: {
-    ...typography.body,
+    fontSize: typography.size.xs,
     color: colors.accent.white,
-    fontSize: 13,
     lineHeight: 18,
   },
   replyButton: {
@@ -262,7 +368,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(212, 175, 55, 0.1)",
   },
   replyButtonText: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
     marginLeft: 4,
   },

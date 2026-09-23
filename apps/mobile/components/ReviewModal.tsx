@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import type { ReviewResponse } from "@menu-digital/contracts";
 import { colors, spacing, typography } from "../theme";
 import { StarRating } from "./StarRating";
 import { uploadReviewPhoto } from "../services/review.service";
@@ -24,34 +25,51 @@ interface ReviewModalProps {
   visible: boolean;
   onClose: () => void;
   targetName: string;
+  initialReview?: ReviewResponse | null;
   onSubmit: (data: {
     rating: number;
     comment?: string;
     photoUrls: string[];
   }) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }
 
 export function ReviewModal({
   visible,
   onClose,
   targetName,
+  initialReview,
   onSubmit,
+  onDelete,
 }: ReviewModalProps) {
   const { session } = useAuth();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
 
-  const resetForm = () => {
-    setRating(5);
-    setComment("");
-    setSelectedPhotos([]);
-    setIsSubmitting(false);
-  };
+  const isEditing = Boolean(initialReview);
+
+  useEffect(() => {
+    if (visible) {
+      if (initialReview) {
+        setRating(initialReview.rating);
+        setComment(initialReview.comment ?? "");
+        setSelectedPhotos((initialReview.photos ?? []).map((p) => p.url));
+      } else {
+        setRating(5);
+        setComment("");
+        setSelectedPhotos([]);
+      }
+      setIsSubmitting(false);
+      setIsDeleting(false);
+      setUploadStatusText(null);
+    }
+  }, [visible, initialReview]);
 
   const handleClose = () => {
-    resetForm();
     onClose();
   };
 
@@ -70,7 +88,7 @@ export function ReviewModal({
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        const newUris = result.assets.map((asset) => asset.uri);
+        const newUris = result.assets.map((asset: { uri: string }) => asset.uri);
         const combined = [...selectedPhotos, ...newUris].slice(0, 3);
         setSelectedPhotos(combined);
       }
@@ -92,12 +110,22 @@ export function ReviewModal({
     try {
       setIsSubmitting(true);
 
-      // Faz upload de cada foto selecionada
+      // Faz upload de cada foto selecionada exibindo feedback de progresso
       const uploadedUrls: string[] = [];
-      for (const uri of selectedPhotos) {
-        const url = await uploadReviewPhoto(uri, session?.access_token);
-        uploadedUrls.push(url);
+      const totalPhotos = selectedPhotos.length;
+
+      for (let i = 0; i < totalPhotos; i++) {
+        const uri = selectedPhotos[i];
+        if (uri.startsWith("http://") || uri.startsWith("https://")) {
+          uploadedUrls.push(uri);
+        } else {
+          setUploadStatusText(`Enviando foto ${i + 1} de ${totalPhotos}...`);
+          const url = await uploadReviewPhoto(uri, session?.access_token);
+          uploadedUrls.push(url);
+        }
       }
+
+      setUploadStatusText("Salvando avaliação...");
 
       await onSubmit({
         rating,
@@ -113,7 +141,38 @@ export function ReviewModal({
       );
     } finally {
       setIsSubmitting(false);
+      setUploadStatusText(null);
     }
+  };
+
+  const handleDelete = () => {
+    if (!onDelete) return;
+
+    Alert.alert(
+      "Excluir avaliação",
+      "Tem certeza que deseja excluir esta avaliação? Esta ação não pode ser desfeita.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await onDelete();
+              handleClose();
+            } catch (err: any) {
+              Alert.alert(
+                "Erro ao excluir",
+                err?.message || "Não foi possível excluir a avaliação."
+              );
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -131,7 +190,9 @@ export function ReviewModal({
           {/* ── Barra Superior do Modal ─────────────────────────────────── */}
           <View style={styles.modalHeader}>
             <View style={styles.headerTitles}>
-              <Text style={styles.headerTitle}>Deixe sua avaliação</Text>
+              <Text style={styles.headerTitle}>
+                {isEditing ? "Editar sua avaliação" : "Deixe sua avaliação"}
+              </Text>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {targetName}
               </Text>
@@ -153,6 +214,7 @@ export function ReviewModal({
           <ScrollView
             contentContainerStyle={styles.scrollBody}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {/* ── Seletor de Estrelas ─────────────────────────────────── */}
             <View style={styles.ratingSection}>
@@ -201,7 +263,7 @@ export function ReviewModal({
 
               <View style={styles.photosRow}>
                 {selectedPhotos.map((uri, index) => (
-                  <View key={uri} style={styles.photoPreviewContainer}>
+                  <View key={`${uri}-${index}`} style={styles.photoPreviewContainer}>
                     <Image source={{ uri }} style={styles.photoPreview} />
                     <TouchableOpacity
                       style={styles.removePhotoButton}
@@ -236,23 +298,65 @@ export function ReviewModal({
               </View>
             </View>
 
-            {/* ── Botão de Enviar ─────────────────────────────────────── */}
+            {/* ── Feedback de Progresso do Upload ─────────────────────── */}
+            {uploadStatusText ? (
+              <View style={styles.progressBox}>
+                <ActivityIndicator size="small" color={colors.accent.gold} />
+                <Text style={styles.progressText}>{uploadStatusText}</Text>
+              </View>
+            ) : null}
+
+            {/* ── Botão de Enviar / Atualizar ─────────────────────────── */}
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                isSubmitting && styles.submitButtonDisabled,
+                (isSubmitting || isDeleting) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isDeleting}
               accessibilityRole="button"
-              accessibilityLabel="Enviar avaliação"
+              accessibilityLabel={
+                isEditing ? "Atualizar avaliação" : "Enviar avaliação"
+              }
             >
               {isSubmitting ? (
                 <ActivityIndicator color={colors.background.primary} />
               ) : (
-                <Text style={styles.submitButtonText}>Enviar Avaliação</Text>
+                <Text style={styles.submitButtonText}>
+                  {isEditing ? "Atualizar Avaliação" : "Enviar Avaliação"}
+                </Text>
               )}
             </TouchableOpacity>
+
+            {/* ── Botão de Excluir Avaliação (Modo Edição) ────────────── */}
+            {isEditing && onDelete ? (
+              <TouchableOpacity
+                style={[
+                  styles.deleteButton,
+                  (isSubmitting || isDeleting) && styles.submitButtonDisabled,
+                ]}
+                onPress={handleDelete}
+                disabled={isSubmitting || isDeleting}
+                accessibilityRole="button"
+                accessibilityLabel="Excluir minha avaliação"
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color={colors.accent.redSoft} />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons
+                      name="trash-can-outline"
+                      size={18}
+                      color={colors.accent.redSoft}
+                      accessible={false}
+                    />
+                    <Text style={styles.deleteButtonText}>
+                      Excluir Avaliação
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : null}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -288,16 +392,21 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   headerTitle: {
-    ...typography.h3,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
   },
   headerSubtitle: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteLight,
     marginTop: 2,
   },
   closeButton: {
     padding: spacing.xs,
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   scrollBody: {
     padding: spacing.md,
@@ -307,12 +416,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionLabel: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     marginBottom: spacing.xs,
   },
   ratingHint: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
     marginTop: spacing.xs,
   },
@@ -322,44 +433,43 @@ const styles = StyleSheet.create({
   textArea: {
     backgroundColor: colors.background.secondary,
     borderRadius: 8,
-    padding: spacing.sm,
-    color: colors.accent.white,
-    minHeight: 90,
-    textAlignVertical: "top",
     borderWidth: 1,
-    borderColor: "rgba(212, 175, 55, 0.2)",
-    ...typography.body,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    color: colors.accent.white,
+    padding: spacing.md,
+    fontSize: 14,
+    textAlignVertical: "top",
+    minHeight: 100,
   },
   charCounter: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteLight,
     textAlign: "right",
     marginTop: 4,
-    fontSize: 11,
   },
   photosSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   photosHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: spacing.xs,
   },
   photosCount: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
     color: colors.accent.gold,
   },
   photosRow: {
     flexDirection: "row",
     gap: spacing.sm,
-    marginTop: spacing.xs,
   },
   photoPreviewContainer: {
-    width: 76,
-    height: 76,
+    width: 80,
+    height: 80,
     borderRadius: 8,
-    overflow: "hidden",
     position: "relative",
+    overflow: "hidden",
   },
   photoPreview: {
     width: "100%",
@@ -369,12 +479,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 2,
     right: 2,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 12,
   },
   addPhotoButton: {
-    width: 76,
-    height: 76,
+    width: 80,
+    height: 80,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.accent.gold,
@@ -384,24 +494,57 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(212, 175, 55, 0.05)",
   },
   addPhotoText: {
-    ...typography.caption,
+    fontSize: 11,
+    fontWeight: typography.weight.medium,
     color: colors.accent.gold,
-    fontSize: 10,
     marginTop: 2,
+  },
+  progressBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: "rgba(212, 175, 55, 0.1)",
+    borderRadius: 8,
+  },
+  progressText: {
+    fontSize: typography.size.xs,
+    color: colors.accent.gold,
   },
   submitButton: {
     backgroundColor: colors.accent.gold,
+    paddingVertical: 14,
     borderRadius: 8,
-    paddingVertical: spacing.md,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 48,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    ...typography.bodyBold,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
     color: colors.background.primary,
-    fontWeight: "700",
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: spacing.md,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(224, 86, 75, 0.5)",
+    backgroundColor: "rgba(224, 86, 75, 0.08)",
+    minHeight: 44,
+  },
+  deleteButtonText: {
+    color: colors.accent.redSoft,
+    fontSize: 14,
+    fontWeight: typography.weight.bold,
   },
 });

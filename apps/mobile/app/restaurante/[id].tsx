@@ -22,6 +22,7 @@ import type {
   BusinessHours,
   PaymentMethod,
   RestaurantResponse,
+  ReviewResponse,
 } from "@menu-digital/contracts";
 import { fetchRestaurantById } from "../../services/api";
 import {
@@ -32,10 +33,21 @@ import { useRouteCalculation } from "../../hooks/useRouteCalculation";
 import { colors, spacing, typography } from "../../theme";
 import { RestaurantErrorState } from "../../components/RestaurantErrorState";
 import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../../constants/network";
+import { useAuth } from "../../hooks/useAuth";
 import { useFavorites } from "../../hooks/useFavorites";
 import { FavoriteButton } from "../../components/FavoriteButton";
 import { StarRating } from "../../components/StarRating";
 import { RatingDistribution } from "../../components/RatingDistribution";
+import { ReviewCard } from "../../components/ReviewCard";
+import { ReviewModal } from "../../components/ReviewModal";
+import {
+  createReview,
+  deleteReview,
+  fetchMyReview,
+  fetchRestaurantReviews,
+  reportReview,
+  updateReview,
+} from "../../services/review.service";
 
 import { LeafletMap } from "../../components/LeafletMap";
 
@@ -107,6 +119,27 @@ export default function RestaurantDetailsScreen() {
     "checking" | "granted" | "denied"
   >("checking");
 
+  const { session } = useAuth();
+  const [reviews, setReviews] = useState<ReviewResponse[]>([]);
+  const [reviewsPage, setReviewsPage] = useState<number>(1);
+  const [hasMoreReviews, setHasMoreReviews] = useState<boolean>(false);
+  const [totalReviews, setTotalReviews] = useState<number>(0);
+  const [ratingDistribution, setRatingDistribution] = useState<
+    Record<number, number>
+  >({
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  });
+  const [isLoadingReviews, setIsLoadingReviews] = useState<boolean>(false);
+  const [isLoadingMoreReviews, setIsLoadingMoreReviews] =
+    useState<boolean>(false);
+  const [isReviewModalVisible, setIsReviewModalVisible] =
+    useState<boolean>(false);
+  const [myReview, setMyReview] = useState<ReviewResponse | null>(null);
+
   // ── Carrega dados do restaurante ───────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
@@ -146,6 +179,131 @@ export default function RestaurantDetailsScreen() {
   const retryLoadRestaurant = useCallback(() => {
     setLoadAttempt((attempt) => attempt + 1);
   }, []);
+
+  // ── Avaliações do Restaurante (Issue #79) ───────────────────────────────────
+  const loadReviews = useCallback(
+    async (pageToLoad = 1, append = false) => {
+      if (!id) return;
+      try {
+        if (append) {
+          setIsLoadingMoreReviews(true);
+        } else {
+          setIsLoadingReviews(true);
+        }
+
+        const data = await fetchRestaurantReviews(id as string, pageToLoad, 5);
+
+        setReviews((prev) => (append ? [...prev, ...data.reviews] : data.reviews));
+        setReviewsPage(data.pagination.page);
+        setHasMoreReviews(data.pagination.hasMore);
+        setTotalReviews(data.totalReviews);
+        if (data.ratingDistribution) {
+          setRatingDistribution(data.ratingDistribution);
+        }
+      } catch {
+        // Falha silenciosa em avaliações secundárias
+      } finally {
+        setIsLoadingReviews(false);
+        setIsLoadingMoreReviews(false);
+      }
+    },
+    [id]
+  );
+
+  useEffect(() => {
+    loadReviews(1, false);
+  }, [loadReviews]);
+
+  const handleOpenReviewModal = async () => {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) {
+      Alert.alert(
+        "Login necessário",
+        "Faça login na sua conta para avaliar este restaurante."
+      );
+      return;
+    }
+
+    if (id) {
+      try {
+        const existing = await fetchMyReview(token, {
+          restaurantId: id as string,
+        });
+        setMyReview(existing);
+      } catch {
+        // Ignora erro
+      }
+    }
+
+    setIsReviewModalVisible(true);
+  };
+
+  const handleReviewSubmit = async (data: any) => {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token || !id) return;
+
+    if (myReview) {
+      await updateReview(myReview.id, data, token);
+      Alert.alert(
+        "Avaliação atualizada",
+        "Sua avaliação foi atualizada com sucesso!"
+      );
+    } else {
+      await createReview({ ...data, restaurantId: id as string }, token);
+      Alert.alert(
+        "Avaliação enviada",
+        "Obrigado por avaliar este restaurante!"
+      );
+    }
+
+    setMyReview(null);
+    retryLoadRestaurant();
+    loadReviews(1, false);
+  };
+
+  const handleDeleteReview = async () => {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token || !myReview) return;
+
+    await deleteReview(myReview.id, token);
+    Alert.alert(
+      "Avaliação excluída",
+      "Sua avaliação foi excluída com sucesso."
+    );
+    setMyReview(null);
+    retryLoadRestaurant();
+    loadReviews(1, false);
+  };
+
+  const handleReportReview = async (reviewId: string) => {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) {
+      Alert.alert(
+        "Login necessário",
+        "Faça login para denunciar uma avaliação."
+      );
+      return;
+    }
+
+    try {
+      await reportReview(reviewId, "Conteúdo inadequado ou ofensivo.", token);
+      Alert.alert(
+        "Denúncia enviada",
+        "Agradecemos o aviso. Nossa equipe analisará a denúncia."
+      );
+    } catch (err: any) {
+      Alert.alert(
+        "Erro",
+        err?.message || "Não foi possível registrar a denúncia."
+      );
+    }
+  };
+
+  const handleLoadMoreReviews = () => {
+    if (!isLoadingMoreReviews && hasMoreReviews) {
+      loadReviews(reviewsPage + 1, true);
+    }
+  };
 
   // ── Geolocalização do usuário para cálculo de rota (HU9) ──────────────────
   const checkUserLocation = useCallback(async () => {
@@ -890,46 +1048,118 @@ export default function RestaurantDetailsScreen() {
                 size={15}
               />
               <Text style={styles.ratingReviewsCount}>
-                {restaurant.rating
-                  ? "Avaliação geral"
-                  : "Sem avaliações ainda"}
+                {totalReviews > 0
+                  ? `${totalReviews} ${totalReviews === 1 ? "avaliação" : "avaliações"}`
+                  : (restaurant.rating ? "Avaliação geral" : "Sem avaliações ainda")}
               </Text>
             </View>
 
             <View style={styles.ratingDistributionWrapper}>
               <RatingDistribution
-                distribution={
-                  restaurant.rating
-                    ? {
-                        5: 8,
-                        4: 3,
-                        3: 1,
-                        2: 0,
-                        1: 0,
-                      }
-                    : {}
-                }
-                totalReviews={restaurant.rating ? 12 : 0}
+                distribution={ratingDistribution}
+                totalReviews={totalReviews}
               />
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.viewMenuReviewsButton}
-            onPress={() => router.push(`/restaurante/${restaurant.id}/cardapio`)}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons
-              name="silverware-fork-knife"
-              size={18}
-              color={colors.background.primary}
-            />
-            <Text style={styles.viewMenuReviewsButtonText}>
-              Ver Cardápio e Avaliar Pratos
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.reviewActionsRow}>
+            <TouchableOpacity
+              style={styles.evaluateRestaurantButton}
+              onPress={handleOpenReviewModal}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name="star-outline"
+                size={18}
+                color={colors.background.primary}
+              />
+              <Text style={styles.evaluateRestaurantButtonText}>
+                {myReview ? "Editar sua Avaliação" : "Avaliar Restaurante"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.viewMenuReviewsButton}
+              onPress={() => router.push(`/restaurante/${restaurant.id}/cardapio`)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name="silverware-fork-knife"
+                size={18}
+                color={colors.accent.gold}
+              />
+              <Text style={styles.viewMenuReviewsButtonText}>
+                Ver Cardápio
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Lista de Avaliações */}
+          <View style={styles.reviewsListContainer}>
+            {isLoadingReviews && reviews.length === 0 ? (
+              <View style={styles.loadingReviewsBox}>
+                <ActivityIndicator size="small" color={colors.accent.gold} />
+                <Text style={styles.loadingReviewsText}>Carregando avaliações...</Text>
+              </View>
+            ) : reviews.length === 0 ? (
+              <View style={styles.emptyReviewsCard}>
+                <MaterialCommunityIcons
+                  name="message-draw"
+                  size={32}
+                  color={colors.accent.whiteSoft}
+                />
+                <Text style={styles.emptyReviewsTitle}>Seja o primeiro a avaliar!</Text>
+                <Text style={styles.emptyReviewsSubtitle}>
+                  Compartilhe sua experiência gastronômica com fotos e comentários.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {reviews.map((rev) => (
+                  <ReviewCard
+                    key={rev.id}
+                    review={rev}
+                    currentUserId={session?.user?.id}
+                    onEdit={() => {
+                      setMyReview(rev);
+                      setIsReviewModalVisible(true);
+                    }}
+                    onReport={() => handleReportReview(rev.id)}
+                  />
+                ))}
+
+                {hasMoreReviews && (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={handleLoadMoreReviews}
+                    disabled={isLoadingMoreReviews}
+                    activeOpacity={0.7}
+                  >
+                    {isLoadingMoreReviews ? (
+                      <ActivityIndicator size="small" color={colors.accent.gold} />
+                    ) : (
+                      <Text style={styles.loadMoreText}>Carregar mais avaliações</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
         </View>
       </ScrollView>
+
+      {/* Modal de Avaliação */}
+      <ReviewModal
+        visible={isReviewModalVisible}
+        onClose={() => {
+          setIsReviewModalVisible(false);
+          setMyReview(null);
+        }}
+        onSubmit={handleReviewSubmit}
+        onDelete={myReview ? handleDeleteReview : undefined}
+        initialReview={myReview}
+        targetName={restaurant.name}
+      />
     </View>
   );
 }
@@ -1494,7 +1724,14 @@ const styles = StyleSheet.create({
   ratingDistributionWrapper: {
     flex: 1,
   },
-  viewMenuReviewsButton: {
+  reviewActionsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  evaluateRestaurantButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1502,12 +1739,76 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: spacing.sm,
     gap: 6,
-    marginTop: spacing.sm,
+  },
+  evaluateRestaurantButtonText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.background.primary,
+  },
+  viewMenuReviewsButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.accent.gold,
+    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    gap: 6,
   },
   viewMenuReviewsButtonText: {
     fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
-    color: colors.background.primary,
+    color: colors.accent.gold,
+  },
+  reviewsListContainer: {
+    marginTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.card,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
+  },
+  loadingReviewsBox: {
+    paddingVertical: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  loadingReviewsText: {
+    fontSize: typography.size.xs,
+    color: colors.accent.whiteSoft,
+  },
+  emptyReviewsCard: {
+    paddingVertical: spacing.xl,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  emptyReviewsTitle: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.white,
+    marginTop: spacing.xs,
+  },
+  emptyReviewsSubtitle: {
+    fontSize: typography.size.xs,
+    color: colors.accent.whiteSoft,
+    textAlign: "center",
+    paddingHorizontal: spacing.md,
+  },
+  loadMoreButton: {
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface.card,
+    borderRadius: 8,
+    marginTop: spacing.xs,
+  },
+  loadMoreText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: colors.accent.gold,
   },
 });
 

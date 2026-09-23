@@ -569,4 +569,250 @@ describe("Reviews & Favorites Layer — Issues #79, #80 e #83", () => {
       assert.equal(jsonBody.isFavorite, true);
     });
   });
+
+  // ── 7. Issue #79: ReviewService — getMyReview, createRestaurantReview, update, delete e report ──
+
+  describe("Issue #79: ReviewService & Controller — Ciclo Completo de Avaliações", () => {
+    it("ReviewService.getMyReview deve retornar a avaliação existente do usuário para restaurante", async () => {
+      (prisma as any).review = {
+        findUnique: async () => mockReview({ restaurantId, menuItemId: null }),
+      };
+
+      const service = new ReviewService();
+      const result = await (service as any).getMyReview(
+        { id: userId, role: "user" },
+        { restaurantId }
+      );
+
+      assert.ok(result);
+      assert.equal(result.restaurantId, restaurantId);
+      assert.equal(result.rating, 5);
+    });
+
+    it("ReviewService.getMyReview deve retornar null quando usuário não avaliou", async () => {
+      (prisma as any).review = {
+        findUnique: async () => null,
+      };
+
+      const service = new ReviewService();
+      const result = await (service as any).getMyReview(
+        { id: userId, role: "user" },
+        { restaurantId }
+      );
+
+      assert.equal(result, null);
+    });
+
+    it("ReviewService.createRestaurantReview deve criar review e recalcular média do restaurante", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async () => ({ id: restaurantId }),
+      };
+      (prisma as any).review = {
+        findUnique: async () => null,
+      };
+
+      let txUpdatedRating: number | null = null;
+      let txUpdatedCount: number | null = null;
+
+      (prisma as any).$transaction = async (callback: any) => {
+        const txMock = {
+          review: {
+            create: async () =>
+              mockReview({ restaurantId, menuItemId: null, rating: 5 }),
+            aggregate: async () => ({
+              _avg: { rating: 4.8 },
+              _count: { rating: 12 },
+            }),
+          },
+          restaurant: {
+            update: async ({ data }: any) => {
+              txUpdatedRating = data.rating;
+              txUpdatedCount = data.reviewsCount;
+            },
+          },
+        };
+        return callback(txMock);
+      };
+
+      const service = new ReviewService();
+      const result = await (service as any).createReview(
+        { restaurantId, rating: 5, comment: "Excelente ambiente!" },
+        { id: userId, role: "user" }
+      );
+
+      assert.equal(result.restaurantId, restaurantId);
+      assert.equal(result.rating, 5);
+      assert.equal(txUpdatedRating, 4.8);
+      assert.equal(txUpdatedCount, 12);
+    });
+
+    it("ReviewService.createReview deve lançar 409 caso avaliação de restaurante já exista", async () => {
+      (prisma as any).restaurant = {
+        findUnique: async () => ({ id: restaurantId }),
+      };
+      (prisma as any).review = {
+        findUnique: async () => mockReview({ restaurantId, menuItemId: null }),
+      };
+
+      const service = new ReviewService();
+      await assert.rejects(
+        () =>
+          (service as any).createReview(
+            { restaurantId, rating: 5 },
+            { id: userId, role: "user" }
+          ),
+        /REVIEW_ALREADY_EXISTS/
+      );
+    });
+
+    it("ReviewService.updateReview deve validar assertOwner (403 para usuário não autor)", async () => {
+      (prisma as any).review = {
+        findUnique: async () => mockReview({ userId: "outro-usuario" }),
+      };
+
+      const service = new ReviewService();
+      await assert.rejects(
+        () =>
+          (service as any).updateReview(
+            reviewId,
+            { rating: 3, comment: "Atualizado" },
+            { id: userId, role: "user" }
+          ),
+        /REVIEW_FORBIDDEN/
+      );
+    });
+
+    it("ReviewService.updateReview deve atualizar nota e recalcular médias via $transaction", async () => {
+      (prisma as any).review = {
+        findUnique: async () =>
+          mockReview({ userId, restaurantId, menuItemId: null }),
+      };
+
+      let txUpdatedRating: number | null = null;
+      let txUpdatedCount: number | null = null;
+
+      (prisma as any).$transaction = async (callback: any) => {
+        const txMock = {
+          reviewPhoto: {
+            deleteMany: async () => {},
+            createMany: async () => {},
+          },
+          review: {
+            update: async () =>
+              mockReview({ restaurantId, menuItemId: null, rating: 4 }),
+            aggregate: async () => ({
+              _avg: { rating: 4.6 },
+              _count: { rating: 12 },
+            }),
+          },
+          restaurant: {
+            update: async ({ data }: any) => {
+              txUpdatedRating = data.rating;
+              txUpdatedCount = data.reviewsCount;
+            },
+          },
+        };
+        return callback(txMock);
+      };
+
+      const service = new ReviewService();
+      const updated = await (service as any).updateReview(
+        reviewId,
+        { rating: 4, comment: "Nota ajustada" },
+        { id: userId, role: "user" }
+      );
+
+      assert.equal(updated.rating, 4);
+      assert.equal(txUpdatedRating, 4.6);
+      assert.equal(txUpdatedCount, 12);
+    });
+
+    it("ReviewService.deleteReview deve validar assertOwner e recalcular médias ao excluir", async () => {
+      (prisma as any).review = {
+        findUnique: async () =>
+          mockReview({ userId, restaurantId, menuItemId: null }),
+      };
+
+      let deletedReviewId: string | null = null;
+      let txUpdatedRating: number | null = null;
+      let txUpdatedCount: number | null = null;
+
+      (prisma as any).$transaction = async (callback: any) => {
+        const txMock = {
+          review: {
+            delete: async ({ where }: any) => {
+              deletedReviewId = where.id;
+            },
+            aggregate: async () => ({
+              _avg: { rating: 4.5 },
+              _count: { rating: 11 },
+            }),
+          },
+          restaurant: {
+            update: async ({ data }: any) => {
+              txUpdatedRating = data.rating;
+              txUpdatedCount = data.reviewsCount;
+            },
+          },
+        };
+        return callback(txMock);
+      };
+
+      const service = new ReviewService();
+      await (service as any).deleteReview(reviewId, {
+        id: userId,
+        role: "user",
+      });
+
+      assert.equal(deletedReviewId, reviewId);
+      assert.equal(txUpdatedRating, 4.5);
+      assert.equal(txUpdatedCount, 11);
+    });
+
+    it("ReviewService.reportReview deve registrar denúncia de terceiros com status PENDING", async () => {
+      (prisma as any).review = {
+        findUnique: async () => ({ id: reviewId, userId: "outro-usuario" }),
+      };
+      (prisma as any).reviewReport = {
+        create: async ({ data }: any) => ({
+          id: "rep1",
+          reviewId: data.reviewId,
+          reporterId: data.reporterId,
+          reason: data.reason,
+          status: data.status,
+          createdAt: new Date(),
+        }),
+      };
+
+      const service = new ReviewService();
+      const report = await (service as any).reportReview(
+        reviewId,
+        { reason: "Linguagem abusiva no comentário." },
+        { id: userId, role: "user" }
+      );
+
+      assert.equal(report.id, "rep1");
+      assert.equal(report.reviewId, reviewId);
+      assert.equal(report.reporterId, userId);
+      assert.equal(report.status, "PENDING");
+    });
+
+    it("ReviewService.reportReview deve rejeitar denúncia da própria avaliação", async () => {
+      (prisma as any).review = {
+        findUnique: async () => ({ id: reviewId, userId }),
+      };
+
+      const service = new ReviewService();
+      await assert.rejects(
+        () =>
+          (service as any).reportReview(
+            reviewId,
+            { reason: "Motivo qualquer" },
+            { id: userId, role: "user" }
+          ),
+        /CANNOT_REPORT_OWN_REVIEW/
+      );
+    });
+  });
 });
+

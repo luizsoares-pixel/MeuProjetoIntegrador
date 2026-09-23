@@ -90,7 +90,8 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   ratingValueText: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
     marginLeft: spacing.sm,
   },

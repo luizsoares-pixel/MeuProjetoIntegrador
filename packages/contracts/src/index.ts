@@ -353,6 +353,7 @@ export interface RestaurantResponse {
   description?: string | null;
   priceRange?: PriceRange | null;
   rating?: number | null;
+  reviewsCount?: number;
   businessHours?: BusinessHours | null;
   paymentMethods?: PaymentMethod[];
   socialLinks?: SocialLinks | null;
@@ -630,6 +631,8 @@ export interface RestaurantRouteResponse {
 // ── Reviews & Ratings (Issue #79 & Issue #82) ─────────────────────────────────
 
 export const createReviewSchema = z.object({
+  restaurantId: z.string().uuid("ID do restaurante deve ser um UUID válido.").optional(),
+  menuItemId: z.string().uuid("ID do prato deve ser um UUID válido.").optional(),
   rating: z
     .number({ required_error: "A nota é obrigatória." })
     .int("A nota deve ser um número inteiro.")
@@ -649,6 +652,55 @@ export const createReviewSchema = z.object({
 });
 export type CreateReviewInput = z.input<typeof createReviewSchema>;
 export type CreateReviewOutput = z.output<typeof createReviewSchema>;
+
+export const updateReviewSchema = z.object({
+  rating: z
+    .number()
+    .int("A nota deve ser um número inteiro.")
+    .min(1, "A nota mínima é 1.")
+    .max(5, "A nota máxima é 5.")
+    .optional(),
+  comment: z
+    .string()
+    .trim()
+    .max(1000, "O comentário deve ter no máximo 1000 caracteres.")
+    .optional()
+    .nullable(),
+  photoUrls: z
+    .array(z.string().url("A URL da foto é inválida."))
+    .max(3, "Máximo de 3 fotos por avaliação.")
+    .optional(),
+});
+export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
+
+export const reportReviewSchema = z.object({
+  reason: z
+    .string({ required_error: "O motivo da denúncia é obrigatório." })
+    .trim()
+    .min(3, "O motivo deve ter pelo menos 3 caracteres.")
+    .max(500, "O motivo deve ter no máximo 500 caracteres."),
+});
+export type ReportReviewInput = z.infer<typeof reportReviewSchema>;
+
+export const getMyReviewQuerySchema = z
+  .object({
+    restaurantId: z.string().uuid("ID do restaurante deve ser um UUID válido.").optional(),
+    menuItemId: z.string().uuid("ID do prato deve ser um UUID válido.").optional(),
+  })
+  .refine((data) => Boolean(data.restaurantId || data.menuItemId), {
+    message: "Informe restaurantId ou menuItemId na consulta.",
+  });
+export type GetMyReviewQuery = z.infer<typeof getMyReviewQuerySchema>;
+
+export const reviewReportResponseSchema = z.object({
+  id: z.string().uuid(),
+  reviewId: z.string().uuid(),
+  reporterId: z.string().uuid(),
+  reason: z.string(),
+  status: z.string(),
+  createdAt: z.union([z.string(), z.date()]),
+});
+export type ReviewReportResponse = z.infer<typeof reviewReportResponseSchema>;
 
 export const createReviewReplySchema = z.object({
   reply: z

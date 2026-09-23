@@ -1,7 +1,9 @@
 import {
   createRestaurantSchema,
   createMenuItemSchema,
+  createReviewSchema,
   listRestaurantsQuerySchema,
+  listReviewsQuerySchema,
   nearbyRestaurantsSchema,
   restaurantRouteQuerySchema,
   updateRestaurantProfileSchema,
@@ -9,6 +11,7 @@ import {
 import { Router } from "express";
 import { restaurantController } from "../controllers/restaurant.controller";
 import { menuController } from "../controllers/menu.controller";
+import { reviewController } from "../controllers/review.controller";
 import { authMiddleware } from "../middlewares/auth";
 import { validateQuery } from "../middleware/validateQuery";
 import { validateRequest } from "../middleware/validateRequest";
@@ -96,6 +99,27 @@ restaurantRouter.get(
   "/:id",
   (req, res, next) => {
     restaurantController.getById(req, res, next);
+  }
+);
+
+// GET /restaurants/:id/reviews
+// Lista avaliações paginadas do restaurante com metadados e distribuição de estrelas.
+restaurantRouter.get(
+  "/:id/reviews",
+  validateQuery(listReviewsQuerySchema),
+  (req, res, next) => {
+    reviewController.listRestaurantReviews(req, res, next);
+  }
+);
+
+// POST /restaurants/:id/reviews
+// Envia avaliação para o restaurante e recalcula médias atomicamente.
+restaurantRouter.post(
+  "/:id/reviews",
+  authMiddleware,
+  validateRequest(createReviewSchema),
+  (req, res, next) => {
+    reviewController.createRestaurantReview(req, res, next);
   }
 );
 

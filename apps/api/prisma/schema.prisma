@@ -18,6 +18,7 @@ model User {
   reviews              Review[]
   favoriteRestaurants  FavoriteRestaurant[]
   favoriteDishes       FavoriteDish[]
+  reports              ReviewReport[]
 
   @@map("users")
 }
@@ -61,6 +62,7 @@ model Restaurant {
   description    String?           @db.Text
   priceRange     PriceRange?       @map("price_range")
   rating         Float?
+  reviewsCount   Int               @default(0) @map("reviews_count")
   businessHours  Json?             @map("business_hours")
   paymentMethods PaymentMethod[]   @default([]) @map("payment_methods")
   socialLinks    Json?             @map("social_links")
@@ -113,6 +115,7 @@ model Review {
   reply        String?       @db.Text
   repliedAt    DateTime?     @map("replied_at") @db.Timestamptz(6)
   photos       ReviewPhoto[]
+  reports      ReviewReport[]
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   restaurant   Restaurant?   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   menuItem     MenuItem?     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
@@ -164,5 +167,20 @@ model FavoriteDish {
   @@index([userId])
   @@index([menuItemId])
   @@map("favorite_dishes")
+}
+
+model ReviewReport {
+  id         String   @id @default(uuid()) @db.Uuid
+  reviewId   String   @map("review_id") @db.Uuid
+  reporterId String   @map("reporter_id") @db.Uuid
+  reason     String   @db.Text
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  review     Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([reporterId])
+  @@map("review_reports")
 }
 
