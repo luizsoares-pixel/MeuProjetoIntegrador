@@ -9,6 +9,7 @@
 import type {
   CreateMenuItemInput,
   CreateRestaurantInput,
+  MenuItemDetailResponse,
   MenuItemResponse,
   PaginatedRestaurantsResponse,
   RegisterRestaurantInput,
@@ -436,6 +437,39 @@ export async function fetchRestaurantMenu(id: string): Promise<MenuItemResponse[
 
   const data: { items: MenuItemResponse[] } = await response.json();
   return data.items;
+}
+
+/**
+ * Busca os dados completos de um prato por ID (Issue #78).
+ * GET /menu-items/:id
+ */
+export async function fetchMenuItemById(
+  id: string
+): Promise<MenuItemDetailResponse> {
+  const url = `${API_BASE_URL}/menu-items/${id}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Erro ao carregar prato: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData?.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data: { item: MenuItemDetailResponse } = await response.json();
+  return data.item;
 }
 
 /**

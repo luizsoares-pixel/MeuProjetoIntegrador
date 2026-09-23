@@ -399,15 +399,41 @@ export type UpdateMenuItemInput = z.infer<typeof updateMenuItemSchema>;
 export interface MenuItemResponse {
   id: string;
   restaurantId: string;
+  restaurantName?: string;
   category: string;
   name: string;
   description: string | null;
   price: number;
   photoUrl: string | null;
   available: boolean;
+  rating?: number | null;
+  reviewsCount?: number;
   createdAt: Date | string;
   updatedAt: Date | string;
 }
+
+export const menuItemParamsSchema = z.object({
+  id: z.string().uuid("ID do prato deve ser um UUID válido."),
+});
+export type MenuItemParams = z.infer<typeof menuItemParamsSchema>;
+
+export const menuItemDetailResponseSchema = z.object({
+  id: z.string().uuid("ID do prato deve ser um UUID válido."),
+  restaurantId: z.string().uuid("ID do restaurante deve ser um UUID válido."),
+  restaurantName: z.string().optional(),
+  category: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  price: z.number().finite().nonnegative("O preço não pode ser negativo."),
+  photoUrl: z.string().url("A URL da foto é inválida.").nullable().optional(),
+  available: z.boolean().default(true),
+  rating: z.number().nullable().optional(),
+  reviewsCount: z.number().int().nonnegative().default(0),
+  isFavorite: z.boolean().optional(),
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+});
+export type MenuItemDetailResponse = z.infer<typeof menuItemDetailResponseSchema>;
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 

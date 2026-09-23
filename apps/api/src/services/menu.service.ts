@@ -1,5 +1,6 @@
 import {
   CreateMenuItemInput,
+  MenuItemDetailResponse,
   MenuItemResponse,
   UpdateMenuItemInput,
 } from "@menu-digital/contracts";
@@ -16,6 +17,8 @@ function formatMenuItem(item: any): MenuItemResponse {
     price: Number(item.price),
     photoUrl: item.photoUrl ?? null,
     available: item.available,
+    rating: item.rating !== null && item.rating !== undefined ? Number(item.rating) : null,
+    reviewsCount: item.reviewsCount ?? 0,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -26,6 +29,61 @@ export class MenuService {
     if (actor.role !== "restaurant" || actor.id !== ownerId) {
       throw new Error("MENU_ITEM_FORBIDDEN");
     }
+  }
+
+  async getById(id: string): Promise<MenuItemDetailResponse | null> {
+    const item = await prisma.menuItem.findUnique({
+      where: { id },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!item) {
+      return null;
+    }
+
+    let rating: number | null =
+      item.rating !== null && item.rating !== undefined ? Number(item.rating) : null;
+    let reviewsCount: number = item.reviewsCount ?? 0;
+
+    // Se o prato ainda não tiver rating/reviewsCount calculados na entidade, calcula via agregação no Postgres
+    if (rating === null && reviewsCount === 0 && (prisma as any).review?.aggregate) {
+      const stats = await prisma.review.aggregate({
+        where: { menuItemId: id },
+        _avg: { rating: true },
+        _count: { rating: true },
+      });
+
+      if (stats._count.rating > 0) {
+        rating =
+          stats._avg.rating !== null
+            ? Math.round(stats._avg.rating * 10) / 10
+            : null;
+        reviewsCount = stats._count.rating;
+      }
+    }
+
+    return {
+      id: item.id,
+      restaurantId: item.restaurantId,
+      restaurantName: item.restaurant?.name,
+      category: item.category,
+      name: item.name,
+      description: item.description ?? null,
+      price: Number(item.price),
+      photoUrl: item.photoUrl ?? null,
+      available: item.available,
+      rating,
+      reviewsCount,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
   }
 
   async list(restaurantId: string): Promise<MenuItemResponse[]> {
