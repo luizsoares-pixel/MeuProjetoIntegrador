@@ -8,7 +8,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import { AuthCard } from "../components/AuthCard";
 import { Button } from "../components/Button";
@@ -19,6 +27,7 @@ import { useFadeSlide } from "../hooks/useFadeSlide";
 import { colors, spacing, typography } from "../theme";
 
 export default function RedefinirSenha() {
+  const insets = useSafeAreaInsets();
   const { session, updatePassword, finishPasswordRecovery } = useAuth();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -49,12 +58,22 @@ export default function RedefinirSenha() {
     return (
       <LinearGradient
         colors={[colors.background.primary, colors.background.tertiary]}
-        style={styles.container}
+        style={styles.gradient}
       >
-        <Text style={styles.message}>
-          Este link de recuperação expirou ou já foi utilizado.
-        </Text>
-        <Button title="VOLTAR AO LOGIN" onPress={() => router.replace("/login")} />
+        <View
+          style={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + spacing.xl,
+              paddingBottom: insets.bottom + spacing.xl,
+            },
+          ]}
+        >
+          <Text style={styles.message}>
+            Este link de recuperação expirou ou já foi utilizado.
+          </Text>
+          <Button title="VOLTAR AO LOGIN" onPress={() => router.replace("/login")} />
+        </View>
       </LinearGradient>
     );
   }
@@ -64,78 +83,101 @@ export default function RedefinirSenha() {
       colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.container}
+      style={styles.gradient}
     >
-      <Animated.View style={[styles.header, headerAnim.animatedStyle]}>
-        <ScreenHeader
-          title="Redefinir senha"
-          subtitle="NOVA SENHA"
-          tagline="Escolha uma nova senha para sua conta"
-        />
-      </Animated.View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardContainer}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + spacing.xl,
+              paddingBottom: insets.bottom + spacing.xl,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <Animated.View style={[styles.header, headerAnim.animatedStyle]}>
+            <ScreenHeader
+              title="Redefinir senha"
+              subtitle="NOVA SENHA"
+              tagline="Escolha uma nova senha para sua conta"
+            />
+          </Animated.View>
 
-      {feedback && isSuccess ? (
-        <Animated.View style={[styles.feedbackContainer, successAnim.animatedStyle]}>
-          <MaterialCommunityIcons
-            name="lock-check-outline"
-            size={54}
-            color={colors.accent.successSoft}
-          />
-          <Text style={styles.feedbackTitle}>Senha redefinida</Text>
-          <Text style={styles.success}>{feedback}</Text>
-          <Button title="CONTINUAR" onPress={finishPasswordRecovery} />
-        </Animated.View>
-      ) : (
-        <>
-          <AuthCard animationDelay={200}>
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  placeholder="Nova senha"
-                  secureTextEntry
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  autoCapitalize="none"
-                  error={errors.password?.message}
+          {feedback && isSuccess ? (
+            <Animated.View style={[styles.feedbackContainer, successAnim.animatedStyle]}>
+              <MaterialCommunityIcons
+                name="lock-check-outline"
+                size={54}
+                color={colors.accent.successSoft}
+              />
+              <Text style={styles.feedbackTitle}>Senha redefinida</Text>
+              <Text style={styles.success}>{feedback}</Text>
+              <Button title="CONTINUAR" onPress={finishPasswordRecovery} />
+            </Animated.View>
+          ) : (
+            <>
+              <AuthCard animationDelay={200}>
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      placeholder="Nova senha"
+                      secureTextEntry
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      autoCapitalize="none"
+                      error={errors.password?.message}
+                    />
+                  )}
                 />
-              )}
-            />
-            <Controller
-              control={control}
-              name="confirmPassword"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  placeholder="Confirme a nova senha"
-                  secureTextEntry
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  autoCapitalize="none"
-                  error={errors.confirmPassword?.message}
+                <Controller
+                  control={control}
+                  name="confirmPassword"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      placeholder="Confirme a nova senha"
+                      secureTextEntry
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      autoCapitalize="none"
+                      error={errors.confirmPassword?.message}
+                    />
+                  )}
                 />
-              )}
-            />
-            <Button
-              title="SALVAR NOVA SENHA"
-              loading={isSubmitting}
-              onPress={handleSubmit(handleReset)}
-            />
-          </AuthCard>
-          {feedback && <Text style={styles.error}>{feedback}</Text>}
-        </>
-      )}
+                <Button
+                  title="SALVAR NOVA SENHA"
+                  loading={isSubmitting}
+                  onPress={handleSubmit(handleReset)}
+                />
+              </AuthCard>
+              {feedback && <Text style={styles.error}>{feedback}</Text>}
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
-    justifyContent: "flex-start",
-    paddingTop: 120,
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: spacing.xxxl,
   },
   header: {

@@ -1,13 +1,15 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/useAuth";
 import { useFadeSlide } from "../../hooks/useFadeSlide";
 import { Button } from "../../components/Button";
 import { colors, spacing, typography } from "../../theme";
 
 export default function PerfilTab() {
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
 
   const avatarAnim = useFadeSlide({ delay: 0, translateY: 20 });
@@ -17,6 +19,12 @@ export default function PerfilTab() {
   // Gera iniciais do email para o avatar
   const initials = user?.email?.charAt(0).toUpperCase() ?? "U";
 
+  // Identificação RBAC do papel de restaurante sem requisições HTTP redundantes
+  const isRestaurant =
+    user?.app_metadata?.role === "restaurant" ||
+    user?.user_metadata?.role === "restaurant" ||
+    (user as { role?: string })?.role === "restaurant";
+
   return (
     <LinearGradient
       colors={[colors.background.primary, colors.background.secondary]}
@@ -24,40 +32,59 @@ export default function PerfilTab() {
       end={{ x: 0.5, y: 1 }}
       style={styles.container}
     >
-      {/* Avatar */}
-      <Animated.View style={[styles.avatarContainer, avatarAnim.animatedStyle]}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarInitials}>{initials}</Text>
-        </View>
-      </Animated.View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + spacing.xxl,
+            paddingBottom: insets.bottom + spacing.xxl,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Avatar */}
+        <Animated.View style={[styles.avatarContainer, avatarAnim.animatedStyle]}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarInitials}>{initials}</Text>
+          </View>
+        </Animated.View>
 
-      {/* Info */}
-      <Animated.View style={[styles.infoContainer, infoAnim.animatedStyle]}>
-        <Text style={styles.title}>Seu perfil</Text>
-        <Text style={styles.email}>{user?.email ?? "Usuário"}</Text>
+        {/* Info */}
+        <Animated.View style={[styles.infoContainer, infoAnim.animatedStyle]}>
+          <Text style={styles.title}>Seu perfil</Text>
+          <Text style={styles.email}>{user?.email ?? "Usuário"}</Text>
 
-        <View style={styles.divider} />
-      </Animated.View>
+          <View style={styles.divider} />
+        </Animated.View>
 
-      {/* Ações */}
-      <Animated.View style={[styles.actionsContainer, buttonAnim.animatedStyle]}>
-        <Button
-          title="MEU RESTAURANTE: EDITAR PERFIL"
-          onPress={() => router.push("/editar-perfil-restaurante" as never)}
-        />
-        <View style={{ height: spacing.md }} />
-        <Button
-          title="CADASTRAR RESTAURANTE"
-          variant="outline"
-          onPress={() => router.push("/cadastrar-restaurante" as never)}
-        />
-        <View style={{ height: spacing.md }} />
-        <Button
-          title="SAIR DA CONTA"
-          variant="outline"
-          onPress={signOut}
-        />
-      </Animated.View>
+        {/* Ações */}
+        <Animated.View style={[styles.actionsContainer, buttonAnim.animatedStyle]}>
+          {isRestaurant ? (
+            <>
+              <Button
+                title="MEU RESTAURANTE: EDITAR PERFIL"
+                onPress={() => router.push("/editar-perfil-restaurante" as never)}
+              />
+              <View style={{ height: spacing.md }} />
+            </>
+          ) : (
+            <>
+              <Button
+                title="CADASTRAR RESTAURANTE"
+                variant="outline"
+                onPress={() => router.push("/cadastrar-restaurante" as never)}
+              />
+              <View style={{ height: spacing.md }} />
+            </>
+          )}
+
+          <Button
+            title="SAIR DA CONTA"
+            variant="outline"
+            onPress={signOut}
+          />
+        </Animated.View>
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -65,6 +92,9 @@ export default function PerfilTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xxxl,

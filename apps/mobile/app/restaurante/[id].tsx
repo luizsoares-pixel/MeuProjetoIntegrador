@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   FlatList,
   Linking,
   Platform,
@@ -11,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -38,7 +38,6 @@ import { StarRating } from "../../components/StarRating";
 import { RatingDistribution } from "../../components/RatingDistribution";
 
 import { LeafletMap } from "../../components/LeafletMap";
-const SCREEN_WIDTH = Dimensions.get("window").width;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
@@ -87,6 +86,7 @@ function formatTimeShifts(
 // ── Component ────────────────────────────────────────────────────────────────────
 
 export default function RestaurantDetailsScreen() {
+  const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const galleryRef = useRef<FlatList>(null);
@@ -377,14 +377,14 @@ export default function RestaurantDetailsScreen() {
               keyExtractor={(item, index) => `photo-${index}-${item}`}
               onMomentumScrollEnd={(e) => {
                 const index = Math.round(
-                  e.nativeEvent.contentOffset.x / SCREEN_WIDTH
+                  e.nativeEvent.contentOffset.x / screenWidth
                 );
                 setActivePhotoIndex(index);
               }}
               renderItem={({ item }) => (
                 <Image
                   source={{ uri: item }}
-                  style={styles.galleryImage}
+                  style={[styles.galleryImage, { width: screenWidth }]}
                   contentFit="cover"
                   transition={300}
                 />
@@ -1018,7 +1018,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.dark,
   },
   galleryImage: {
-    width: SCREEN_WIDTH,
     height: 240,
   },
   galleryDots: {

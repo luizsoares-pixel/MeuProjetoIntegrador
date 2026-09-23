@@ -8,7 +8,10 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, typography } from "../theme";
+import { useFavorites } from "../hooks/useFavorites";
+import { FavoriteButton } from "./FavoriteButton";
 import type { NearbyRestaurant } from "../services/api";
 
 interface RestaurantPreviewCardProps {
@@ -39,6 +42,8 @@ export function RestaurantPreviewCard({
   onClose,
   onTraceRoute,
 }: RestaurantPreviewCardProps) {
+  const insets = useSafeAreaInsets();
+  const { isRestaurantFavorite, toggleRestaurant } = useFavorites();
   if (!restaurant) return null;
 
   return (
@@ -72,6 +77,15 @@ export function RestaurantPreviewCard({
               </View>
             )}
 
+            {/* Botão Favoritar */}
+            <View style={styles.favoriteButtonContainer}>
+              <FavoriteButton
+                isFavorite={isRestaurantFavorite(restaurant.id)}
+                onToggle={() => toggleRestaurant(restaurant)}
+                size={18}
+              />
+            </View>
+
             {/* Badge de distância sobreposta à imagem */}
             <View style={styles.distanceBadge}>
               <MaterialCommunityIcons
@@ -90,6 +104,7 @@ export function RestaurantPreviewCard({
                 styles.closeButton,
                 pressed && styles.closeButtonPressed,
               ]}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               onPress={onClose}
               accessibilityLabel="Fechar preview"
               accessibilityRole="button"
@@ -103,7 +118,12 @@ export function RestaurantPreviewCard({
           </View>
 
           {/* Informações */}
-          <View style={styles.info}>
+          <View
+            style={[
+              styles.info,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
             <Text style={styles.name} numberOfLines={2}>
               {restaurant.name}
             </Text>
@@ -184,9 +204,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   card: {
-    backgroundColor: colors.background.soft,
+    backgroundColor: "rgba(47, 0, 0, 0.95)",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
     overflow: "hidden",
     elevation: 12,
     boxShadow: "0px -4px 16px rgba(0,0,0,0.25)",
@@ -223,6 +245,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 12,
   },
+  favoriteButtonContainer: {
+    position: "absolute",
+    top: 10,
+    left: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   closeButton: {
     position: "absolute",
     top: 10,
@@ -245,7 +278,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: typography.size.xxl,
     fontWeight: typography.weight.bold,
-    color: colors.accent.textDark,
+    color: colors.accent.white,
     lineHeight: 28,
   },
   addressRow: {
@@ -256,7 +289,7 @@ const styles = StyleSheet.create({
   address: {
     flex: 1,
     fontSize: typography.size.base,
-    color: colors.accent.text,
+    color: colors.accent.whiteSoft,
     lineHeight: 20,
   },
   ratingRow: {

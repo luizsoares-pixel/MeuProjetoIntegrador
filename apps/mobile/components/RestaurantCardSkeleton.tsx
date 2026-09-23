@@ -1,5 +1,4 @@
-import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,7 +7,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { colors, spacing } from "../theme";
 
-export function RestaurantCardSkeleton() {
+interface RestaurantCardSkeletonProps {
+  style?: StyleProp<ViewStyle>;
+}
+
+export function RestaurantCardSkeleton({ style }: RestaurantCardSkeletonProps = {}) {
   const opacity = useSharedValue(0.4);
 
   useEffect(() => {
@@ -24,7 +27,7 @@ export function RestaurantCardSkeleton() {
   }));
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, style]}>
       {/* Imagem Placeholder */}
       <Animated.View style={[styles.imageSkeleton, animatedStyle]} />
 

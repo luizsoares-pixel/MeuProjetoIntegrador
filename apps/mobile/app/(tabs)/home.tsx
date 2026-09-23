@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -78,17 +78,14 @@ export default function HomeTab() {
   const {
     restaurants,
     isLoading,
-    isLoadingMore,
     isRefreshing,
     isError,
     isEmpty,
     isSearching,
-    hasMore,
     refresh,
-    loadMore,
     retry,
   } = useRestaurantList({
-    limit: 10,
+    limit: 20,
     search: searchText,
     cuisine: selectedCuisine,
     priceRange: activeFilters.priceRange,
@@ -125,187 +122,12 @@ export default function HomeTab() {
     });
   }, []);
 
-  const renderHeader = useCallback(() => {
-    const isFilterActive = isSearching || Boolean(searchText || selectedCuisine);
-
-    return (
-      <View style={styles.headerContainer}>
-        <Animated.Text style={[styles.eyebrow, eyebrowAnim.animatedStyle]}>
-          MENU DIGITAL
-        </Animated.Text>
-
-        <Animated.Text style={[styles.title, titleAnim.animatedStyle]}>
-          Encontre seu próximo sabor
-        </Animated.Text>
-
-        <Animated.Text style={[styles.description, descAnim.animatedStyle]}>
-          Explore opções e cardápios digitais perto de você.
-        </Animated.Text>
-
-        {/* Barra de Busca com Debounce e Botão de Filtros */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBarFlex}>
-            <SearchBar
-              value={searchText}
-              onChangeText={setSearchText}
-              onClear={() => setSearchText("")}
-              placeholder="Buscar por nome do restaurante..."
-            />
-          </View>
-          <TouchableOpacity
-            style={[
-              styles.filterTriggerButton,
-              modalFilterCount > 0 && styles.filterTriggerButtonActive,
-            ]}
-            onPress={() => setFilterModalVisible(true)}
-            accessibilityLabel="Abrir filtros avançados"
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons
-              name="tune-variant"
-              size={22}
-              color={
-                modalFilterCount > 0
-                  ? colors.background.primary
-                  : colors.accent.gold
-              }
-            />
-            {modalFilterCount > 0 && (
-              <View style={styles.badgeIndicator}>
-                <Text style={styles.badgeIndicatorText}>
-                  {modalFilterCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Chips de Filtro por Culinária */}
-        <CuisineFilterChips
-          selectedCuisine={selectedCuisine}
-          onSelectCuisine={setSelectedCuisine}
-        />
-
-        {/* Chips de Ordenação (HU8) */}
-        <SortSelectorChips
-          selectedSort={sortBy}
-          onSelectSort={setSortBy}
-          hasLocation={hasLocation}
-          onRequestLocation={async () => {
-            try {
-              const res = await Location.requestForegroundPermissionsAsync();
-              if (res.status === "granted") {
-                const pos = await Location.getCurrentPositionAsync({
-                  accuracy: Location.Accuracy.Balanced,
-                });
-                setUserCoords({
-                  lat: pos.coords.latitude,
-                  lng: pos.coords.longitude,
-                });
-                setSortBy("distance");
-              }
-            } catch {
-              // Ignore
-            }
-          }}
-        />
-
-        {!isLoading && !isError && !isEmpty && (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {isFilterActive ? "Resultados da busca" : "Restaurantes em destaque"}
-            </Text>
-            <Text style={styles.sectionBadge}>
-              {restaurants.length} {restaurants.length === 1 ? "opção" : "opções"}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  }, [
-    eyebrowAnim,
-    titleAnim,
-    descAnim,
-    searchText,
-    selectedCuisine,
-    modalFilterCount,
-    isSearching,
-    isLoading,
-    isError,
-    isEmpty,
-    restaurants.length,
-    sortBy,
-    setSortBy,
-    hasLocation,
-  ]);
-
-  const renderEmpty = useCallback(() => {
-    if (isLoading) {
-      return (
-        <View style={styles.skeletonContainer}>
-          <RestaurantCardSkeleton />
-          <RestaurantCardSkeleton />
-          <RestaurantCardSkeleton />
-        </View>
-      );
-    }
-
-    if (isError) {
-      return (
-        <RestaurantErrorState onRetry={retry} />
-      );
-    }
-
-    if (isEmpty) {
-      if (isSearching || searchText || selectedCuisine) {
-        return (
-          <SearchEmptyState
-            searchTerm={searchText}
-            cuisineFilter={selectedCuisine}
-            onClearFilters={handleClearFilters}
-          />
-        );
-      }
-      return <RestaurantEmptyState onRefresh={refresh} />;
-    }
-
-    return null;
-  }, [
-    isLoading,
-    isError,
-    isEmpty,
-    isSearching,
-    searchText,
-    selectedCuisine,
-    retry,
-    handleClearFilters,
-    refresh,
-  ]);
-
-  const renderFooter = useCallback(() => {
-    if (isLoadingMore) {
-      return (
-        <View style={styles.footerLoading}>
-          <ActivityIndicator size="small" color={colors.accent.gold} />
-          <Text style={styles.footerLoadingText}>
-            Carregando mais restaurantes...
-          </Text>
-        </View>
-      );
-    }
-
-    if (!hasMore && restaurants.length > 0) {
-      return (
-        <View style={styles.footerEnd}>
-          <View style={styles.footerEndLine} />
-          <Text style={styles.footerEndText}>Fim da lista</Text>
-          <View style={styles.footerEndLine} />
-        </View>
-      );
-    }
-
-    return <View style={styles.footerSpacer} />;
-  }, [isLoadingMore, hasMore, restaurants.length]);
+  // Vitrine secundária: ordenação por avaliação para descoberta em destaque
+  const topRatedRestaurants = useMemo(() => {
+    return [...restaurants]
+      .filter((r) => r.rating !== null && r.rating !== undefined && r.rating >= 4.0)
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  }, [restaurants]);
 
   return (
     <LinearGradient
@@ -314,22 +136,9 @@ export default function HomeTab() {
       end={{ x: 0.5, y: 1 }}
       style={styles.container}
     >
-      <FlatList
-        data={isLoading ? [] : restaurants}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <RestaurantCard
-            restaurant={item}
-            onPress={handleCardPress}
-          />
-        )}
-        ListHeaderComponent={renderHeader()}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.4}
+      <ScrollView
         contentContainerStyle={[
-          styles.listContent,
+          styles.scrollContent,
           {
             paddingTop: insets.top + spacing.lg,
             paddingBottom: insets.bottom + spacing.xxl,
@@ -345,8 +154,210 @@ export default function HomeTab() {
             colors={[colors.accent.gold]}
           />
         }
-      />
+      >
+        {/* Header de Boas-vindas */}
+        <View style={styles.headerContainer}>
+          <Animated.Text style={[styles.eyebrow, eyebrowAnim.animatedStyle]}>
+            MENU DIGITAL
+          </Animated.Text>
 
+          <Animated.Text style={[styles.title, titleAnim.animatedStyle]}>
+            Encontre seu próximo sabor
+          </Animated.Text>
+
+          <Animated.Text style={[styles.description, descAnim.animatedStyle]}>
+            Explore opções e cardápios digitais perto de você.
+          </Animated.Text>
+
+          {/* Barra de Busca Rápida e Botão de Filtros */}
+          <View style={styles.searchRow}>
+            <View style={styles.searchBarFlex}>
+              <SearchBar
+                value={searchText}
+                onChangeText={setSearchText}
+                onClear={() => setSearchText("")}
+                placeholder="Buscar por nome do restaurante..."
+              />
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.filterTriggerButton,
+                modalFilterCount > 0 && styles.filterTriggerButtonActive,
+              ]}
+              onPress={() => setFilterModalVisible(true)}
+              accessibilityLabel="Abrir filtros avançados"
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons
+                name="tune-variant"
+                size={22}
+                color={
+                  modalFilterCount > 0
+                    ? colors.background.primary
+                    : colors.accent.gold
+                }
+              />
+              {modalFilterCount > 0 && (
+                <View style={styles.badgeIndicator}>
+                  <Text style={styles.badgeIndicatorText}>
+                    {modalFilterCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Chips de Culinária */}
+          <CuisineFilterChips
+            selectedCuisine={selectedCuisine}
+            onSelectCuisine={setSelectedCuisine}
+          />
+
+          {/* Chips de Ordenação */}
+          <SortSelectorChips
+            selectedSort={sortBy}
+            onSelectSort={setSortBy}
+            hasLocation={hasLocation}
+            onRequestLocation={async () => {
+              try {
+                const res = await Location.requestForegroundPermissionsAsync();
+                if (res.status === "granted") {
+                  const pos = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                  });
+                  setUserCoords({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                  });
+                  setSortBy("distance");
+                }
+              } catch {
+                // Ignore
+              }
+            }}
+          />
+        </View>
+
+        {/* Estados de Loading, Erro ou Vazio */}
+        {isLoading ? (
+          <View style={styles.showcaseSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Carregando destaques...</Text>
+            </View>
+            <FlatList
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              data={[1, 2, 3]}
+              keyExtractor={(item) => String(item)}
+              renderItem={() => (
+                <RestaurantCardSkeleton style={styles.horizontalCard} />
+              )}
+              contentContainerStyle={styles.horizontalListContent}
+            />
+          </View>
+        ) : isError ? (
+          <View style={styles.stateWrapper}>
+            <RestaurantErrorState onRetry={retry} />
+          </View>
+        ) : isEmpty ? (
+          <View style={styles.stateWrapper}>
+            {isSearching || searchText || selectedCuisine ? (
+              <SearchEmptyState
+                searchTerm={searchText}
+                cuisineFilter={selectedCuisine}
+                onClearFilters={handleClearFilters}
+              />
+            ) : (
+              <RestaurantEmptyState onRefresh={refresh} />
+            )}
+          </View>
+        ) : (
+          <>
+            {/* Vitrine de Descoberta 1: Destaques & Descobertas */}
+            <View style={styles.showcaseSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {searchText || selectedCuisine ? "Resultados da Busca" : "Destaques & Descobertas"}
+                </Text>
+                <Text style={styles.sectionBadge}>
+                  {restaurants.length} {restaurants.length === 1 ? "opção" : "opções"}
+                </Text>
+              </View>
+
+              <FlatList
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                data={restaurants}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <RestaurantCard
+                    restaurant={item}
+                    onPress={handleCardPress}
+                    style={styles.horizontalCard}
+                  />
+                )}
+                contentContainerStyle={styles.horizontalListContent}
+              />
+            </View>
+
+            {/* Vitrine de Descoberta 2: Mais Bem Avaliados */}
+            {topRatedRestaurants.length > 0 && !searchText && (
+              <View style={styles.showcaseSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Mais Bem Avaliados</Text>
+                  <Text style={styles.sectionBadge}>★ 4.0+</Text>
+                </View>
+
+                <FlatList
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  data={topRatedRestaurants}
+                  keyExtractor={(item) => `top-${item.id}`}
+                  renderItem={({ item }) => (
+                    <RestaurantCard
+                      restaurant={item}
+                      onPress={handleCardPress}
+                      style={styles.horizontalCard}
+                    />
+                  )}
+                  contentContainerStyle={styles.horizontalListContent}
+                />
+              </View>
+            )}
+
+            {/* Chamada para Exploração Profunda / Busca Avançada */}
+            <TouchableOpacity
+              style={styles.deepSearchBanner}
+              onPress={() => router.push("/buscar" as never)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Ir para busca avançada com filtros combinados"
+            >
+              <View style={styles.deepSearchContent}>
+                <MaterialCommunityIcons
+                  name="compass-outline"
+                  size={30}
+                  color={colors.accent.gold}
+                  style={styles.deepSearchIcon}
+                />
+                <View style={styles.deepSearchTextContainer}>
+                  <Text style={styles.deepSearchTitle}>Busca Avançada & Filtros</Text>
+                  <Text style={styles.deepSearchSubtitle}>
+                    Consulte por raio em km, cidade e estabelecimentos abertos.
+                  </Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={colors.accent.gold}
+                />
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+      </ScrollView>
+
+      {/* Modal de Filtros Avançados */}
       <FilterModal
         visible={filterModalVisible}
         onClose={() => setFilterModalVisible(false)}
@@ -380,11 +391,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  listContent: {
-    paddingHorizontal: spacing.lg,
+  scrollContent: {
     flexGrow: 1,
   },
   headerContainer: {
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
   eyebrow: {
@@ -451,14 +462,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: typography.weight.bold,
   },
+  showcaseSection: {
+    marginBottom: spacing.lg,
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     color: colors.accent.white,
@@ -470,37 +482,48 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     fontWeight: typography.weight.medium,
   },
-  skeletonContainer: {
-    marginTop: spacing.xs,
+  horizontalListContent: {
+    paddingHorizontal: spacing.lg,
   },
-  footerLoading: {
+  horizontalCard: {
+    width: 280,
+    marginRight: spacing.md,
+    marginBottom: 0,
+  },
+  stateWrapper: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  deepSearchBanner: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+    padding: spacing.md,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+    borderRadius: 16,
+  },
+  deepSearchContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.lg,
-    gap: 8,
+    gap: spacing.md,
   },
-  footerLoadingText: {
-    color: colors.accent.goldMuted,
-    fontSize: typography.size.xs,
+  deepSearchIcon: {
+    marginRight: 2,
   },
-  footerEnd: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.lg,
-    gap: 12,
-  },
-  footerEndLine: {
+  deepSearchTextContainer: {
     flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
-  footerEndText: {
-    color: colors.accent.whiteLight,
+  deepSearchTitle: {
+    color: colors.accent.white,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+  },
+  deepSearchSubtitle: {
+    color: colors.accent.whiteSoft,
     fontSize: typography.size.xs,
-  },
-  footerSpacer: {
-    height: spacing.md,
+    lineHeight: 16,
+    marginTop: 2,
   },
 });

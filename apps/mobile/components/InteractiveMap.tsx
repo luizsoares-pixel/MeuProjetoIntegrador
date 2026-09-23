@@ -448,6 +448,7 @@ export default function InteractiveMap() {
             <Pressable
               onPress={() => setActiveRouteRestaurant(null)}
               style={styles.activeRouteCloseBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Fechar rota"
             >
