@@ -17,6 +17,7 @@ import Animated, {
 import { colors, spacing, typography, animations } from "../theme";
 
 type Props = TextInputProps & {
+  label?: string;
   error?: string;
   rightElement?: ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
@@ -25,6 +26,7 @@ type Props = TextInputProps & {
 const AnimatedView = Animated.createAnimatedComponent(View);
 
 export function Input({
+  label,
   error,
   style,
   rightElement,
@@ -58,9 +60,6 @@ export function Input({
   );
 
   const animatedBorderStyle = useAnimatedStyle(() => {
-    // Interpola a cor do border: gold -> white quando focado
-    // Reanimated não suporta interpolação de cor nativa sem interpolateColor,
-    // então animamos a opacidade de um overlay de highlight.
     return {
       borderWidth: focusProgress.value === 1 ? 1.5 : 1,
       opacity: 1,
@@ -71,6 +70,7 @@ export function Input({
 
   return (
     <View style={[styles.wrapper, containerStyle]}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <AnimatedView
         style={[
           styles.inputContainer,
@@ -79,7 +79,7 @@ export function Input({
         ]}
       >
         <TextInput
-          placeholderTextColor={colors.accent.goldMuted}
+          placeholderTextColor={rest.placeholderTextColor ?? colors.accent.goldMuted}
           style={[styles.input, style]}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -102,10 +102,16 @@ const styles = StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
   },
+  label: {
+    color: colors.accent.whiteSoft,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    marginBottom: spacing.xs,
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.accent.white,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderRadius: 15,
     borderWidth: 1,
     borderColor: colors.accent.gold,
@@ -116,12 +122,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     fontSize: typography.size.md,
-    color: colors.accent.text,
+    color: colors.accent.white,
   },
   rightElement: {
     paddingRight: spacing.sm,
     justifyContent: "center",
     alignItems: "center",
+    minWidth: 44,
+    minHeight: 44,
   },
   inputError: {
     borderColor: colors.accent.redSoft,

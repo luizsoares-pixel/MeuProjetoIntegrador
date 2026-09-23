@@ -56,7 +56,7 @@ export function SearchBar({
           style={styles.clearButton}
           accessibilityLabel="Limpar busca"
           accessibilityRole="button"
-          hitSlop={8}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <MaterialCommunityIcons
             name="close-circle"

@@ -8,7 +8,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import { AuthCard } from "../components/AuthCard";
 import { Button } from "../components/Button";
@@ -19,6 +28,7 @@ import { useFadeSlide } from "../hooks/useFadeSlide";
 import { colors, spacing, typography } from "../theme";
 
 export default function RecuperarSenha() {
+  const insets = useSafeAreaInsets();
   const { requestPasswordRecovery } = useAuth();
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -50,79 +60,102 @@ export default function RecuperarSenha() {
       colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.container}
+      style={styles.gradient}
     >
-      <Animated.View style={[styles.header, headerAnim.animatedStyle]}>
-        <ScreenHeader
-          title="Recuperar acesso"
-          subtitle="NOVA SENHA"
-          tagline="Enviaremos as instruções por e-mail"
-        />
-      </Animated.View>
-
-      <AuthCard animationDelay={200}>
-        <Text style={styles.description}>
-          Informe o e-mail usado no cadastro para receber o link de recuperação.
-        </Text>
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              placeholder="Email"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-              error={errors.email?.message}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardContainer}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + spacing.xl,
+              paddingBottom: insets.bottom + spacing.xl,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <Animated.View style={[styles.header, headerAnim.animatedStyle]}>
+            <ScreenHeader
+              title="Recuperar acesso"
+              subtitle="NOVA SENHA"
+              tagline="Enviaremos as instruções por e-mail"
             />
-          )}
-        />
-        <Button
-          title="ENVIAR LINK"
-          loading={isSubmitting}
-          onPress={handleSubmit(handleRecovery)}
-        />
-        {feedback && (
-          <View
-            style={isSent ? styles.feedbackSuccess : styles.feedbackError}
-          >
-            <MaterialCommunityIcons
-              name={isSent ? "email-check-outline" : "alert-circle-outline"}
-              size={30}
-              color={isSent ? colors.accent.successSoft : colors.accent.redLight}
-            />
-            <Text style={styles.feedbackTitle}>
-              {isSent ? "Link enviado" : "Não foi possível enviar"}
-            </Text>
-            <Text
-              style={[
-                styles.feedbackText,
-                !isSent && styles.feedbackErrorText,
-              ]}
-            >
-              {feedback}
-            </Text>
-          </View>
-        )}
-      </AuthCard>
+          </Animated.View>
 
-      <Animated.View style={footerAnim.animatedStyle}>
-        <TouchableOpacity onPress={() => router.replace("/login")}>
-          <Text style={styles.backLink}>Voltar para o login</Text>
-        </TouchableOpacity>
-      </Animated.View>
+          <AuthCard animationDelay={200}>
+            <Text style={styles.description}>
+              Informe o e-mail usado no cadastro para receber o link de recuperação.
+            </Text>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  placeholder="Email"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoCorrect={false}
+                  error={errors.email?.message}
+                />
+              )}
+            />
+            <Button
+              title="ENVIAR LINK"
+              loading={isSubmitting}
+              onPress={handleSubmit(handleRecovery)}
+            />
+            {feedback && (
+              <View
+                style={isSent ? styles.feedbackSuccess : styles.feedbackError}
+              >
+                <MaterialCommunityIcons
+                  name={isSent ? "email-check-outline" : "alert-circle-outline"}
+                  size={30}
+                  color={isSent ? colors.accent.successSoft : colors.accent.redLight}
+                />
+                <Text style={styles.feedbackTitle}>
+                  {isSent ? "Link enviado" : "Não foi possível enviar"}
+                </Text>
+                <Text
+                  style={[
+                    styles.feedbackText,
+                    !isSent && styles.feedbackErrorText,
+                  ]}
+                >
+                  {feedback}
+                </Text>
+              </View>
+            )}
+          </AuthCard>
+
+          <Animated.View style={footerAnim.animatedStyle}>
+            <TouchableOpacity onPress={() => router.replace("/login")}>
+              <Text style={styles.backLink}>Voltar para o login</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
-    justifyContent: "flex-start",
-    paddingTop: 120,
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: spacing.xxxl,
   },
   header: {

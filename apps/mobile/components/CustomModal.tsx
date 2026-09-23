@@ -98,8 +98,10 @@ const styles = StyleSheet.create({
   content: {
     width: "100%",
     maxWidth: 340,
-    backgroundColor: colors.background.soft,
+    backgroundColor: "rgba(47, 0, 0, 0.95)",
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.xl,
     alignItems: "center",
@@ -112,13 +114,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.size.xxl,
     fontWeight: typography.weight.bold,
-    color: colors.accent.textDark,
+    color: colors.accent.white,
     textAlign: "center",
     marginBottom: spacing.xs,
   },
   message: {
     fontSize: typography.size.lg,
-    color: colors.accent.textDark,
+    color: colors.accent.whiteSoft,
     textAlign: "center",
     lineHeight: 28,
     marginBottom: spacing.xl,
@@ -137,11 +139,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   confirmButton: {
-    backgroundColor: colors.accent.red,
+    backgroundColor: colors.accent.gold,
     minHeight: 52,
   },
   confirmButtonText: {
-    color: colors.accent.white,
+    color: colors.background.primary,
     fontWeight: typography.weight.bold,
     fontSize: typography.size.lg,
     letterSpacing: typography.letterSpacing.wide,
@@ -149,11 +151,11 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "rgba(125,31,31,0.4)",
+    borderColor: colors.accent.goldTintStrong,
     marginBottom: spacing.sm,
   },
   cancelButtonText: {
-    color: colors.accent.red,
+    color: colors.accent.gold,
     fontWeight: typography.weight.semibold,
     fontSize: typography.size.base,
   },

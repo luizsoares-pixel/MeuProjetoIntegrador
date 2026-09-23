@@ -85,7 +85,7 @@ export default function Login() {
       style={styles.gradient}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardContainer}
       >
         <ScrollView
@@ -102,13 +102,23 @@ export default function Login() {
         >
           {/* LOGO */}
           <Animated.View style={[styles.logoContainer, logoAnim.animatedStyle]}>
-            <Text style={styles.watermarkText}>MD</Text>
+            <Text
+              style={styles.watermarkText}
+              accessible={false}
+              importantForAccessibility="no"
+              aria-hidden={true}
+            >
+              MD
+            </Text>
 
             <MaterialCommunityIcons
               name="silverware-fork-knife"
               size={28}
               color={colors.accent.goldTint}
               style={styles.iconTopLeft}
+              accessible={false}
+              importantForAccessibility="no"
+              aria-hidden={true}
             />
 
             <MaterialCommunityIcons
@@ -116,6 +126,9 @@ export default function Login() {
               size={28}
               color={colors.accent.goldTint}
               style={styles.iconTopRight}
+              accessible={false}
+              importantForAccessibility="no"
+              aria-hidden={true}
             />
 
             <MaterialCommunityIcons
@@ -123,6 +136,9 @@ export default function Login() {
               size={28}
               color={colors.accent.goldTint}
               style={styles.iconBottomLeft}
+              accessible={false}
+              importantForAccessibility="no"
+              aria-hidden={true}
             />
 
             <MaterialCommunityIcons
@@ -130,6 +146,9 @@ export default function Login() {
               size={28}
               color={colors.accent.goldTint}
               style={styles.iconBottomRight}
+              accessible={false}
+              importantForAccessibility="no"
+              aria-hidden={true}
             />
 
             <ScreenHeader
@@ -173,6 +192,7 @@ export default function Login() {
                     <TouchableOpacity
                       onPress={() => setShowPassword((prev) => !prev)}
                       activeOpacity={0.8}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       accessibilityLabel={
                         showPassword ? "Ocultar senha" : "Mostrar senha"
                       }

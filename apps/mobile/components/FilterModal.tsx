@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, typography } from "../theme";
 import { SORT_OPTIONS, SortByOption } from "../hooks/useSortPreference";
 
@@ -96,6 +97,7 @@ function FilterSheetContent({
   onReset,
   userCoords = null,
 }: FilterSheetContentProps) {
+  const insets = useSafeAreaInsets();
   const [draftPriceRange, setDraftPriceRange] = useState<string[]>(
     filters.priceRange ?? []
   );
@@ -201,7 +203,12 @@ function FilterSheetContent({
     <View style={styles.backdrop}>
       <Pressable style={styles.dismissOverlay} onPress={onClose} />
 
-        <View style={styles.sheetContainer}>
+        <View
+          style={[
+            styles.sheetContainer,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
@@ -216,6 +223,7 @@ function FilterSheetContent({
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityLabel="Fechar modal de filtros"
             >
               <MaterialCommunityIcons

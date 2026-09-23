@@ -1,7 +1,14 @@
 import React from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+} from "react-native";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { colors, spacing, typography } from "../theme";
 import { useFavorites } from "../hooks/useFavorites";
@@ -10,9 +17,14 @@ import { FavoriteButton } from "./FavoriteButton";
 interface RestaurantCardProps {
   restaurant: RestaurantResponse;
   onPress?: (restaurant: RestaurantResponse) => void;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
+export function RestaurantCard({
+  restaurant,
+  onPress,
+  style,
+}: RestaurantCardProps) {
   const { isRestaurantFavorite, toggleRestaurant } = useFavorites();
   const displayAddress =
     restaurant.neighborhood && restaurant.city
@@ -23,6 +35,7 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
     <Pressable
       style={({ pressed }) => [
         styles.card,
+        style,
         pressed && styles.cardPressed,
       ]}
       onPress={() => onPress?.(restaurant)}

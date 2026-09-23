@@ -2,8 +2,9 @@ import { Stack, router, useSegments, useRootNavigationState } from "expo-router"
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../contexts/AuthContext";
+import { FavoritesProvider } from "../contexts/FavoritesContext";
 import { useAuth } from "../hooks/useAuth";
 import { colors } from "../theme";
 
@@ -47,34 +48,25 @@ function RouteGuard() {
 }
 
 // ---------------------------------------------------------------------------
-// Layout raiz: envolve tudo no AuthProvider
+// Layout raiz: envolve tudo no SafeAreaProvider e AuthProvider
 // ---------------------------------------------------------------------------
-
-import { FavoritesProvider } from "../contexts/FavoritesContext";
 
 export default function Layout() {
   return (
-    <AuthProvider>
-      <FavoritesProvider>
-        <StatusBar style="light" />
-        <View style={styles.topBar} />
-        <RouteGuard />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: "fade",
-          }}
-        />
-      </FavoritesProvider>
-    </AuthProvider>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: colors.background.primary }}>
+      <AuthProvider>
+        <FavoritesProvider>
+          <StatusBar style="light" />
+          <RouteGuard />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: "fade",
+            }}
+          />
+        </FavoritesProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  topBar: {
-    height: 20,
-    backgroundColor: colors.background.dark,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-});
