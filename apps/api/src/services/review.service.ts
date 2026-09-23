@@ -157,7 +157,10 @@ export class ReviewService {
     const limit = Math.min(50, Math.max(1, query?.limit ?? 10));
     const skip = (page - 1) * limit;
 
-    const [reviews, total, distributionRaw] = await Promise.all([
+    // Utiliza o campo reviewsCount desnormalizado de MenuItem para evitar overhead de COUNT(*) a cada página
+    const total = menuItem.reviewsCount ?? 0;
+
+    const [reviews, distributionRaw] = await Promise.all([
       prisma.review.findMany({
         where: { menuItemId },
         orderBy: { createdAt: "desc" },
@@ -168,7 +171,6 @@ export class ReviewService {
           user: { select: { email: true } },
         },
       }),
-      prisma.review.count({ where: { menuItemId } }),
       prisma.review.groupBy({
         by: ["rating"],
         where: { menuItemId },

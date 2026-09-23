@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { prisma } from "../lib/prisma";
-import { MenuService } from "../services/menu.service";
+import { MenuService, menuService } from "../services/menu.service";
+import { menuController } from "../controllers/menu.controller";
 
 const restaurantId = "11111111-1111-1111-1111-111111111111";
 const ownerId = "22222222-2222-2222-2222-222222222222";
@@ -144,5 +145,129 @@ describe("MenuService", () => {
         ),
       (error: Error) => error.message === "MENU_ITEM_NOT_FOUND"
     );
+  });
+
+  describe("MenuService.getById", () => {
+    it("retorna dados completos do prato com rating, reviewsCount e restaurantName", async () => {
+      (prisma as any).menuItem = {
+        findUnique: async () => ({
+          ...menuItem({
+            rating: 4.7,
+            reviewsCount: 12,
+          }),
+          restaurant: { id: restaurantId, name: "Cantina Bella" },
+        }),
+      };
+
+      const result = await new MenuService().getById(itemId);
+
+      assert.ok(result);
+      assert.equal(result.id, itemId);
+      assert.equal(result.name, "Feijoada");
+      assert.equal(result.rating, 4.7);
+      assert.equal(result.reviewsCount, 12);
+      assert.equal(result.restaurantName, "Cantina Bella");
+      assert.equal(result.price, 39.9);
+    });
+
+    it("calcula media e contagem via agregacao no banco se rating e reviewsCount estiverem vazios", async () => {
+      (prisma as any).menuItem = {
+        findUnique: async () => ({
+          ...menuItem({
+            rating: null,
+            reviewsCount: 0,
+          }),
+          restaurant: { id: restaurantId, name: "Cantina Bella" },
+        }),
+      };
+      (prisma as any).review = {
+        aggregate: async () => ({
+          _avg: { rating: 4.666 },
+          _count: { rating: 3 },
+        }),
+      };
+
+      const result = await new MenuService().getById(itemId);
+
+      assert.ok(result);
+      assert.equal(result.rating, 4.7);
+      assert.equal(result.reviewsCount, 3);
+    });
+
+    it("retorna null quando o prato nao for encontrado", async () => {
+      (prisma as any).menuItem = {
+        findUnique: async () => null,
+      };
+
+      const result = await new MenuService().getById("inexistente");
+      assert.equal(result, null);
+    });
+  });
+
+  describe("MenuController.getById", () => {
+    it("deve responder 200 com item quando encontrado", async () => {
+      const fakeItem = {
+        id: itemId,
+        restaurantId,
+        category: "Massas",
+        name: "Lasanha",
+        description: null,
+        price: 45.0,
+        photoUrl: null,
+        available: true,
+        rating: 4.5,
+        reviewsCount: 10,
+        restaurantName: "Cantina",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      (menuService as any).getById = async () => fakeItem;
+
+      let statusCode = 0;
+      let body: any = null;
+
+      const req: any = { params: { id: itemId } };
+      const res: any = {
+        status(s: number) {
+          statusCode = s;
+          return this;
+        },
+        json(b: any) {
+          body = b;
+          return this;
+        },
+      };
+
+      await menuController.getById(req, res, () => {});
+
+      assert.equal(statusCode, 200);
+      assert.equal(body.item.id, itemId);
+      assert.equal(body.item.name, "Lasanha");
+    });
+
+    it("deve responder 404 quando o prato nao existe", async () => {
+      (menuService as any).getById = async () => null;
+
+      let statusCode = 0;
+      let body: any = null;
+
+      const req: any = { params: { id: "inexistente" } };
+      const res: any = {
+        status(s: number) {
+          statusCode = s;
+          return this;
+        },
+        json(b: any) {
+          body = b;
+          return this;
+        },
+      };
+
+      await menuController.getById(req, res, () => {});
+
+      assert.equal(statusCode, 404);
+      assert.equal(body.error, "Prato não encontrado.");
+    });
   });
 });

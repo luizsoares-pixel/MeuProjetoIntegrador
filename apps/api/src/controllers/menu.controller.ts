@@ -20,6 +20,18 @@ function handleError(error: any, response: Response, next: NextFunction) {
 }
 
 export class MenuController {
+  async getById(request: Request, response: Response, next: NextFunction) {
+    try {
+      const item = await menuService.getById(String(request.params.id));
+      if (!item) {
+        return response.status(404).json({ error: "Prato não encontrado." });
+      }
+      return response.status(200).json({ item });
+    } catch (error) {
+      return handleError(error, response, next);
+    }
+  }
+
   async list(request: Request, response: Response, next: NextFunction) {
     try {
       const items = await menuService.list(String(request.params.id));

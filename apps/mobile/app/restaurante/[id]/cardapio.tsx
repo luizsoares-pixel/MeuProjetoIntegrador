@@ -214,6 +214,11 @@ export default function RestaurantMenuScreen() {
                 isFavorite={isDishFavorite(item.id)}
                 onToggleFavorite={() => toggleDish(item)}
                 onReview={() => setReviewingItem(item)}
+                onPress={() => {
+                  if (restaurantId) {
+                    router.push(`/restaurante/${restaurantId}/prato/${item.id}`);
+                  }
+                }}
               />
             )}
             onViewableItemsChanged={onViewableItemsChanged}
@@ -279,16 +284,27 @@ function MenuItemCard({
   isFavorite,
   onToggleFavorite,
   onReview,
+  onPress,
 }: {
   item: MenuItemResponse;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onReview: () => void;
+  onPress?: () => void;
 }) {
   const rating = (item as any).rating as number | undefined;
 
   return (
-    <View style={[styles.itemCard, !item.available && styles.itemUnavailable]}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.itemCard,
+        !item.available && styles.itemUnavailable,
+        pressed && styles.itemCardPressed,
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ver detalhes do prato ${item.name}`}
+    >
       <View style={styles.itemCopy}>
         <View style={styles.itemTitleRow}>
           <Text style={styles.itemName}>{item.name}</Text>
@@ -310,7 +326,10 @@ function MenuItemCard({
             ) : null}
             <Pressable
               style={styles.reviewDishButton}
-              onPress={onReview}
+              onPress={(e) => {
+                e.stopPropagation();
+                onReview();
+              }}
               accessibilityRole="button"
               accessibilityLabel={`Avaliar prato ${item.name}`}
             >
@@ -322,7 +341,7 @@ function MenuItemCard({
         {!item.available ? <Text style={styles.soldOut}>ESGOTADO</Text> : null}
       </View>
       <MenuItemImage photoUrl={item.photoUrl} itemName={item.name} />
-    </View>
+    </Pressable>
   );
 }
 
@@ -381,6 +400,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.accent.gold, fontSize: typography.size.lg, fontWeight: typography.weight.bold },
   itemCard: { flexDirection: "row", gap: spacing.md, padding: spacing.md, marginHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.accent.goldTint },
   itemUnavailable: { opacity: 0.58 },
+  itemCardPressed: { opacity: 0.82, backgroundColor: "rgba(212, 175, 55, 0.05)" },
   itemCopy: { flex: 1, justifyContent: "center" },
   itemName: { color: colors.accent.white, fontSize: typography.size.base, fontWeight: typography.weight.bold },
   itemDescription: { color: colors.accent.whiteSoft, fontSize: typography.size.sm, lineHeight: 20, marginTop: spacing.xs },
