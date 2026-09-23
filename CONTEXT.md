@@ -92,5 +92,12 @@ Este documento centraliza a **linguagem ubíqua** do projeto **Menu-Digital** (C
 | `RestaurantDetailsScreen` | Tela de Detalhes do Restaurante | Tela dedicada (HU10) que exibe todas as informações de um restaurante: galeria de fotos, horários, formas de pagamento, redes sociais, contato, rota (HU9) e acesso ao cardápio (HU11). |
 | `photoGallery` | Galeria de Fotos | Carrossel horizontal de imagens do restaurante composto pela foto de capa (`imageUrl`) e fotos adicionais da entidade `RestaurantPhoto`, com indicadores de página. |
 | `contactActions` | Ações de Contato | Botões de acesso rápido ao discador nativo (telefone) e ao WhatsApp do restaurante, acionados via `Linking.openURL`. |
+| `presignedUrl` | URL Pré-Assinada de Upload | Token temporário emitido pelo Supabase Storage para transmissão direta de mídia (`PUT`) pelo app cliente sem onerar a API. |
+| `safeAreaProvider` | Provedor Global de Área Segura | Contexto raiz do app que calcula e propaga insets de topo/rodapé prevenindo colisões com Notches e Dynamic Island. |
+| `touchTarget` | Área Mínima de Toque (44x44pt) | Padrão ergonômico acessível (WCAG 2.5.8 / Apple HIG) aplicado a botões interativos através da propriedade `hitSlop`. |
+| `talkbackVoiceoverSuppression` | Supressão de Leitores de Tela | Ocultação declarativa de ícones puramente decorativos em tecnologias assistivas (`accessible={false}`, `aria-hidden={true}`). |
+| `discoveryShowcase` | Vitrine de Descoberta (Home) | Apresentação inicial de estabelecimentos por carrosséis temáticos horizontais ("Perto de Você", "Destaques", "Mais Avaliados"). |
+| `deepExplorationList` | Exploração Profunda (Buscar) | Feed vertical completo com infinite scroll, ordenação multicritério e painel de filtros avançados combinados. |
+| `menuItemManagement` | Gestão de Cardápio com Posse | Painel e modal de mutação restrito ao gestor autenticado proprietário do restaurante (`assertOwner`). |
 
 

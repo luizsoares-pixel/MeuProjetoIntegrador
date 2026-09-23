@@ -179,6 +179,32 @@ Essa tela deve disponibilizar informações como:
 - distância;
 - tempo estimado.
 
+### RF19 — Cardápio digital por categorias e itens — HU11
+
+O sistema deve permitir a consulta e gestão de cardápio digital estruturado:
+
+- visualização de pratos agrupados por categorias temáticas (ex: Entradas, Pratos Principais, Bebidas, Sobremesas);
+- navegação rápida por abas horizontais sticky sincronizadas com a listagem;
+- exibição de foto em alta definição, nome, descrição, preço unitário e status de disponibilidade ("ESGOTADO");
+- controle de acesso estrito: gestores autenticados (`role === 'restaurant'`) com validação de posse (`assertOwner`) podem cadastrar, editar dados/preços/disponibilidade e remover itens do cardápio em tempo real.
+
+### RF20 — Pipeline de upload de fotos via URLs pré-assinadas (Presigned URLs)
+
+O sistema deve permitir o upload de imagens (capa de restaurantes, galeria, fotos de pratos do cardápio e fotos de avaliações):
+
+- geração de URLs temporárias pré-assinadas no backend integradas ao Supabase Storage;
+- transmissão binária direta (`PUT`) do aplicativo cliente para o bucket de armazenamento na nuvem, sem sobrecarregar o tráfego da API Express;
+- persistência das URLs públicas geradas com CDN nos registros do banco de dados relacional.
+
+### RF21 — Avaliações, réplicas e favoritos persistentes — HU12
+
+O sistema deve permitir a interação social e salvamento de preferências:
+
+- envio de avaliações com notas de 1 a 5 estrelas, fotos e comentários sobre estabelecimentos e itens individuais do cardápio;
+- recálculo automático e atômico da média de avaliação e contadores no banco de dados;
+- publicação de réplicas oficiais pelos gestores do restaurante;
+- alternância instantânea (`toggle`) de favoritos para restaurantes e pratos, com persistência e sincronização de estado no aplicativo móvel.
+
 ## Requisitos não funcionais
 
 ### RNF01 — Usabilidade
@@ -211,19 +237,30 @@ A aplicação deve tratar falhas de rede, localização, autenticação e servi�
 
 A aplicação deve buscar manter uma experiência adequada mesmo com múltiplos restaurantes sendo exibidos, utilizando mecanismos como paginação e agrupamento de marcadores.
 
+### RNF08 — Acessibilidade Assistiva, Ergonomia e Safe Area
+
+A aplicação móvel deve cumprir padrões de usabilidade e acessibilidade móvel:
+
+- conformidade com a WCAG 2.5.8 e Apple HIG, assegurando área mínima de toque de 44x44pt em botões e elementos interativos (`hitSlop`);
+- garantia de que teclados virtuais não cubram campos de formulários ou botões de submissão (`KeyboardAvoidingView` e `ScrollView keyboardShouldPersistTaps="handled"`);
+- contraste mínimo de texto 7:1 (WCAG AAA) em botões e elementos primários;
+- encapsulamento do layout raiz por `SafeAreaProvider`, prevenindo quebras visuais em Dynamic Island e entalhes de tela;
+- supressão auditiva declarativa em leitores de tela assistivos (TalkBack e VoiceOver) para ícones puramente decorativos.
+
 ## Tecnologias e integrações relacionadas aos requisitos
 
 Entre as tecnologias e serviços utilizados na implementação dos requisitos estão:
 
 - React Native;
-- Expo;
+- Expo SDK 57;
 - TypeScript;
-- Expo Router;
-- Supabase;
-- Prisma;
+- Expo Router v6;
+- Supabase Auth e Supabase Storage;
+- Prisma ORM;
 - PostgreSQL;
-- react-native-maps;
+- react-native-maps e react-native-maps-osmdroid;
 - expo-location;
+- expo-image e expo-image-picker;
 - OpenStreetMap;
 - OSRM;
 - JWT;
@@ -284,11 +321,32 @@ Pull Requests relacionadas:
 - PR #68 — HU10;
 - PR #69 — infraestrutura de agentes de IA.
 
+### Sprint 05 (Atual)
+
+Issues #46, #47, #56 e #76.
+
+Histórias de usuário e módulos relacionados:
+
+- HU11 — Cardápio digital por categorias e fotos (PRs #74 e #75, ADR 0012);
+- HU12 — Sistema de avaliações com réplicas e favoritos persistentes;
+- Issue #46 — Pipeline de upload de imagens via Presigned URLs com Supabase Storage (PR #88, ADR 0013);
+- Issue #47 — Correção do watermark "API key required" em mapas Android via OSM (PR #88);
+- Issue #76 — Refinamento completo de UI/UX, acessibilidade assistiva, ergonomia de teclado, Safe Area global e separação entre Home e Buscar (PR #89, ADR 0014).
+
+Pull Requests relacionadas:
+
+- PR #74 e #75 — Cardápio digital e gestão de pratos;
+- PR #88 — Presigned URLs e correção de watermark de mapa;
+- PR #89 — Refinamento estrutural de UI/UX, acessibilidade e Safe Area.
+
 ## Requisitos futuros
 
-Os requisitos que ainda não foram implementados devem ser adicionados a este documento conforme forem definidos e planejados nas próximas sprints.
+Os requisitos previstos para os próximos ciclos de desenvolvimento incluem:
 
-Um dos próximos recursos previstos no fluxo da aplicação é a evolução das funcionalidades relacionadas ao cardápio do restaurante.
+- comanda digital e solicitação de pedidos pelo cliente;
+- painel do garçom e da cozinha para acompanhamento de pedidos em tempo real;
+- self-hosting do servidor de roteamento viário OSRM em container Docker dedicado;
+- camada de cache em segundo plano no app móvel via TanStack Query (React Query).
 
 ## Controle e atualização
 
