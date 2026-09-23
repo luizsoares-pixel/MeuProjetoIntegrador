@@ -17,6 +17,8 @@ import type {
   RouteProfile,
   UpdateMenuItemInput,
   UpdateRestaurantProfileInput,
+  UploadPresignedUrlRequest,
+  UploadPresignedUrlResponse,
 } from "@menu-digital/contracts";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
@@ -50,7 +52,7 @@ function resolveApiBaseUrl(): string {
   return envUrl.replace(/\/$/, "");
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export interface NearbyRestaurant {
   id: string;
@@ -586,6 +588,127 @@ export async function fetchRestaurantRoute(
   const data: RestaurantRouteResponse = await response.json();
   return data;
 }
+
+// ── Upload de Imagens com Presigned URLs (Supabase Storage) ────────────────────
+
+/**
+ * Solicita uma URL pré-assinada temporária para upload direto no Supabase Storage.
+ * O binário da imagem NÃO trafega pelo Express — apenas a autorização é orquestrada.
+ */
+export async function requestPresignedUploadUrl(
+  payload: UploadPresignedUrlRequest,
+  token: string
+): Promise<UploadPresignedUrlResponse> {
+  const response = await fetch(`${API_BASE_URL}/upload/presigned-url`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Falha ao obter URL autorizada para upload (${response.status})`;
+    try {
+      const errorData = await response.json();
+      if (errorData?.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      // Ignora erro de parsing
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data: UploadPresignedUrlResponse = await response.json();
+  return data;
+}
+
+/**
+ * Envia o binário da imagem diretamente para o bucket do Supabase usando PUT na Presigned URL.
+ */
+export async function uploadImageBinary(
+  presignedUrl: string,
+  blob: Blob,
+  contentType: string
+): Promise<void> {
+  const response = await fetch(presignedUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType,
+    },
+    body: blob,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Falha no upload direto para o Supabase Storage (${response.status}).`
+    );
+  }
+}
+
+/**
+ * Pipeline completo de upload:
+ * 1. Converte o URI local (file://, content://, etc.) em Blob nativo sem consumo de rede externa.
+ * 2. Solicita a Presigned URL ao backend Express.
+ * 3. Faz o upload via PUT diretamente ao Supabase Storage.
+ * 4. Retorna a URL pública definitiva (CDN) pronta para salvar no banco e exibir com expo-image.
+ */
+export async function uploadImageFromUri(
+  localUri: string,
+  token: string,
+  options?: {
+    folder?: string;
+    fileName?: string;
+    contentType?: "image/jpeg" | "image/png" | "image/webp";
+  }
+): Promise<string> {
+  // Se já for uma URL remota válida (http/https), retorna diretamente
+  if (localUri.startsWith("http://") || localUri.startsWith("https://")) {
+    return localUri;
+  }
+
+  // 1. Obtém o Blob local
+  const fileResponse = await fetch(localUri);
+  const blob = await fileResponse.blob();
+
+  // 2. Determina MIME type válido
+  let contentType: "image/jpeg" | "image/png" | "image/webp" =
+    options?.contentType || "image/jpeg";
+
+  if (blob.type && ["image/jpeg", "image/png", "image/webp"].includes(blob.type)) {
+    contentType = blob.type as "image/jpeg" | "image/png" | "image/webp";
+  } else if (localUri.toLowerCase().endsWith(".png")) {
+    contentType = "image/png";
+  } else if (localUri.toLowerCase().endsWith(".webp")) {
+    contentType = "image/webp";
+  }
+
+  // 3. Determina nome do arquivo
+  const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+  const rawName = options?.fileName || localUri.split("/").pop() || `photo-${Date.now()}`;
+  const cleanName = rawName.includes(".") ? rawName : `${rawName}.${ext}`;
+
+  // 4. Solicita a Presigned URL
+  const presigned = await requestPresignedUploadUrl(
+    {
+      fileName: cleanName,
+      contentType,
+      contentLength: blob.size,
+      folder: options?.folder ?? "uploads",
+    },
+    token
+  );
+
+  // 5. Envia o binário diretamente para o Supabase Storage via PUT
+  await uploadImageBinary(presigned.presignedUrl, blob, contentType);
+
+  // 6. Retorna a URL pública definitiva
+  return presigned.publicUrl;
+}
+
 
 
 

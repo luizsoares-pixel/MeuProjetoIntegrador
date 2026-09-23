@@ -9,11 +9,15 @@ import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import { useAuth } from "../hooks/useAuth";
 import { useFadeSlide } from "../hooks/useFadeSlide";
@@ -25,6 +29,7 @@ import { CustomModal } from "../components/CustomModal";
 import { colors, spacing, typography } from "../theme";
 
 export default function Cadastro() {
+  const insets = useSafeAreaInsets();
   const { signUp } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState("Atenção");
@@ -76,8 +81,24 @@ export default function Cadastro() {
       colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.container}
+      style={styles.gradient}
     >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardContainer}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + spacing.xl,
+              paddingBottom: insets.bottom + spacing.xl,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
       {/* HEADER / LOGO */}
       <Animated.View style={[styles.logoContainer, logoAnim.animatedStyle]}>
         <Text style={styles.watermarkText}>MD</Text>
@@ -240,15 +261,22 @@ export default function Cadastro() {
           <Text style={styles.footerLinkText}>Fazer login</Text>
         </TouchableOpacity>
       </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
-    justifyContent: "flex-start",
-    paddingTop: 120,
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: spacing.xxxl,
   },
   logoContainer: {

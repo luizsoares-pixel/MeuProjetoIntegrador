@@ -160,6 +160,60 @@ describe("Route Calculation Layer - Issue #54 (HU9)", () => {
       }
     });
 
+    it("deve calcular duração com base na velocidade de pedestre quando profile for walking", async () => {
+      const mockPrisma: any = {
+        restaurant: {
+          findUnique: async () => ({
+            id: "rest-1",
+            latitude: -15.8267,
+            longitude: -47.9218,
+          }),
+        },
+      };
+      const service = new RouteService(mockPrisma);
+
+      const osrmFakeResponse = {
+        code: "Ok",
+        routes: [
+          {
+            distance: 1390,
+            duration: 120, // Carro demoraria 120s
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [-47.8822, -15.7942],
+                [-47.9218, -15.8267],
+              ],
+            },
+          },
+        ],
+      };
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async () => ({
+        ok: true,
+        status: 200,
+        json: async () => osrmFakeResponse,
+      })) as any;
+
+      try {
+        const result = await service.calculateRestaurantRoute("rest-1", {
+          lat: -15.7942,
+          lng: -47.8822,
+          profile: "walking",
+        });
+
+        assert.ok(result);
+        assert.equal(result.route.distanceInMeters, 1390);
+        // 1390 metros / 1.39 m/s = 1000 segundos (aproximadamente 16.6 minutos)
+        assert.equal(result.route.durationInSeconds, 1000);
+        assert.equal(result.route.profile, "walking");
+        assert.equal(result.route.isFallback, false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
     it("deve acionar fallback Haversine caso OSRM retorne erro HTTP ou timeout", async () => {
       const mockPrisma: any = {
         restaurant: {

@@ -15,14 +15,14 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
 import type {
   CreateMenuItemInput,
   MenuItemResponse,
 } from "@menu-digital/contracts";
 import { useAuth } from "../hooks/useAuth";
+import { useImagePicker } from "../hooks/useImagePicker";
 import { createMenuItem, updateMenuItem } from "../services/api";
-import { colors, spacing, typography } from "../theme";
+import { colors } from "../theme";
 
 const CATEGORY_PRESETS = [
   "Entradas",
@@ -58,8 +58,14 @@ export function MenuItemFormModal({
   const [available, setAvailable] = useState(true);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [isPickingImage, setIsPickingImage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const {
+    pickAndUpload,
+    upload: uploadImage,
+    isPicking,
+    isUploading,
+  } = useImagePicker();
 
   // Preenche valores se estiver em modo edição
   useEffect(() => {
@@ -84,61 +90,50 @@ export function MenuItemFormModal({
   }, [visible, initialItem]);
 
   async function handlePickImage() {
-    try {
-      setIsPickingImage(true);
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permissão necessária",
-          "Autorize o acesso à galeria nas configurações para selecionar fotos."
-        );
-        return;
-      }
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) {
+      Alert.alert(
+        "Sessão necessária",
+        "Faça login para poder selecionar e enviar fotos do cardápio."
+      );
+      return;
+    }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+    const publicUrl = await pickAndUpload({
+      source: "gallery",
+      token,
+      folder: "menu-items",
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotoUrl(result.assets[0].uri);
-      }
-    } catch (err: any) {
-      console.warn("Erro ao selecionar imagem:", err);
-      Alert.alert("Erro", "Não foi possível abrir a galeria de fotos.");
-    } finally {
-      setIsPickingImage(false);
+    if (publicUrl) {
+      setPhotoUrl(publicUrl);
     }
   }
 
   async function handleTakePhoto() {
-    try {
-      setIsPickingImage(true);
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permissão necessária",
-          "Autorize o acesso à câmera nas configurações para tirar fotos."
-        );
-        return;
-      }
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) {
+      Alert.alert(
+        "Sessão necessária",
+        "Faça login para poder tirar e enviar fotos do cardápio."
+      );
+      return;
+    }
 
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+    const publicUrl = await pickAndUpload({
+      source: "camera",
+      token,
+      folder: "menu-items",
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotoUrl(result.assets[0].uri);
-      }
-    } catch (err: any) {
-      console.warn("Erro ao tirar foto:", err);
-      Alert.alert("Erro", "Não foi possível acessar a câmera do dispositivo.");
-    } finally {
-      setIsPickingImage(false);
+    if (publicUrl) {
+      setPhotoUrl(publicUrl);
     }
   }
 
@@ -168,16 +163,35 @@ export function MenuItemFormModal({
       return;
     }
 
+    setIsSaving(true);
+    let finalPhotoUrl = photoUrl && photoUrl.trim() ? photoUrl.trim() : null;
+
+    // Resiliência: se a foto ainda for um URI local (file://), faz upload via Presigned URL
+    if (
+      finalPhotoUrl &&
+      !finalPhotoUrl.startsWith("http://") &&
+      !finalPhotoUrl.startsWith("https://")
+    ) {
+      try {
+        finalPhotoUrl = await uploadImage(finalPhotoUrl, token, "menu-items");
+      } catch (err: any) {
+        setErrorMessage(
+          err?.message || "Falha ao enviar a foto do prato para a nuvem."
+        );
+        setIsSaving(false);
+        return;
+      }
+    }
+
     const payload: CreateMenuItemInput = {
       category: trimmedCategory,
       name: trimmedName,
       description: description.trim() ? description.trim() : null,
       price: numPrice,
-      photoUrl: photoUrl && photoUrl.trim() ? photoUrl.trim() : null,
+      photoUrl: finalPhotoUrl,
       available,
     };
 
-    setIsSaving(true);
     try {
       let savedItem: MenuItemResponse;
       if (initialItem?.id) {
@@ -313,7 +327,14 @@ export function MenuItemFormModal({
             {/* Foto do Prato */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Foto do Prato</Text>
-              {photoUrl ? (
+              {isPicking || isUploading ? (
+                <View style={styles.uploadingContainer}>
+                  <ActivityIndicator size="small" color={colors.accent.gold} />
+                  <Text style={styles.uploadingText}>
+                    Enviando imagem para a nuvem...
+                  </Text>
+                </View>
+              ) : photoUrl ? (
                 <View style={styles.photoPreviewContainer}>
                   <Image source={{ uri: photoUrl }} style={styles.photoPreview} contentFit="cover" />
                   <Pressable
@@ -329,7 +350,7 @@ export function MenuItemFormModal({
                   <Pressable
                     style={styles.photoActionBtn}
                     onPress={handleTakePhoto}
-                    disabled={isPickingImage}
+                    disabled={isPicking || isUploading}
                   >
                     <MaterialCommunityIcons name="camera" size={20} color={colors.accent.gold} />
                     <Text style={styles.photoActionText}>Tirar Foto</Text>
@@ -338,7 +359,7 @@ export function MenuItemFormModal({
                   <Pressable
                     style={styles.photoActionBtn}
                     onPress={handlePickImage}
-                    disabled={isPickingImage}
+                    disabled={isPicking || isUploading}
                   >
                     <MaterialCommunityIcons name="image-multiple" size={20} color={colors.accent.gold} />
                     <Text style={styles.photoActionText}>Galeria</Text>
@@ -642,5 +663,21 @@ const styles = StyleSheet.create({
     color: colors.background.primary,
     fontSize: 16,
     fontWeight: "700",
+  },
+  uploadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 16,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: colors.accent.goldTintStrong,
+  },
+  uploadingText: {
+    color: colors.accent.gold,
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

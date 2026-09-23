@@ -39,6 +39,7 @@ import {
   getRestaurantProfile,
   updateMenuItem,
   updateRestaurantProfile,
+  uploadImageFromUri,
 } from "../services/api";
 import { colors, spacing, typography } from "../theme";
 
@@ -286,14 +287,28 @@ export default function EditarPerfilRestaurante() {
         return;
       }
 
-      setPhotosList((previous) => [...previous, selectedUri]);
+      if (!session?.access_token) {
+        setModalTitle("Sessão necessária");
+        setModalMessage("Faça login novamente para realizar upload.");
+        setModalIsSuccess(false);
+        setModalVisible(true);
+        return;
+      }
+
+      const publicUrl = await uploadImageFromUri(
+        selectedUri,
+        session.access_token,
+        { folder: "restaurants" }
+      );
+
+      setPhotosList((previous) => [...previous, publicUrl]);
       setModalTitle("Foto adicionada");
-      setModalMessage("A imagem foi incluída na galeria do restaurante.");
+      setModalMessage("A imagem foi enviada com sucesso para a galeria do restaurante.");
       setModalIsSuccess(true);
       setModalVisible(true);
     } catch {
       setModalTitle("Erro ao carregar imagem");
-      setModalMessage("Não foi possível acessar a foto selecionada.");
+      setModalMessage("Não foi possível acessar ou enviar a foto selecionada.");
       setModalIsSuccess(false);
       setModalVisible(true);
     } finally {
@@ -433,10 +448,37 @@ export default function EditarPerfilRestaurante() {
         }
       });
 
+      // Garante upload de qualquer foto local em photosList via Presigned URL
+      const uploadedPhotos: string[] = [];
+      for (const p of photosList) {
+        if (p.startsWith("http://") || p.startsWith("https://")) {
+          uploadedPhotos.push(p);
+        } else {
+          const publicUrl = await uploadImageFromUri(p, session.access_token, {
+            folder: "restaurants",
+          });
+          uploadedPhotos.push(publicUrl);
+        }
+      }
+
+      let finalImageUrl = data.imageUrl;
+      if (
+        finalImageUrl &&
+        !finalImageUrl.startsWith("http://") &&
+        !finalImageUrl.startsWith("https://")
+      ) {
+        finalImageUrl = await uploadImageFromUri(
+          finalImageUrl,
+          session.access_token,
+          { folder: "restaurants" }
+        );
+      }
+
       const payload: UpdateRestaurantProfileInput = {
         ...data,
+        imageUrl: finalImageUrl,
         businessHours: formattedBusinessHours,
-        photos: photosList,
+        photos: uploadedPhotos,
       };
 
       await updateRestaurantProfile(payload, session.access_token);

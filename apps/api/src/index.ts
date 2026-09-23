@@ -4,6 +4,9 @@ import express, { NextFunction, Request, Response } from "express";
 import { authRouter } from "./routes/auth.routes";
 import { restaurantRouter } from "./routes/restaurant.routes";
 import { menuRouter } from "./routes/menu.routes";
+import { reviewRouter } from "./routes/review.routes";
+import { favoriteRouter } from "./routes/favorite.routes";
+import { uploadRouter } from "./routes/upload.routes";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3333);
@@ -18,6 +21,10 @@ app.get("/health", (_request: Request, response: Response) => {
 app.use("/auth", authRouter);
 app.use("/restaurants", restaurantRouter);
 app.use("/menu-items", menuRouter);
+app.use("/reviews", reviewRouter);
+app.use("/favorites", favoriteRouter);
+app.use("/upload", uploadRouter);
+
 
 // Global Error Handler
 app.use(

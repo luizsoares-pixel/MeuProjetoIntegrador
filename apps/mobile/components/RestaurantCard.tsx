@@ -4,6 +4,8 @@ import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { RestaurantResponse } from "@menu-digital/contracts";
 import { colors, spacing, typography } from "../theme";
+import { useFavorites } from "../hooks/useFavorites";
+import { FavoriteButton } from "./FavoriteButton";
 
 interface RestaurantCardProps {
   restaurant: RestaurantResponse;
@@ -11,6 +13,7 @@ interface RestaurantCardProps {
 }
 
 export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
+  const { isRestaurantFavorite, toggleRestaurant } = useFavorites();
   const displayAddress =
     restaurant.neighborhood && restaurant.city
       ? `${restaurant.neighborhood}, ${restaurant.city}`
@@ -70,6 +73,15 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
             <Text style={styles.priceText}>{restaurant.priceRange}</Text>
           </View>
         ) : null}
+
+        {/* Botão de Favorito no Card */}
+        <View style={styles.favoriteButtonContainer}>
+          <FavoriteButton
+            isFavorite={isRestaurantFavorite(restaurant.id)}
+            onToggle={() => toggleRestaurant(restaurant)}
+            size={20}
+          />
+        </View>
       </View>
 
       {/* Conteúdo Informativo */}
@@ -233,5 +245,16 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     color: colors.accent.whiteLight,
     flex: 1,
+  },
+  favoriteButtonContainer: {
+    position: "absolute",
+    top: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    borderRadius: 18,
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
