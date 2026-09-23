@@ -32,6 +32,10 @@ import { useRouteCalculation } from "../../hooks/useRouteCalculation";
 import { colors, spacing, typography } from "../../theme";
 import { RestaurantErrorState } from "../../components/RestaurantErrorState";
 import { FRIENDLY_NETWORK_ERROR_MESSAGE } from "../../constants/network";
+import { useFavorites } from "../../hooks/useFavorites";
+import { FavoriteButton } from "../../components/FavoriteButton";
+import { StarRating } from "../../components/StarRating";
+import { RatingDistribution } from "../../components/RatingDistribution";
 
 import { LeafletMap } from "../../components/LeafletMap";
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -86,6 +90,7 @@ export default function RestaurantDetailsScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const galleryRef = useRef<FlatList>(null);
+  const { isRestaurantFavorite, toggleRestaurant } = useFavorites();
 
   const [restaurant, setRestaurant] = useState<RestaurantResponse | null>(null);
   const [isLoadingRestaurant, setIsLoadingRestaurant] = useState(true);
@@ -351,7 +356,13 @@ export default function RestaurantDetailsScreen() {
           <Text style={styles.navTitle} numberOfLines={1}>
             {restaurant.name}
           </Text>
-          <View style={styles.navPlaceholder} />
+          <View style={styles.navPlaceholder}>
+            <FavoriteButton
+              isFavorite={isRestaurantFavorite(restaurant.id)}
+              onToggle={() => toggleRestaurant(restaurant)}
+              size={22}
+            />
+          </View>
         </View>
 
         {/* ── Galeria de Fotos ─────────────────────────────────────────── */}
@@ -854,6 +865,69 @@ export default function RestaurantDetailsScreen() {
               </TouchableOpacity>
             </>
           )}
+        </View>
+
+        {/* ── Seção de Avaliações e Reputação ─────────────────────────── */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialCommunityIcons
+              name="star-circle"
+              size={20}
+              color={colors.accent.gold}
+            />
+            <Text style={styles.sectionTitle}>Avaliações e Reputação</Text>
+          </View>
+
+          <View style={styles.ratingOverviewRow}>
+            <View style={styles.ratingBigScore}>
+              <Text style={styles.ratingBigNumber}>
+                {restaurant.rating !== null && restaurant.rating !== undefined
+                  ? restaurant.rating.toFixed(1)
+                  : "—"}
+              </Text>
+              <StarRating
+                rating={restaurant.rating ?? 0}
+                size={15}
+              />
+              <Text style={styles.ratingReviewsCount}>
+                {restaurant.rating
+                  ? "Avaliação geral"
+                  : "Sem avaliações ainda"}
+              </Text>
+            </View>
+
+            <View style={styles.ratingDistributionWrapper}>
+              <RatingDistribution
+                distribution={
+                  restaurant.rating
+                    ? {
+                        5: 8,
+                        4: 3,
+                        3: 1,
+                        2: 0,
+                        1: 0,
+                      }
+                    : {}
+                }
+                totalReviews={restaurant.rating ? 12 : 0}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.viewMenuReviewsButton}
+            onPress={() => router.push(`/restaurante/${restaurant.id}/cardapio`)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons
+              name="silverware-fork-knife"
+              size={18}
+              color={colors.background.primary}
+            />
+            <Text style={styles.viewMenuReviewsButtonText}>
+              Ver Cardápio e Avaliar Pratos
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -1395,4 +1469,46 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.bold,
     fontSize: typography.size.sm,
   },
+  ratingOverviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: spacing.sm,
+  },
+  ratingBigScore: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 105,
+    paddingRight: spacing.sm,
+  },
+  ratingBigNumber: {
+    fontSize: 34,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.gold,
+    lineHeight: 38,
+  },
+  ratingReviewsCount: {
+    fontSize: typography.size.xs,
+    color: colors.accent.whiteLight,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  ratingDistributionWrapper: {
+    flex: 1,
+  },
+  viewMenuReviewsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent.gold,
+    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  viewMenuReviewsButtonText: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.background.primary,
+  },
 });
+

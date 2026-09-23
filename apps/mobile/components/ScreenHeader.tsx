@@ -1,5 +1,5 @@
 import Animated from "react-native-reanimated";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { colors, spacing, typography } from "../theme";
 import { useFadeSlide } from "../hooks/useFadeSlide";
 

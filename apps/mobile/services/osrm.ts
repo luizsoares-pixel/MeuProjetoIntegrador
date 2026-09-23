@@ -142,9 +142,16 @@ export async function fetchOsrmRouteDirect(
       longitude: lng,
     }));
 
+    const distanceInMeters = Math.round(primaryRoute.distance);
+    // OSRM público opera em grafo veicular. Para walking, aplica velocidade média de pedestre (1.39 m/s = 5 km/h)
+    const durationInSeconds =
+      profile === "walking"
+        ? Math.round(distanceInMeters / 1.39)
+        : Math.round(primaryRoute.duration);
+
     return {
-      distanceInMeters: Math.round(primaryRoute.distance),
-      durationInSeconds: Math.round(primaryRoute.duration),
+      distanceInMeters,
+      durationInSeconds,
       polylineCoordinates,
       profile,
       isFallback: false,

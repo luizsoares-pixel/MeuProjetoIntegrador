@@ -11,6 +11,12 @@ module.exports = defineConfig([
       'import/no-unresolved': 'off',
       'import/namespace': 'off',
 
+      // Desabilitadas no React Native: Reanimated muta .value por design
+      // e os hooks do React Compiler v5 geram falsos-positivos em mobile.
+      'react-hooks/immutability': 'off',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+
 
     },
   },

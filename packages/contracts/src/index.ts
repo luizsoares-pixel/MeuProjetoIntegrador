@@ -493,12 +493,15 @@ export const resetPasswordSchema = z
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+export const userRoleEnum = z.enum(["user", "restaurant", "admin"]);
+export type UserRole = z.infer<typeof userRoleEnum>;
+
 export interface UserResponse {
   id: string;
   email: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
-  role?: "user" | "restaurant";
+  role?: UserRole;
 }
 
 export function mapAuthErrorMessage(errorMessage?: string | null): string {
@@ -597,4 +600,151 @@ export interface RestaurantRouteResponse {
   restaurantId: string;
   route: RouteCalculationResult;
 }
+
+// ── Reviews & Ratings (Issue #79 & Issue #82) ─────────────────────────────────
+
+export const createReviewSchema = z.object({
+  rating: z
+    .number({ required_error: "A nota é obrigatória." })
+    .int("A nota deve ser um número inteiro.")
+    .min(1, "A nota mínima é 1.")
+    .max(5, "A nota máxima é 5."),
+  comment: z
+    .string()
+    .trim()
+    .max(1000, "O comentário deve ter no máximo 1000 caracteres.")
+    .optional()
+    .nullable(),
+  photoUrls: z
+    .array(z.string().url("A URL da foto é inválida."))
+    .max(3, "Máximo de 3 fotos por avaliação.")
+    .optional()
+    .default([]),
+});
+export type CreateReviewInput = z.input<typeof createReviewSchema>;
+export type CreateReviewOutput = z.output<typeof createReviewSchema>;
+
+export const createReviewReplySchema = z.object({
+  reply: z
+    .string({ required_error: "A resposta é obrigatória." })
+    .trim()
+    .min(2, "A resposta deve ter no mínimo 2 caracteres.")
+    .max(1000, "A resposta deve ter no máximo 1000 caracteres."),
+});
+export type CreateReviewReplyInput = z.infer<typeof createReviewReplySchema>;
+
+export const reviewPhotoResponseSchema = z.object({
+  id: z.string(),
+  url: z.string().url(),
+  order: z.number().int(),
+  createdAt: z.union([z.string(), z.date()]).optional(),
+});
+export type ReviewPhotoResponse = z.infer<typeof reviewPhotoResponseSchema>;
+
+export const reviewResponseSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  userEmail: z.string().optional(),
+  restaurantId: z.string().nullable().optional(),
+  menuItemId: z.string().nullable().optional(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().nullable(),
+  reply: z.string().nullable().optional(),
+  repliedAt: z.union([z.string(), z.date()]).nullable().optional(),
+  photos: z.array(reviewPhotoResponseSchema),
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+});
+export type ReviewResponse = z.infer<typeof reviewResponseSchema>;
+
+export const listReviewsQuerySchema = z.object({
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1))
+    .refine((v) => !isNaN(v) && v >= 1, "Página deve ser um número maior ou igual a 1."),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 10))
+    .refine((v) => !isNaN(v) && v >= 1 && v <= 50, "Limite deve ser entre 1 e 50."),
+});
+export type ListReviewsQuery = z.infer<typeof listReviewsQuerySchema>;
+
+export interface PaginatedReviewsResponse {
+  reviews: ReviewResponse[];
+  pagination: PaginationMeta;
+  averageRating: number | null;
+  totalReviews: number;
+  ratingDistribution?: Record<number, number>;
+}
+
+// ── Favorites (Issue #80) ─────────────────────────────────────────────────────
+
+export interface FavoriteRestaurantResponse {
+  id: string;
+  userId: string;
+  restaurantId: string;
+  restaurant: RestaurantResponse;
+  createdAt: Date | string;
+}
+
+export interface FavoriteDishResponse {
+  id: string;
+  userId: string;
+  menuItemId: string;
+  dish: MenuItemResponse;
+  createdAt: Date | string;
+}
+
+export interface UserFavoritesResponse {
+  restaurants: RestaurantResponse[];
+  dishes: (MenuItemResponse & { restaurantName?: string })[];
+}
+
+export const toggleFavoriteResponseSchema = z.object({
+  isFavorite: z.boolean(),
+});
+export type ToggleFavoriteResponse = z.infer<typeof toggleFavoriteResponseSchema>;
+
+// ── Upload & Storage (Presigned URLs) ─────────────────────────────────────────
+
+export const uploadAllowedContentTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
+export const uploadPresignedUrlRequestSchema = z.object({
+  fileName: z
+    .string({ required_error: "O nome do arquivo é obrigatório." })
+    .trim()
+    .min(1, "O nome do arquivo não pode ser vazio.")
+    .max(255, "O nome do arquivo não pode exceder 255 caracteres."),
+  contentType: z.enum(uploadAllowedContentTypes, {
+    errorMap: () => ({
+      message: "Tipo de arquivo inválido. Permitido apenas JPEG, PNG ou WebP.",
+    }),
+  }),
+  contentLength: z
+    .number({ required_error: "O tamanho do arquivo é obrigatório." })
+    .int("O tamanho do arquivo deve ser um número inteiro.")
+    .positive("O tamanho do arquivo deve ser positivo.")
+    .max(10 * 1024 * 1024, "O tamanho do arquivo não pode exceder 10MB."),
+  folder: z.string().trim().max(50).optional(),
+});
+export type UploadPresignedUrlRequest = z.infer<
+  typeof uploadPresignedUrlRequestSchema
+>;
+
+export const uploadPresignedUrlResponseSchema = z.object({
+  presignedUrl: z.string().url("A Presigned URL deve ser uma URL válida."),
+  publicUrl: z.string().url("A URL pública deve ser uma URL válida."),
+  key: z.string().optional(),
+});
+export type UploadPresignedUrlResponse = z.infer<
+  typeof uploadPresignedUrlResponseSchema
+>;
+
+
 

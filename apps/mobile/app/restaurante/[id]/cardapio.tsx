@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   SectionList,
@@ -14,8 +15,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MenuItemResponse } from "@menu-digital/contracts";
 import { fetchRestaurantMenu, getRestaurantProfile } from "../../../services/api";
+import { createMenuItemReview } from "../../../services/review.service";
 import { useAuth } from "../../../hooks/useAuth";
+import { useFavorites } from "../../../hooks/useFavorites";
 import { MenuItemFormModal } from "../../../components/MenuItemFormModal";
+import { ReviewModal } from "../../../components/ReviewModal";
+import { FavoriteButton } from "../../../components/FavoriteButton";
 import { colors, spacing, typography } from "../../../theme";
 
 type MenuSection = { title: string; data: MenuItemResponse[] };
@@ -30,9 +35,11 @@ export default function RestaurantMenuScreen() {
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState(0);
 
-  const { session, user } = useAuth();
+  const { session } = useAuth();
+  const { isDishFavorite, toggleDish } = useFavorites();
   const [isOwner, setIsOwner] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [reviewingItem, setReviewingItem] = useState<MenuItemResponse | null>(null);
 
   useEffect(() => {
     const token = session?.access_token || (session as any)?.token;
@@ -76,11 +83,16 @@ export default function RestaurantMenuScreen() {
   }, [items]);
 
   const sectionsRef = useRef(sections);
-  sectionsRef.current = sections;
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
 
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 30 }).current;
+  const viewabilityConfig = useMemo(
+    () => ({ itemVisiblePercentThreshold: 30 }),
+    []
+  );
 
-  const onViewableItemsChanged = useRef(
+  const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: Array<{ section?: { title: string } }> }) => {
       const activeItem = viewableItems.find((viewable) => viewable.section);
       if (activeItem?.section) {
@@ -89,8 +101,9 @@ export default function RestaurantMenuScreen() {
         );
         if (index >= 0) setActiveCategory(index);
       }
-    }
-  ).current;
+    },
+    []
+  );
 
   const scrollToCategory = (index: number) => {
     setActiveCategory(index);
@@ -195,7 +208,14 @@ export default function RestaurantMenuScreen() {
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
             )}
-            renderItem={({ item }) => <MenuItemCard item={item} />}
+            renderItem={({ item }) => (
+              <MenuItemCard
+                item={item}
+                isFavorite={isDishFavorite(item.id)}
+                onToggleFavorite={() => toggleDish(item)}
+                onReview={() => setReviewingItem(item)}
+              />
+            )}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
             onScrollToIndexFailed={(info) => {
@@ -230,23 +250,82 @@ export default function RestaurantMenuScreen() {
           }}
         />
       ) : null}
+
+      {reviewingItem ? (
+        <ReviewModal
+          visible={Boolean(reviewingItem)}
+          targetName={reviewingItem.name}
+          onClose={() => setReviewingItem(null)}
+          onSubmit={async (data) => {
+            const token = session?.access_token || (session as any)?.token;
+            if (!token) {
+              Alert.alert(
+                "Login necessário",
+                "Faça login na sua conta para avaliar este prato."
+              );
+              return;
+            }
+            await createMenuItemReview(reviewingItem.id, data, token);
+            Alert.alert("Avaliação enviada", "Obrigado por avaliar este prato!");
+          }}
+        />
+      ) : null}
     </View>
   );
 }
 
-function MenuItemCard({ item }: { item: MenuItemResponse }) {
+function MenuItemCard({
+  item,
+  isFavorite,
+  onToggleFavorite,
+  onReview,
+}: {
+  item: MenuItemResponse;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onReview: () => void;
+}) {
+  const rating = (item as any).rating as number | undefined;
+
   return (
     <View style={[styles.itemCard, !item.available && styles.itemUnavailable]}>
       <View style={styles.itemCopy}>
-        <Text style={styles.itemName}>{item.name}</Text>
+        <View style={styles.itemTitleRow}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <FavoriteButton
+            isFavorite={isFavorite}
+            onToggle={onToggleFavorite}
+            size={18}
+          />
+        </View>
         {item.description ? <Text style={styles.itemDescription}>{item.description}</Text> : null}
-        <Text style={styles.itemPrice}>R$ {item.price.toFixed(2).replace(".", ",")}</Text>
+        <View style={styles.itemFooterRow}>
+          <Text style={styles.itemPrice}>R$ {item.price.toFixed(2).replace(".", ",")}</Text>
+          <View style={styles.itemActionsRight}>
+            {rating !== null && rating !== undefined ? (
+              <View style={styles.itemRatingBadge}>
+                <MaterialCommunityIcons name="star" size={13} color={colors.accent.gold} />
+                <Text style={styles.itemRatingText}>{rating.toFixed(1)}</Text>
+              </View>
+            ) : null}
+            <Pressable
+              style={styles.reviewDishButton}
+              onPress={onReview}
+              accessibilityRole="button"
+              accessibilityLabel={`Avaliar prato ${item.name}`}
+            >
+              <MaterialCommunityIcons name="comment-star-outline" size={14} color={colors.accent.gold} />
+              <Text style={styles.reviewDishButtonText}>Avaliar</Text>
+            </Pressable>
+          </View>
+        </View>
         {!item.available ? <Text style={styles.soldOut}>ESGOTADO</Text> : null}
       </View>
       <MenuItemImage photoUrl={item.photoUrl} itemName={item.name} />
     </View>
   );
 }
+
 
 function MenuItemImage({ photoUrl, itemName }: { photoUrl: string | null; itemName: string }) {
   const [isLoading, setIsLoading] = useState(Boolean(photoUrl));
@@ -361,4 +440,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-});
+  itemTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.xs,
+  },
+  itemActionsRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  itemRatingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(212, 175, 55, 0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+  },
+  itemRatingText: {
+    ...typography.captionBold,
+    color: colors.accent.gold,
+    fontSize: 11,
+  },
+  reviewDishButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  reviewDishButtonText: {
+    ...typography.caption,
+    color: colors.accent.gold,
+    fontSize: 11,
+  },
+});

@@ -50,18 +50,22 @@ function RouteGuard() {
 // Layout raiz: envolve tudo no AuthProvider
 // ---------------------------------------------------------------------------
 
+import { FavoritesProvider } from "../contexts/FavoritesContext";
+
 export default function Layout() {
   return (
     <AuthProvider>
-      <StatusBar style="light" />
-      <View style={styles.topBar} />
-      <RouteGuard />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: "fade",
-        }}
-      />
+      <FavoritesProvider>
+        <StatusBar style="light" />
+        <View style={styles.topBar} />
+        <RouteGuard />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "fade",
+          }}
+        />
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

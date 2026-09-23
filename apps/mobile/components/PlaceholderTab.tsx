@@ -2,7 +2,7 @@
  * PlaceholderTab — tela genérica para abas ainda não implementadas.
  * Mantém identidade visual consistente (gradiente + tema) sem duplicar código.
  */
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import Animated from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFadeSlide } from "../hooks/useFadeSlide";

@@ -6,11 +6,15 @@ import { router } from "expo-router";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
   TouchableOpacity,
+  View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import { useAuth } from "../hooks/useAuth";
 import { useFadeSlide } from "../hooks/useFadeSlide";
@@ -22,6 +26,7 @@ import { CustomModal } from "../components/CustomModal";
 import { colors, spacing, typography } from "../theme";
 
 export default function Login() {
+  const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState("Credenciais inválidas.");
   const [showPassword, setShowPassword] = useState(false);
@@ -77,152 +82,175 @@ export default function Login() {
       colors={[colors.background.primary, colors.background.secondary, colors.background.tertiary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={styles.container}
+      style={styles.gradient}
     >
-      {/* LOGO */}
-      <Animated.View style={[styles.logoContainer, logoAnim.animatedStyle]}>
-        <Text style={styles.watermarkText}>MD</Text>
-
-        <MaterialCommunityIcons
-          name="silverware-fork-knife"
-          size={28}
-          color={colors.accent.goldTint}
-          style={styles.iconTopLeft}
-        />
-
-        <MaterialCommunityIcons
-          name="book-open-page-variant"
-          size={28}
-          color={colors.accent.goldTint}
-          style={styles.iconTopRight}
-        />
-
-        <MaterialCommunityIcons
-          name="chef-hat"
-          size={28}
-          color={colors.accent.goldTint}
-          style={styles.iconBottomLeft}
-        />
-
-        <MaterialCommunityIcons
-          name="storefront"
-          size={28}
-          color={colors.accent.goldTint}
-          style={styles.iconBottomRight}
-        />
-
-        <ScreenHeader
-          title="Menu"
-          subtitle="DIGITAL"
-          tagline="Seu cardápio na palma da mão"
-        />
-      </Animated.View>
-
-      {/* FORM CARD */}
-      <AuthCard animationDelay={200}>
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              placeholder="Email"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-              error={errors.email?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              placeholder="Senha"
-              secureTextEntry={!showPassword}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              autoCapitalize="none"
-              error={errors.password?.message}
-              rightElement={
-                <TouchableOpacity
-                  onPress={() => setShowPassword((prev) => !prev)}
-                  activeOpacity={0.8}
-                  accessibilityLabel={
-                    showPassword ? "Ocultar senha" : "Mostrar senha"
-                  }
-                >
-                  <MaterialCommunityIcons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color={colors.accent.darkRed}
-                  />
-                </TouchableOpacity>
-              }
-            />
-          )}
-        />
-
-        <TouchableOpacity
-          style={styles.forgotPasswordButton}
-          onPress={handleForgotPassword}
-          activeOpacity={0.7}
-          disabled={isSubmitting}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardContainer}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + spacing.xl,
+              paddingBottom: insets.bottom + spacing.xl,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
         >
-          <Text style={styles.forgotPasswordText}>Esqueci minha senha</Text>
-        </TouchableOpacity>
+          {/* LOGO */}
+          <Animated.View style={[styles.logoContainer, logoAnim.animatedStyle]}>
+            <Text style={styles.watermarkText}>MD</Text>
 
-        <Button
-          title="ENTRAR"
-          loading={isSubmitting}
-          onPress={handleSubmit(handleLogin)}
-          disabled={isSubmitting}
-        />
-      </AuthCard>
+            <MaterialCommunityIcons
+              name="silverware-fork-knife"
+              size={28}
+              color={colors.accent.goldTint}
+              style={styles.iconTopLeft}
+            />
 
-      <CustomModal
-        visible={modalVisible}
-        title="Atenção"
-        message={modalMessage}
-        confirmText="OK"
-        onClose={() => setModalVisible(false)}
-      />
+            <MaterialCommunityIcons
+              name="book-open-page-variant"
+              size={28}
+              color={colors.accent.goldTint}
+              style={styles.iconTopRight}
+            />
 
-      {/* FOOTER */}
-      <Animated.View style={[styles.footerContainer, footerAnim.animatedStyle]}>
-        <Text style={styles.footerPromptText}>Não possui conta?</Text>
-        <View style={styles.footerButtonsContainer}>
-          <TouchableOpacity
-            style={styles.accountButton}
-            onPress={() => router.push("/cadastro")}
-            accessibilityRole="button"
-            accessibilityLabel="Criar conta de usuário"
-          >
-            <Text style={styles.footerLinkText}>Criar conta de usuário</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.accountButton, styles.restaurantButton]}
-            onPress={() => router.push("/cadastro-restaurante" as never)}
-            accessibilityRole="button"
-            accessibilityLabel="Criar conta de restaurante"
-          >
-            <Text style={styles.restaurantLinkText}>Criar conta de restaurante</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+            <MaterialCommunityIcons
+              name="chef-hat"
+              size={28}
+              color={colors.accent.goldTint}
+              style={styles.iconBottomLeft}
+            />
+
+            <MaterialCommunityIcons
+              name="storefront"
+              size={28}
+              color={colors.accent.goldTint}
+              style={styles.iconBottomRight}
+            />
+
+            <ScreenHeader
+              title="Menu"
+              subtitle="DIGITAL"
+              tagline="Seu cardápio na palma da mão"
+            />
+          </Animated.View>
+
+          {/* FORM CARD */}
+          <AuthCard animationDelay={200}>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  placeholder="Email"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoCorrect={false}
+                  error={errors.email?.message}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  placeholder="Senha"
+                  secureTextEntry={!showPassword}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="none"
+                  error={errors.password?.message}
+                  rightElement={
+                    <TouchableOpacity
+                      onPress={() => setShowPassword((prev) => !prev)}
+                      activeOpacity={0.8}
+                      accessibilityLabel={
+                        showPassword ? "Ocultar senha" : "Mostrar senha"
+                      }
+                    >
+                      <MaterialCommunityIcons
+                        name={showPassword ? "eye-off-outline" : "eye-outline"}
+                        size={20}
+                        color={colors.accent.darkRed}
+                      />
+                    </TouchableOpacity>
+                  }
+                />
+              )}
+            />
+
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={handleForgotPassword}
+              activeOpacity={0.7}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.forgotPasswordText}>Esqueci minha senha</Text>
+            </TouchableOpacity>
+
+            <Button
+              title="ENTRAR"
+              loading={isSubmitting}
+              onPress={handleSubmit(handleLogin)}
+              disabled={isSubmitting}
+            />
+          </AuthCard>
+
+          <CustomModal
+            visible={modalVisible}
+            title="Atenção"
+            message={modalMessage}
+            confirmText="OK"
+            onClose={() => setModalVisible(false)}
+          />
+
+          {/* FOOTER */}
+          <Animated.View style={[styles.footerContainer, footerAnim.animatedStyle]}>
+            <Text style={styles.footerPromptText}>Não possui conta?</Text>
+            <View style={styles.footerButtonsContainer}>
+              <TouchableOpacity
+                style={styles.accountButton}
+                onPress={() => router.push("/cadastro")}
+                accessibilityRole="button"
+                accessibilityLabel="Criar conta de usuário"
+              >
+                <Text style={styles.footerLinkText}>Criar conta de usuário</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.accountButton, styles.restaurantButton]}
+                onPress={() => router.push("/cadastro-restaurante" as never)}
+                accessibilityRole="button"
+                accessibilityLabel="Criar conta de restaurante"
+              >
+                <Text style={styles.restaurantLinkText}>Criar conta de restaurante</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
-    justifyContent: "flex-start",
-    paddingTop: 120,
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: spacing.xxxl,
   },
   logoContainer: {
@@ -298,7 +326,7 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
   },
   restaurantLinkText: {
-    color: colors.accent.goldTint,
+    color: colors.accent.gold,
     fontWeight: typography.weight.semibold,
     fontSize: typography.size.sm,
   },
