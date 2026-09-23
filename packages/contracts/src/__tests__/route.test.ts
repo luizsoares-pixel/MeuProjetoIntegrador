@@ -67,6 +67,25 @@ describe("Route Contracts Schema (Issue #54 / HU9)", () => {
       assert.equal(parsed.profile, "walking");
     });
 
+    it("should accept driving as explicit profile", () => {
+      const parsed = restaurantRouteQuerySchema.parse({
+        lat: "-15.7942",
+        lng: "-47.8822",
+        profile: "driving",
+      });
+      assert.equal(parsed.profile, "driving");
+    });
+
+    it("should reject invalid profile in restaurantRouteQuerySchema", () => {
+      assert.throws(() =>
+        restaurantRouteQuerySchema.parse({
+          lat: "-15.7942",
+          lng: "-47.8822",
+          profile: "cycling",
+        })
+      );
+    });
+
     it("should reject missing lat or lng", () => {
       assert.throws(() => restaurantRouteQuerySchema.parse({ lng: "-47.8822" }));
       assert.throws(() => restaurantRouteQuerySchema.parse({ lat: "-15.7942" }));
