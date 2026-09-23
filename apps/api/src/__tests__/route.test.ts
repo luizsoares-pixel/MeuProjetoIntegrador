@@ -190,11 +190,15 @@ describe("Route Calculation Layer - Issue #54 (HU9)", () => {
       };
 
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = (async () => ({
-        ok: true,
-        status: 200,
-        json: async () => osrmFakeResponse,
-      })) as any;
+      let requestedUrl = "";
+      globalThis.fetch = (async (url: string | URL | Request) => {
+        requestedUrl = url.toString();
+        return {
+          ok: true,
+          status: 200,
+          json: async () => osrmFakeResponse,
+        } as Response;
+      }) as any;
 
       try {
         const result = await service.calculateRestaurantRoute("rest-1", {
@@ -209,6 +213,48 @@ describe("Route Calculation Layer - Issue #54 (HU9)", () => {
         assert.equal(result.route.durationInSeconds, 1000);
         assert.equal(result.route.profile, "walking");
         assert.equal(result.route.isFallback, false);
+        assert.ok(
+          requestedUrl.includes(
+            "/route/v1/walking/-47.8822,-15.7942;-47.9218,-15.8267"
+          ),
+          "URL externa do OSRM deve conter o perfil 'walking' dinamicamente"
+        );
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it("deve repassar perfil walking para o fallback Haversine em caso de erro na chamada externa", async () => {
+      const mockPrisma: any = {
+        restaurant: {
+          findUnique: async () => ({
+            id: "rest-1",
+            latitude: -15.8267,
+            longitude: -47.9218,
+          }),
+        },
+      };
+      const service = new RouteService(mockPrisma);
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = (async () => {
+        throw new Error("Network error during walking route");
+      }) as any;
+
+      try {
+        const result = await service.calculateRestaurantRoute("rest-1", {
+          lat: -15.7942,
+          lng: -47.8822,
+          profile: "walking",
+        });
+
+        assert.ok(result);
+        assert.equal(result.route.isFallback, true);
+        assert.equal(result.route.profile, "walking");
+        assert.ok(result.route.fallbackReason?.includes("Network error"));
+        // Valida que a velocidade de pedestre (1.39 m/s) foi aplicada no fallback
+        const expectedDuration = Math.round(result.route.distanceInMeters / 1.39);
+        assert.equal(result.route.durationInSeconds, expectedDuration);
       } finally {
         globalThis.fetch = originalFetch;
       }
