@@ -70,7 +70,8 @@ const styles = StyleSheet.create({
     width: 28,
   },
   starNumber: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     marginRight: 2,
   },
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   countText: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteLight,
     width: 24,
     textAlign: "right",

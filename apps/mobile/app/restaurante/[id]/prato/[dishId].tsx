@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,7 +19,11 @@ import type {
 import { fetchMenuItemById } from "../../../../services/api";
 import {
   createMenuItemReview,
+  deleteReview,
   fetchMenuItemReviews,
+  fetchMyReview,
+  reportReview,
+  updateReview,
 } from "../../../../services/review.service";
 import { useAuth } from "../../../../hooks/useAuth";
 import { useFavorites } from "../../../../hooks/useFavorites";
@@ -32,9 +35,7 @@ import { colors, spacing, typography } from "../../../../theme";
 
 export default function DishDetailsScreen() {
   const insets = useSafeAreaInsets();
-  const { id, dishId } = useLocalSearchParams<{ id: string; dishId: string }>();
-
-  const restaurantId = Array.isArray(id) ? id[0] : id;
+  const { dishId } = useLocalSearchParams<{ dishId: string }>();
   const menuItemId = Array.isArray(dishId) ? dishId[0] : dishId;
 
   const { session } = useAuth();
@@ -52,6 +53,7 @@ export default function DishDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [isReviewModalVisible, setIsReviewModalVisible] = useState<boolean>(false);
+  const [myReview, setMyReview] = useState<ReviewResponse | null>(null);
 
   const isFavorite = menuItemId ? isDishFavorite(menuItemId) : false;
 
@@ -114,7 +116,7 @@ export default function DishDetailsScreen() {
     });
   };
 
-  const handleOpenReviewModal = () => {
+  const handleOpenReviewModal = async () => {
     const token = session?.access_token || (session as any)?.token;
     if (!token) {
       Alert.alert(
@@ -123,6 +125,16 @@ export default function DishDetailsScreen() {
       );
       return;
     }
+
+    if (menuItemId) {
+      try {
+        const existing = await fetchMyReview(token, { menuItemId });
+        setMyReview(existing);
+      } catch {
+        // Ignora erro e abre em modo criação
+      }
+    }
+
     setIsReviewModalVisible(true);
   };
 
@@ -130,12 +142,46 @@ export default function DishDetailsScreen() {
     const token = session?.access_token || (session as any)?.token;
     if (!token || !menuItemId) return;
 
-    await createMenuItemReview(menuItemId, data, token);
-    Alert.alert("Avaliação enviada", "Obrigado por avaliar este prato!");
+    if (myReview) {
+      await updateReview(myReview.id, data, token);
+      Alert.alert("Avaliação atualizada", "Sua avaliação foi atualizada com sucesso!");
+    } else {
+      await createMenuItemReview(menuItemId, data, token);
+      Alert.alert("Avaliação enviada", "Obrigado por avaliar este prato!");
+    }
 
-    // Recarrega os dados do prato e a lista de avaliações atualizada
+    setMyReview(null);
     loadDish();
     loadReviews(1, false);
+  };
+
+  const handleDeleteReview = async () => {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token || !myReview) return;
+
+    await deleteReview(myReview.id, token);
+    Alert.alert("Avaliação excluída", "Sua avaliação foi excluída com sucesso.");
+    setMyReview(null);
+    loadDish();
+    loadReviews(1, false);
+  };
+
+  const handleReportReview = async (reviewId: string) => {
+    const token = session?.access_token || (session as any)?.token;
+    if (!token) {
+      Alert.alert("Login necessário", "Faça login para denunciar uma avaliação.");
+      return;
+    }
+
+    try {
+      await reportReview(reviewId, "Conteúdo inadequado ou ofensivo.", token);
+      Alert.alert(
+        "Denúncia enviada",
+        "Agradecemos o aviso. Nossa equipe analisará a denúncia."
+      );
+    } catch (err: any) {
+      Alert.alert("Erro", err?.message || "Não foi possível registrar a denúncia.");
+    }
   };
 
   const handleLoadMoreReviews = () => {
@@ -382,7 +428,16 @@ export default function DishDetailsScreen() {
           ) : (
             <>
               {reviews.map((rev) => (
-                <ReviewCard key={rev.id} review={rev} />
+                <ReviewCard
+                  key={rev.id}
+                  review={rev}
+                  currentUserId={session?.user?.id || (session as any)?.id}
+                  onEdit={(r) => {
+                    setMyReview(r);
+                    setIsReviewModalVisible(true);
+                  }}
+                  onReport={handleReportReview}
+                />
               ))}
 
               {hasMoreReviews ? (
@@ -416,13 +471,18 @@ export default function DishDetailsScreen() {
         </View>
       </ScrollView>
 
-      {/* ── Modal de Criação de Avaliação ──────────────────────────────────── */}
+      {/* ── Modal de Criação / Edição de Avaliação ──────────────────────────── */}
       {dish ? (
         <ReviewModal
           visible={isReviewModalVisible}
           targetName={dish.name}
-          onClose={() => setIsReviewModalVisible(false)}
+          initialReview={myReview}
+          onClose={() => {
+            setIsReviewModalVisible(false);
+            setMyReview(null);
+          }}
           onSubmit={handleReviewSubmit}
+          onDelete={myReview ? handleDeleteReview : undefined}
         />
       ) : null}
     </View>
@@ -451,7 +511,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     flex: 1,
     textAlign: "center",
@@ -478,7 +539,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.secondary,
   },
   noImageText: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.goldMuted,
     marginTop: spacing.sm,
   },
@@ -492,7 +553,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   soldOutText: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     letterSpacing: 1,
   },
@@ -522,9 +584,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(212, 175, 55, 0.25)",
   },
   categoryChipText: {
-    ...typography.captionBold,
     color: colors.accent.gold,
     fontSize: 11,
+    fontWeight: typography.weight.bold,
     letterSpacing: 0.8,
   },
   availableChip: {
@@ -539,20 +601,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#4CAF50",
   },
   availableText: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: "#4CAF50",
-    fontWeight: "600",
+    fontWeight: typography.weight.semibold,
   },
   dishName: {
-    ...typography.h2,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     marginTop: spacing.xs,
   },
   dishPrice: {
-    ...typography.h1,
-    color: colors.accent.gold,
     fontSize: 26,
     fontWeight: "800",
+    color: colors.accent.gold,
     marginTop: spacing.sm,
   },
   descriptionSection: {
@@ -562,14 +624,15 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255, 255, 255, 0.08)",
   },
   sectionHeaderTitle: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.goldMuted,
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: spacing.xs,
   },
   dishDescription: {
-    ...typography.body,
+    fontSize: typography.size.sm,
     color: colors.accent.whiteSoft,
     lineHeight: 22,
   },
@@ -592,13 +655,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ratingScore: {
-    ...typography.h1,
-    color: colors.accent.gold,
     fontSize: 28,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.gold,
     lineHeight: 32,
   },
   ratingCountText: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteLight,
     marginTop: 2,
   },
@@ -613,9 +676,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   evaluateButtonText: {
-    ...typography.bodyBold,
-    color: colors.background.primary,
     fontSize: 13,
+    fontWeight: typography.weight.bold,
+    color: colors.background.primary,
   },
   reviewsSection: {
     marginHorizontal: spacing.md,
@@ -628,9 +691,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   reviewsSectionTitle: {
-    ...typography.h3,
-    color: colors.accent.white,
     fontSize: 18,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.white,
   },
   loadingReviewsBox: {
     paddingVertical: spacing.xl,
@@ -639,7 +702,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   loadingReviewsText: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteSoft,
   },
   emptyReviewsCard: {
@@ -654,12 +717,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   emptyReviewsTitle: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     marginTop: spacing.xs,
   },
   emptyReviewsSubtitle: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: colors.accent.whiteSoft,
     textAlign: "center",
     lineHeight: 18,
@@ -679,7 +743,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyReviewActionText: {
-    ...typography.captionBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
     color: colors.accent.gold,
   },
   loadMoreButton: {
@@ -696,9 +761,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   loadMoreText: {
-    ...typography.bodyBold,
-    color: colors.accent.gold,
     fontSize: 13,
+    fontWeight: typography.weight.bold,
+    color: colors.accent.gold,
   },
   centered: {
     flex: 1,
@@ -708,18 +773,19 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   loadingText: {
-    ...typography.body,
+    fontSize: typography.size.base,
     color: colors.accent.gold,
     marginTop: spacing.md,
   },
   errorTitle: {
-    ...typography.h2,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
     color: colors.accent.white,
     marginTop: spacing.md,
     textAlign: "center",
   },
   errorSubtitle: {
-    ...typography.body,
+    fontSize: typography.size.sm,
     color: colors.accent.whiteSoft,
     textAlign: "center",
     marginTop: spacing.xs,
@@ -737,7 +803,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   backButtonText: {
-    ...typography.bodyBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.background.primary,
   },
 });
