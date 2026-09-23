@@ -78,6 +78,15 @@ describe("Review & Favorites Contracts Schema (Issue #79, #80, #82, #83)", () =>
         })
       );
     });
+
+    it("deve rejeitar campos adicionais não declarados via .strict()", () => {
+      assert.throws(() =>
+        createReviewSchema.parse({
+          rating: 5,
+          extraField: "não permitido",
+        })
+      );
+    });
   });
 
   describe("createReviewReplySchema", () => {
@@ -148,6 +157,15 @@ describe("Review & Favorites Contracts Schema (Issue #79, #80, #82, #83)", () =>
             "https://example.com/3.jpg",
             "https://example.com/4.jpg",
           ],
+        })
+      );
+    });
+
+    it("deve rejeitar campos adicionais não declarados via .strict()", () => {
+      assert.throws(() =>
+        updateReviewSchema.parse({
+          rating: 4,
+          restaurantId: "123e4567-e89b-12d3-a456-426614174000",
         })
       );
     });

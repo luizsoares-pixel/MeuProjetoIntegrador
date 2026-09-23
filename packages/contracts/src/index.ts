@@ -630,47 +630,51 @@ export interface RestaurantRouteResponse {
 
 // ── Reviews & Ratings (Issue #79 & Issue #82) ─────────────────────────────────
 
-export const createReviewSchema = z.object({
-  restaurantId: z.string().uuid("ID do restaurante deve ser um UUID válido.").optional(),
-  menuItemId: z.string().uuid("ID do prato deve ser um UUID válido.").optional(),
-  rating: z
-    .number({ required_error: "A nota é obrigatória." })
-    .int("A nota deve ser um número inteiro.")
-    .min(1, "A nota mínima é 1.")
-    .max(5, "A nota máxima é 5."),
-  comment: z
-    .string()
-    .trim()
-    .max(1000, "O comentário deve ter no máximo 1000 caracteres.")
-    .optional()
-    .nullable(),
-  photoUrls: z
-    .array(z.string().url("A URL da foto é inválida."))
-    .max(3, "Máximo de 3 fotos por avaliação.")
-    .optional()
-    .default([]),
-});
+export const createReviewSchema = z
+  .object({
+    restaurantId: z.string().uuid("ID do restaurante deve ser um UUID válido.").optional(),
+    menuItemId: z.string().uuid("ID do prato deve ser um UUID válido.").optional(),
+    rating: z
+      .number({ required_error: "A nota é obrigatória." })
+      .int("A nota deve ser um número inteiro.")
+      .min(1, "A nota mínima é 1.")
+      .max(5, "A nota máxima é 5."),
+    comment: z
+      .string()
+      .trim()
+      .max(1000, "O comentário deve ter no máximo 1000 caracteres.")
+      .optional()
+      .nullable(),
+    photoUrls: z
+      .array(z.string().url("A URL da foto é inválida."))
+      .max(3, "Máximo de 3 fotos por avaliação.")
+      .optional()
+      .default([]),
+  })
+  .strict();
 export type CreateReviewInput = z.input<typeof createReviewSchema>;
 export type CreateReviewOutput = z.output<typeof createReviewSchema>;
 
-export const updateReviewSchema = z.object({
-  rating: z
-    .number()
-    .int("A nota deve ser um número inteiro.")
-    .min(1, "A nota mínima é 1.")
-    .max(5, "A nota máxima é 5.")
-    .optional(),
-  comment: z
-    .string()
-    .trim()
-    .max(1000, "O comentário deve ter no máximo 1000 caracteres.")
-    .optional()
-    .nullable(),
-  photoUrls: z
-    .array(z.string().url("A URL da foto é inválida."))
-    .max(3, "Máximo de 3 fotos por avaliação.")
-    .optional(),
-});
+export const updateReviewSchema = z
+  .object({
+    rating: z
+      .number()
+      .int("A nota deve ser um número inteiro.")
+      .min(1, "A nota mínima é 1.")
+      .max(5, "A nota máxima é 5.")
+      .optional(),
+    comment: z
+      .string()
+      .trim()
+      .max(1000, "O comentário deve ter no máximo 1000 caracteres.")
+      .optional()
+      .nullable(),
+    photoUrls: z
+      .array(z.string().url("A URL da foto é inválida."))
+      .max(3, "Máximo de 3 fotos por avaliação.")
+      .optional(),
+  })
+  .strict();
 export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
 
 export const reportReviewSchema = z.object({

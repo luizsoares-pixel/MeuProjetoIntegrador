@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { reviewService } from "../services/review.service";
 
 function actor(request: Request) {
@@ -39,6 +40,15 @@ function handleReviewError(error: any, response: Response, next: NextFunction) {
     return response
       .status(400)
       .json({ error: "Informe restaurantId ou menuItemId para esta operação." });
+  }
+  // Colisão de constraint única do Prisma (race condition ou duplicata não capturada pelo findUnique)
+  if (
+    (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
+    error?.code === "P2002"
+  ) {
+    return response
+      .status(409)
+      .json({ error: "Você já enviou uma avaliação para este item." });
   }
   return next(error);
 }

@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import { favoriteController } from "../controllers/favorite.controller";
 import { reviewController } from "../controllers/review.controller";
 import { prisma } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
 import { FavoriteService } from "../services/favorite.service";
 import { ReviewService } from "../services/review.service";
 
@@ -812,6 +813,91 @@ describe("Reviews & Favorites Layer — Issues #79, #80 e #83", () => {
           ),
         /CANNOT_REPORT_OWN_REVIEW/
       );
+    });
+  });
+
+  // ── Tech-Debt #1 (Code Review PR #93): P2002 → HTTP 409 ──────────────────
+  // Verifica que handleReviewError mapeia PrismaClientKnownRequestError
+  // code P2002 para status 409, sem vazar stack trace.
+
+  describe("ReviewController — P2002 → HTTP 409 (Débito #1 PR #93)", () => {
+    it("deve retornar 409 quando a $transaction lança PrismaClientKnownRequestError P2002", async () => {
+      // Simula o banco retornando que restaurant existe e não há review duplicada no check,
+      // mas na $transaction o INSERT falha com P2002 (race condition entre dois requests)
+      (prisma as any).restaurant = {
+        findUnique: async () => ({ id: restaurantId }),
+      };
+      (prisma as any).review = {
+        findUnique: async () => null, // sem duplicata no check
+      };
+
+      const p2002 = new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed on the fields: (`user_id`,`restaurant_id`)",
+        { code: "P2002", clientVersion: "6.0.0" }
+      );
+
+      (prisma as any).$transaction = async (_callback: unknown) => {
+        throw p2002;
+      };
+
+      const capturedStatus = { code: 0, body: null as any, nextErr: undefined as any };
+      const res: any = {
+        status(code: number) {
+          capturedStatus.code = code;
+          return {
+            json(body: unknown) { capturedStatus.body = body; },
+          };
+        },
+      };
+      const next = (err?: unknown) => { capturedStatus.nextErr = err; };
+      const req: any = {
+        user: { id: userId, role: "user" },
+        body: { restaurantId, rating: 5 },
+        params: { id: restaurantId },
+      };
+
+      await reviewController.createRestaurantReview(req, res, next);
+
+      assert.equal(capturedStatus.code, 409, "Esperado HTTP 409 para colisão P2002");
+      assert.ok(
+        typeof capturedStatus.body?.error === "string",
+        "Resposta deve conter campo 'error' com mensagem amigável"
+      );
+      assert.equal(capturedStatus.nextErr, undefined, "next() não deve ser chamado com o erro raw do Prisma");
+    });
+  });
+
+  // ── Tech-Debt #2 (Code Review PR #93): createReviewSchema.strict() ─────────
+  // Verifica que o schema rejeita campos extras após adição de .strict()
+
+  describe("createReviewSchema — campos extras rejeitados com .strict() (Débito #2 PR #93)", () => {
+    it("deve rejeitar payload com campo não declarado 'isAdmin'", () => {
+      assert.throws(
+        () =>
+          createReviewSchema.parse({
+            rating: 5,
+            isAdmin: true,
+          }),
+        (err: any) =>
+          err?.issues?.some((i: any) => i.code === "unrecognized_keys") ?? false
+      );
+    });
+
+    it("deve rejeitar payload com campo injetado 'userId'", () => {
+      assert.throws(
+        () =>
+          createReviewSchema.parse({
+            rating: 4,
+            userId: "aaaa-bbbb-cccc",
+          }),
+        (err: any) =>
+          err?.issues?.some((i: any) => i.code === "unrecognized_keys") ?? false
+      );
+    });
+
+    it("deve aceitar payload válido sem campos extras após .strict()", () => {
+      const parsed = createReviewSchema.parse({ rating: 3, comment: "Ok." });
+      assert.equal(parsed.rating, 3);
     });
   });
 });

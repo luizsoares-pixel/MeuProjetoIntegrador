@@ -70,6 +70,7 @@ export function ReviewModal({
   }, [visible, initialReview]);
 
   const handleClose = () => {
+    setSelectedPhotos([]);  // limpa URIs temporárias ao cancelar sem enviar
     onClose();
   };
 
@@ -109,20 +110,34 @@ export function ReviewModal({
 
     try {
       setIsSubmitting(true);
+      setUploadStatusText(selectedPhotos.length > 0 ? "Enviando fotos..." : null);
 
-      // Faz upload de cada foto selecionada exibindo feedback de progresso
+      // Upload paralelo via Promise.allSettled — sem swallow silencioso de falhas
+      const uploadResults = await Promise.allSettled(
+        selectedPhotos.map((uri) => {
+          if (uri.startsWith("http://") || uri.startsWith("https://")) {
+            return Promise.resolve(uri);
+          }
+          return uploadReviewPhoto(uri, session?.access_token);
+        })
+      );
+
+      // Verifica se algum upload falhou e coleta os índices problemáticos
+      const failedIndexes: number[] = [];
       const uploadedUrls: string[] = [];
-      const totalPhotos = selectedPhotos.length;
 
-      for (let i = 0; i < totalPhotos; i++) {
-        const uri = selectedPhotos[i];
-        if (uri.startsWith("http://") || uri.startsWith("https://")) {
-          uploadedUrls.push(uri);
+      uploadResults.forEach((result, i) => {
+        if (result.status === "fulfilled") {
+          uploadedUrls.push(result.value);
         } else {
-          setUploadStatusText(`Enviando foto ${i + 1} de ${totalPhotos}...`);
-          const url = await uploadReviewPhoto(uri, session?.access_token);
-          uploadedUrls.push(url);
+          failedIndexes.push(i + 1);
         }
+      });
+
+      if (failedIndexes.length > 0) {
+        throw new Error(
+          `Falha ao enviar foto${failedIndexes.length > 1 ? "s" : ""} ${failedIndexes.join(", ")}. Tente novamente ou remova a${failedIndexes.length > 1 ? "s" : ""} foto${failedIndexes.length > 1 ? "s" : ""} afetada${failedIndexes.length > 1 ? "s" : ""}.`
+        );
       }
 
       setUploadStatusText("Salvando avaliação...");

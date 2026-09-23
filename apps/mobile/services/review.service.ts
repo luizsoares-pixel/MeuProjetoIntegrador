@@ -8,7 +8,6 @@ import type {
   UpdateReviewInput,
 } from "@menu-digital/contracts";
 import { API_BASE_URL, uploadImageFromUri } from "./api";
-import { supabase } from "./supabase";
 
 /**
  * Consulta se o usuário autenticado já possui uma avaliação ativa
@@ -316,51 +315,27 @@ export async function replyReview(
 
 /**
  * Faz upload de uma foto local para o Supabase Storage no bucket 'reviews' via Presigned URL.
- * Se o token for informado, utiliza o pipeline seguro de Presigned URLs.
- * Se o storage não estiver acessível, retorna uma URL válida de fallback.
+ * Requer token de autenticação válido (obtido via authMiddleware / Supabase Auth).
+ *
+ * Lança exceção em caso de falha — os erros são sempre visíveis ao usuário via Alert no ReviewModal.
+ * Não usa fallback silencioso: fotos com falha no upload não devem ser salvas como URLs de terceiros.
  */
 export async function uploadReviewPhoto(
   uri: string,
   token?: string
 ): Promise<string> {
-  // Se já for uma URL HTTP/HTTPS pública, retorna diretamente
+  // Se já for uma URL HTTP/HTTPS pública (foto existente em edição), retorna diretamente
   if (uri.startsWith("http://") || uri.startsWith("https://")) {
     return uri;
   }
 
-  if (token) {
-    try {
-      return await uploadImageFromUri(uri, token, { folder: "reviews" });
-    } catch {
-      // Tenta fallback abaixo
-    }
+  if (!token) {
+    throw new Error(
+      "Autenticação necessária para enviar fotos. Faça login e tente novamente."
+    );
   }
 
-  try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const extension = uri.split(".").pop()?.toLowerCase() || "jpg";
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
-
-    const { data, error } = await supabase.storage
-      .from("reviews")
-      .upload(filename, blob, {
-        contentType: `image/${extension === "png" ? "png" : "jpeg"}`,
-        upsert: true,
-      });
-
-    if (!error && data?.path) {
-      const { data: publicData } = supabase.storage
-        .from("reviews")
-        .getPublicUrl(data.path);
-      if (publicData?.publicUrl) {
-        return publicData.publicUrl;
-      }
-    }
-  } catch {
-    // Fallback caso Supabase Storage não esteja acessível em dev offline
-  }
-
-  // Fallback para URL segura de demonstração
-  return `https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80`;
+  // Upload autenticado via pipeline seguro de Presigned URLs (ADR 0013)
+  // Qualquer falha propaga a exceção ao chamador (ReviewModal.handleSubmit)
+  return await uploadImageFromUri(uri, token, { folder: "reviews" });
 }
